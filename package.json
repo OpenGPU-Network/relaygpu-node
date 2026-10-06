@@ -1,0 +1,55 @@
+{
+  "name": "@relaygpu/client",
+  "version": "0.1.0",
+  "description": "TypeScript client for the Relay API: image, video and audio generation, tasks, files, webhooks, workflows and typed errors.",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/OpenGPU-Network/relaygpu-node.git"
+  },
+  "homepage": "https://relaygpu.com",
+  "type": "module",
+  "sideEffects": false,
+  "engines": {
+    "node": ">=18"
+  },
+  "main": "./dist/index.cjs",
+  "module": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "import": {
+        "types": "./dist/index.d.ts",
+        "default": "./dist/index.js"
+      },
+      "require": {
+        "types": "./dist/index.d.cts",
+        "default": "./dist/index.cjs"
+      }
+    },
+    "./package.json": "./package.json"
+  },
+  "files": [
+    "dist"
+  ],
+  "scripts": {
+    "gen": "node scripts/gen.mjs",
+    "build": "tsup",
+    "typecheck": "tsc --noEmit",
+    "test": "vitest run --dir test/unit",
+    "test:e2e": "vitest run --dir test/e2e --no-file-parallelism",
+    "size": "node scripts/size.mjs",
+    "lint:pkg": "publint && attw --pack .",
+    "prepack": "npm run build"
+  },
+  "devDependencies": {
+    "@arethetypeswrong/cli": "^0.18.5",
+    "@types/node": "^18.19.130",
+    "esbuild": "^0.28.2",
+    "openapi-typescript": "^7.13.0",
+    "publint": "^0.3.25",
+    "tsup": "^8.5.1",
+    "typescript": "^5.9.3",
+    "vitest": "^2.1.9"
+  }
+}
