@@ -2,7 +2,7 @@
 // secret (never printed). Never calls rotate. Skips without RELAY_BASE_URL / RELAY_API_KEY.
 import { existsSync, readFileSync } from "node:fs";
 import { describe, expect, it } from "vitest";
-import { Relay } from "../../src/client.js";
+import { Relay } from "./sdk.js";
 
 function loadEnv() {
   const p = new URL("../../.env", import.meta.url);

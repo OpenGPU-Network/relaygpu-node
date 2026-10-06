@@ -3,7 +3,7 @@
 // The server judges the type by the declared Content-Type only (no magic-byte check; a 4 KB
 // ftyp-plus-padding stream was accepted on staging 2026-10-06), so the body is synthetic.
 import { afterAll, describe, expect, it } from "vitest";
-import { Relay } from "../../src/client.js";
+import { Relay } from "./sdk.js";
 
 const apiKey = process.env.RELAY_API_KEY;
 const baseUrl = process.env.RELAY_BASE_URL;

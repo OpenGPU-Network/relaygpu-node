@@ -2,8 +2,7 @@
 // resolution WITHOUT a submit, retired → ModelRetiredError before any POST, unknown → ModelNotFoundError.
 // Skips without RELAY_BASE_URL; refuses a production base URL. Costs nothing.
 import { describe, expect, it } from "vitest";
-import { Relay } from "../../src/client.js";
-import { ModelNotFoundError, ModelRetiredError } from "../../src/errors.js";
+import { Relay, ModelNotFoundError, ModelRetiredError } from "./sdk.js";
 import { resolveEndpoint } from "../../src/submit.js";
 
 const apiKey = process.env.RELAY_API_KEY;
