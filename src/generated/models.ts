@@ -50,7 +50,6 @@ export interface ModelOperations {
     "google/gemini-3.5-flash": "openai_chat_completions";
     "google/gemma-4-26b-a4b-it": "openai_chat_completions";
     "google/gemma-4-31B-turbo": "openai_chat_completions";
-    "ibm-granite/granite-4.1-8b": "openai_chat_completions";
     "moonshotai/kimi-k2.6": "openai_chat_completions";
     "moonshotai/kimi-k3": "openai_chat_completions";
     "nvidia/nemotron-3-nano-30b-a3b": "openai_chat_completions";
