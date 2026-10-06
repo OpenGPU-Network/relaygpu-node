@@ -19,6 +19,25 @@ const deprecated = Object.values(spec.paths).flatMap((item) => Object.values(ite
 for (const id of deprecated) types = types.replace(new RegExp(`^(    )${id}: \\{$`, "m"), `$1/** @deprecated No live model serves this operation. */\n$1${id}: {`);
 await writeFile(new URL("../src/generated/openapi.ts", import.meta.url), banner + "/* eslint-disable */\n" + types);
 
+// Live model name → operationId, per tag, for the family helpers' typed overloads (deprecated ops excluded).
+// Types only: the runtime always resolves through GET /v2/models/{model}.
+const byTag = {};
+for (const item of Object.values(spec.paths)) {
+  for (const op of Object.values(item)) {
+    if (!op?.operationId || op.deprecated || !Array.isArray(op["x-relay-models"])) continue;
+    const tag = op.tags?.[0] ?? "Other";
+    for (const name of op["x-relay-models"]) (byTag[tag] ??= {})[name] = op.operationId;
+  }
+}
+const modelLines = [banner, "/** Live model names per tag → the operation that serves them (from `x-relay-models`). */", "export interface ModelOperations {"];
+for (const tag of Object.keys(byTag).sort()) {
+  modelLines.push(`  ${JSON.stringify(tag)}: {`);
+  for (const name of Object.keys(byTag[tag]).sort()) modelLines.push(`    ${JSON.stringify(name)}: ${JSON.stringify(byTag[tag][name])};`);
+  modelLines.push("  };");
+}
+modelLines.push("}", "");
+await writeFile(new URL("../src/generated/models.ts", import.meta.url), modelLines.join("\n"));
+
 // Error-code subclasses: codes from x-relay-error-codes, HTTP status from the hand-kept map.
 const codes = spec.components.schemas.RelayError.properties.code["x-relay-error-codes"];
 const statuses = JSON.parse(await readFile(new URL("../src/error-statuses.json", import.meta.url), "utf8"));
