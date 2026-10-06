@@ -1,3 +1,4 @@
+import { pathId } from "./util.js";
 import type { Relay } from "./client.js";
 import type { FileObject, Schema } from "./types.js";
 import {
@@ -49,7 +50,7 @@ export interface ListFilesOptions {
   signal?: AbortSignal;
 }
 
-const path = (id: string) => `/v2/files/${encodeURIComponent(id)}`;
+const path = (id: string) => `/v2/files/${pathId(id)}`;
 
 /** `POST|GET|DELETE /v2/files`: host an image, video or audio file and get a link any `*_url` field takes. */
 export class Files {
@@ -68,7 +69,7 @@ export class Files {
     const { data: body, type } = await resolveMediaType(data, opts.contentType);
     if (!type) throw unknownTypeError("the upload");
     const res = await this.#relay._http.request<FileObject>("POST", "/v2/files", {
-      rawBody: body as Blob | Uint8Array | ArrayBuffer | ReadableStream<Uint8Array>,
+      rawBody: body,
       contentType: type,
       query: { retention: opts.retention, filename: opts.filename ?? fileNameOf(data) },
       idempotencyKey: opts.idempotencyKey,

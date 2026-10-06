@@ -1,3 +1,4 @@
+import { pathId } from "./util.js";
 import type { Relay } from "./client.js";
 import { KeyNotFoundError } from "./errors.js";
 import type { OperationResponse, Schema, operations } from "./types.js";
@@ -13,7 +14,7 @@ export type KeyPromotion = OperationResponse<"customer_keys_promote">;
 /** The spec leaves these bodies untyped (`200: unknown`). */
 export type KeyMutationResult = Record<string, unknown>;
 
-const keyPath = (keyId: string) => `/v2/customer/keys/${encodeURIComponent(keyId)}`;
+const keyPath = (keyId: string) => `/v2/customer/keys/${pathId(keyId)}`;
 
 /**
  * API key management. Auth: a dashboard JWT, or a partner superkey (custom tiers); anything else gets the

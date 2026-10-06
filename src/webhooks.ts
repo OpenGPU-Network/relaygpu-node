@@ -1,5 +1,5 @@
 import type { Relay } from "./client.js";
-import { pathId, webCrypto } from "./util.js";
+import { base64ToBytes, pathId, webCrypto } from "./util.js";
 import { RelayError } from "./errors-base.js";
 import type { OperationResponse, Schema, operations } from "./types.js";
 
@@ -80,17 +80,6 @@ function header(headers: WebhookHeaders, name: string): string | undefined {
     return Array.isArray(v) ? v.join(" ") : v;
   }
   return undefined;
-}
-
-function base64ToBytes(b64: string): Uint8Array<ArrayBuffer> | null {
-  try {
-    const bin = atob(b64.trim());
-    const out = new Uint8Array(bin.length);
-    for (let i = 0; i < bin.length; i++) out[i] = bin.charCodeAt(i);
-    return out;
-  } catch {
-    return null;
-  }
 }
 
 /** Constant-time for equal lengths (signature lengths are public). */
@@ -181,8 +170,6 @@ export type WebhookSecret = Schema<"WebhookSecretResponse">;
 export type WebhookDeliveryPage = OperationResponse<"customer_webhook_deliveries_list">;
 export type WebhookDeliveryDetail = OperationResponse<"customer_webhook_deliveries_get">;
 export type WebhookDeliveryListParams = NonNullable<operations["customer_webhook_deliveries_list"]["parameters"]["query"]>;
-
-/** @internal Keeps `:` readable in ids such as `direct:…` / `wf:…`; everything else is escaped. */
 
 class WebhookDeliveries {
   constructor(private readonly relay: Relay) {}

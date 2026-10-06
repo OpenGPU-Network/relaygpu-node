@@ -1,7 +1,7 @@
 import type { Relay } from "./client.js";
 import type { ModelOperations } from "./generated/models.js";
 import type { HelperInput, HelperOutput, ImageOptions } from "./image.js";
-import { submit } from "./submit.js";
+import { run } from "./run.js";
 
 type AudioOps = ModelOperations["Audio"];
 type AsrOp = "audio_asr_whisper";
@@ -23,20 +23,13 @@ export class Audio {
     this.#relay = relay;
   }
 
-  async #call(model: string, input: Record<string, unknown>, opts: AudioOptions): Promise<Record<string, unknown>> {
-    const res = await submit(this.#relay, model, input, opts);
-    if (res.kind === "sync") return res.data;
-    const task = await this.#relay.tasks.wait(res.accepted.task_id, { timeoutMs: opts.timeoutMs, onProgress: opts.onProgress, signal: opts.signal });
-    return (task.result ?? {}) as Record<string, unknown>;
-  }
-
   /** Text-to-speech. Returns the response body: `audio_url` (a link that expires) or `audio_base64` + `content_type`, per model. */
   async speech<M extends SpeechModel>(model: M, input: HelperInput<SpeechOps, M>, opts: AudioOptions = {}): Promise<HelperOutput<SpeechOps, M>> {
-    return (await this.#call(model, input as Record<string, unknown>, opts)) as HelperOutput<SpeechOps, M>;
+    return (await run(this.#relay, model, input as Record<string, unknown>, { ...opts, wait: true })) as HelperOutput<SpeechOps, M>;
   }
 
   /** Speech-to-text. `audio_url` may be a link or a Blob/bytes/stream (uploaded first). Returns `{ text, language?, duration? }`. */
   async transcribe<M extends TranscribeModel>(model: M, input: HelperInput<TranscribeOps, M>, opts: AudioOptions = {}): Promise<HelperOutput<TranscribeOps, M>> {
-    return (await this.#call(model, input as Record<string, unknown>, opts)) as HelperOutput<TranscribeOps, M>;
+    return (await run(this.#relay, model, input as Record<string, unknown>, { ...opts, wait: true })) as HelperOutput<TranscribeOps, M>;
   }
 }

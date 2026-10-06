@@ -1,5 +1,6 @@
 // @internal The one submit path under run() and the family helpers: resolve → refuse retired → build body →
 // implicit uploads → POST (keyed when async).
+import type { FileData } from "./inputs.js";
 import type { Relay } from "./client.js";
 import { randomUUID } from "./util.js";
 import { ModelRetiredError, RelayError } from "./errors.js";
@@ -9,7 +10,7 @@ import type { AsyncTaskAccepted, Mode, ModelDetail, ModelEndpoint } from "./type
 export type AsyncAccepted = AsyncTaskAccepted & { replayed: boolean; requestId: string | null };
 
 /** A Blob, bytes or a stream placed in any `*_url` / `*_urls` field: uploaded first (`relay.files`), then replaced by its URL. */
-export type Uploadable = Blob | Uint8Array | ArrayBuffer | ReadableStream<Uint8Array>;
+export type Uploadable = FileData;
 
 export interface SubmitOptions {
   /** Routing mode; omitted → the server's default (`auto`). */
@@ -32,8 +33,8 @@ export interface SubmitOptions {
 }
 
 export type SubmitResult =
-  | { kind: "sync"; data: Record<string, unknown>; requestId: string | null; detail: ModelDetail }
-  | { kind: "async"; accepted: AsyncAccepted; detail: ModelDetail };
+  | { kind: "sync"; data: Record<string, unknown>; requestId: string | null }
+  | { kind: "async"; accepted: AsyncAccepted };
 
 /** Refuses a retired model (or one with no single route) before anything is sent. */
 export function resolveEndpoint(name: string, detail: ModelDetail): ModelEndpoint {
@@ -75,7 +76,7 @@ export async function submit(relay: Relay, model: string, input: Record<string, 
     ...(isAsync ? { idempotencyKey: opts.idempotencyKey ?? (await randomUUID()) } : { timeoutMs: opts.timeoutMs }),
   });
   if (res.status === 202) {
-    return { kind: "async", accepted: { ...(res.data as unknown as AsyncTaskAccepted), replayed: res.replayed, requestId: res.requestId }, detail };
+    return { kind: "async", accepted: { ...(res.data as unknown as AsyncTaskAccepted), replayed: res.replayed, requestId: res.requestId } };
   }
-  return { kind: "sync", data: res.data, requestId: res.requestId, detail };
+  return { kind: "sync", data: res.data, requestId: res.requestId };
 }

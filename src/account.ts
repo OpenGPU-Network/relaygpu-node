@@ -1,3 +1,4 @@
+import { pathId } from "./util.js";
 import type { Relay } from "./client.js";
 import type { RequestOptions } from "./http.js";
 import type { OperationResponse, operations } from "./types.js";
@@ -49,7 +50,7 @@ export class Account {
 
   /** `GET /v2/customer/usage/{key_id}`. Address the key by `key_id`, never its secret. */
   usageByKey(keyId: string, params: KeyUsageParams = {}): Promise<KeyUsage> {
-    return this.#get(`/v2/customer/usage/${encodeURIComponent(keyId)}`, params);
+    return this.#get(`/v2/customer/usage/${pathId(keyId)}`, params);
   }
 
   /** `GET /v2/customer/usage/timeseries`: bucketed spend/tokens (`start_time` = Unix seconds, required). */

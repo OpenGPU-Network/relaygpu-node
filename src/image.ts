@@ -1,6 +1,9 @@
+import { run } from "./run.js";
+import { RelayError } from "./errors-base.js";
+import { base64ToBytes } from "./util.js";
 import type { Relay } from "./client.js";
 import type { ModelOperations } from "./generated/models.js";
-import { submit, type SubmitOptions, type Uploadable } from "./submit.js";
+import type { SubmitOptions, Uploadable } from "./submit.js";
 import type { TaskProgress } from "./tasks.js";
 import type { OperationBody, OperationResponse, operations } from "./types.js";
 
@@ -66,10 +69,9 @@ const MAGIC: [string, string][] = [
 ];
 
 function decodeB64(b64: string): Uint8Array<ArrayBuffer> {
-  const bin = atob(b64);
-  const out = new Uint8Array(bin.length);
-  for (let i = 0; i < bin.length; i++) out[i] = bin.charCodeAt(i);
-  return out;
+  const bytes = base64ToBytes(b64);
+  if (!bytes) throw new RelayError({ message: "Image payload is not valid base64" });
+  return bytes;
 }
 
 async function writeFile(path: string, bytes: Uint8Array) {
@@ -130,13 +132,7 @@ export class Images {
    */
   async generate<M extends ImageModel>(model: M, input: HelperInput<ImageOps, M>, opts: ImageOptions = {}): Promise<ImageResult<HelperOutput<ImageOps, M>>> {
     const body = input as Record<string, unknown>;
-    const res = await submit(this.#relay, model, body, opts);
-    let raw: Record<string, unknown>;
-    if (res.kind === "sync") raw = res.data;
-    else {
-      const task = await this.#relay.tasks.wait(res.accepted.task_id, { timeoutMs: opts.timeoutMs, onProgress: opts.onProgress, signal: opts.signal });
-      raw = (task.result ?? {}) as Record<string, unknown>;
-    }
+    const raw = await run(this.#relay, model, body, { ...opts, wait: true });
     return { images: normaliseImages(raw, body), raw: raw as HelperOutput<ImageOps, M> };
   }
 

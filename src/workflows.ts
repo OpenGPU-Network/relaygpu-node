@@ -4,6 +4,9 @@ import { sleep } from "./http.js";
 import type { OperationResponse, Schema, WorkflowRunState } from "./types.js";
 import { pathId, randomUUID } from "./util.js";
 
+/** Default `waitRun` budget. */
+const DEFAULT_RUN_TIMEOUT_MS = 30 * 60_000;
+
 export type WorkflowList = OperationResponse<"workflows_list">;
 export type WorkflowTemplate = Schema<"WorkflowTemplateItem">;
 export type WorkflowRunAccepted = Schema<"WorkflowRunAccepted">;
@@ -81,7 +84,7 @@ export class Workflows {
    * run id, `task` = the run, message = `run.error`). The budget elapsing throws `APITimeoutError`.
    */
   async waitRun(runId: string, opts: WaitRunOptions = {}): Promise<WorkflowRunState> {
-    const deadline = Date.now() + (opts.timeoutMs ?? 30 * 60_000);
+    const deadline = Date.now() + (opts.timeoutMs ?? DEFAULT_RUN_TIMEOUT_MS);
     let delay = 1000;
     let last: string | null = null;
     for (;;) {
@@ -99,7 +102,7 @@ export class Workflows {
         });
       }
       const remaining = deadline - Date.now();
-      if (remaining <= 0) throw new APITimeoutError({ message: `Workflow run ${runId} still ${run.status} after ${opts.timeoutMs ?? 30 * 60_000} ms` });
+      if (remaining <= 0) throw new APITimeoutError({ message: `Workflow run ${runId} still ${run.status} after ${opts.timeoutMs ?? DEFAULT_RUN_TIMEOUT_MS} ms` });
       await sleep(Math.min(delay, remaining), opts.signal);
       delay = Math.min(5000, delay * 2);
     }

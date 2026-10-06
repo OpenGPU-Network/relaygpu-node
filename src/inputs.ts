@@ -1,6 +1,7 @@
 // Binary inputs: what counts as a file, its media type, and the request-body walk that turns
 // every file in a request into a link (an upload) or an inline base64 string.
 
+import { bytesToBase64 } from "./util.js";
 /** Anything `files.upload` and the implicit upload accept. */
 export type FileData = Blob | Uint8Array | ArrayBuffer | ReadableStream<Uint8Array>;
 
@@ -115,13 +116,6 @@ async function bytesOf(data: FileData): Promise<Uint8Array> {
   return new Uint8Array(await new Response(data as BodyInit).arrayBuffer());
 }
 
-function base64(bytes: Uint8Array): string {
-  const B = (globalThis as { Buffer?: { from(b: Uint8Array): { toString(enc: string): string } } }).Buffer;
-  if (B) return B.from(bytes).toString("base64");
-  let s = "";
-  for (let i = 0; i < bytes.length; i += 0x8000) s += String.fromCharCode(...bytes.subarray(i, i + 0x8000));
-  return btoa(s);
-}
 
 export function unknownTypeError(where: string): TypeError {
   return new TypeError(
@@ -244,7 +238,7 @@ export async function prepareInputs<T extends Record<string, unknown>>(input: T,
     const byForm = dataUri ? inlined.uri : inlined.raw;
     let p = byForm.get(data);
     if (!p) {
-      p = bytesOf(data).then((b) => (dataUri ? `data:${type};base64,${base64(b)}` : base64(b)));
+      p = bytesOf(data).then((b) => (dataUri ? `data:${type};base64,${bytesToBase64(b)}` : bytesToBase64(b)));
       byForm.set(data, p);
     }
     return p;
