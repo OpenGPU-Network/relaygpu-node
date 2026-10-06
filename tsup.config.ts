@@ -9,4 +9,7 @@ export default defineConfig({
   target: "es2022",
   platform: "neutral",
   treeshake: true,
+  // Keep `node:` specifiers: Deno and edge bundlers resolve them, bare "crypto" they do not.
+  removeNodeProtocol: false,
+  external: [/^node:/],
 });

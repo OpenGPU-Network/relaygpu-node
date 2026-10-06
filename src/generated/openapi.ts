@@ -4204,7 +4204,7 @@ export type components = {
              * @description Async mode: returns task_id immediately, poll /v2/tasks/{task_id} for result.
              * @default false
              */
-            async: boolean | null;
+            async?: boolean | null;
             /**
              * Cache Control
              * @description Automatic prompt caching: `{"type": "ephemeral"}` with optional `"ttl": "5m"` (default) or `"1h"`. Relay places the breakpoint on the last cacheable block, as Anthropic does. Block-level `cache_control` markers are accepted on `system`, `messages` content and `tools` entries. Only on models whose pricing lists cache-write rates; not available to guests.
@@ -4236,7 +4236,7 @@ export type components = {
              * @description Routing mode: 'auto' or 'direct' (Anthropic is direct-only)
              * @default auto
              */
-            mode: ("auto" | "direct") | null;
+            mode?: ("auto" | "direct") | null;
             /**
              * Model
              * @description Model name, case-sensitive (e.g. anthropic/claude-opus-5-5, anthropic/claude-opus-5, anthropic/claude-fable-5-1, anthropic/claude-fable-5, anthropic/claude-opus-4-8, anthropic/claude-opus-4-6, anthropic/claude-sonnet-5, anthropic/claude-sonnet-4-6, anthropic/claude-haiku-4-5-20251001). The current list is the `anthropic` source in `GET /v2/models`.
@@ -4264,7 +4264,7 @@ export type components = {
              * @description Enable streaming response (SSE format, direct mode only)
              * @default false
              */
-            stream: boolean | null;
+            stream?: boolean | null;
             /**
              * System
              * @description System prompt (string or content blocks)
@@ -4346,7 +4346,7 @@ export type components = {
              * @description Message role
              * @default assistant
              */
-            role: string;
+            role?: string;
             /**
              * Stop Reason
              * @description Why generation stopped
@@ -4372,7 +4372,7 @@ export type components = {
              * @description Object type
              * @default message
              */
-            type: string;
+            type?: string;
             /**
              * Usage
              * @description Token usage statistics
@@ -4401,7 +4401,7 @@ export type components = {
              * @description Return task_id immediately, poll /v2/tasks/{task_id} for result. Default: false (synchronous).
              * @default false
              */
-            async: boolean | null;
+            async?: boolean | null;
             /**
              * Audio Url
              * @description URL to audio file (WAV, MP3, M4A, WEBM, FLAC supported)
@@ -4429,7 +4429,7 @@ export type components = {
              * @description Routing mode: 'auto' or 'direct' (ASR is direct-only)
              * @default auto
              */
-            mode: ("auto" | "direct") | null;
+            mode?: ("auto" | "direct") | null;
             /**
              * Model
              * @description ASR model. Required — the three differ in price, in response shape and in which options below they honour, so there is no sensible default to pick for you.
@@ -4447,13 +4447,13 @@ export type components = {
              * @description Return timestamps: False (none), True (segment-level), 'word' (word-level). whisper-large-v3 only.
              * @default false
              */
-            return_timestamps: boolean | "word" | null;
+            return_timestamps?: boolean | "word" | null;
             /**
              * Task
              * @description Task: 'transcribe' (original language) or 'translate' (to English). whisper-large-v3 only — the other two always transcribe.
              * @default transcribe
              */
-            task: ("transcribe" | "translate") | null;
+            task?: ("transcribe" | "translate") | null;
             /**
              * Temperature
              * @description Sampling temperature (0.0 = deterministic). Honoured by all three models.
@@ -4529,7 +4529,7 @@ export type components = {
              * @example queued
              * @constant
              */
-            status: "queued";
+            status?: "queued";
             /**
              * Task Id
              * @description Unique task identifier for polling (direct:{uuid} or opengpu:{uuid})
@@ -4604,19 +4604,19 @@ export type components = {
              * Currency
              * @default USD
              */
-            currency: string;
+            currency?: string;
             /**
              * Ends At
              * @description Billing ends at the earliest of these
              * @default earliest of terminate_request | provider_ended | expires_at
              */
-            ends_at: string;
+            ends_at?: string;
             /**
              * Full Hour Ceil
              * @description A started period is billed in full; nothing is pro-rated
              * @default true
              */
-            full_hour_ceil: boolean;
+            full_hour_ceil?: boolean;
             /**
              * Grace Hours
              * @description Grace window after the wallet goes negative before termination
@@ -4632,13 +4632,13 @@ export type components = {
              * @description Billing starts when the instance is observed `ready`
              * @default ready
              */
-            starts_at: string;
+            starts_at?: string;
             /**
              * Unit
              * @description Billed per `billing_modes[].period_seconds` (an hour for `hourly`)
              * @default period
              */
-            unit: string;
+            unit?: string;
         };
         /**
          * BriaVideoUpscaleRequest
@@ -4650,25 +4650,25 @@ export type components = {
              * @description Async mode (DEFAULT true for video — long runtime). Returns task_id immediately; poll /v2/tasks/{task_id}. Set false to block for the result.
              * @default true
              */
-            async: boolean | null;
+            async?: boolean | null;
             /**
              * Mode
              * @description Routing mode: 'auto' or 'direct' (video is direct-only).
              * @default auto
              */
-            mode: ("auto" | "direct") | null;
+            mode?: ("auto" | "direct") | null;
             /**
              * Output Format
              * @description Output container and codec.
              * @default mp4_h264
              */
-            output_format: ("mp4_h264" | "mp4_h265" | "webm_vp9" | "mov_h265" | "mov_proresks" | "mkv_h264" | "mkv_h265" | "mkv_vp9" | "gif") | null;
+            output_format?: ("mp4_h264" | "mp4_h265" | "webm_vp9" | "mov_h265" | "mov_proresks" | "mkv_h264" | "mkv_h265" | "mkv_vp9" | "gif") | null;
             /**
              * Store Output
              * @description Where this request's output media is hosted, and for how long. `provider` (default) returns a Relay CDN link that live-proxies the provider for 1 hour — the same hour the task record itself lives. `relay1d` / `relay7d` / `relay30d` copy the output into Relay's own storage and keep BOTH the link and the task record for 1, 7 or 30 days, for a flat per-file fee (see `media_storage` in GET /v2/pricing). Not available on routes that return media inline (base64), and not available to the guest tier.
              * @default provider
              */
-            store_output: ("provider" | "relay1d" | "relay7d" | "relay30d") | null;
+            store_output?: ("provider" | "relay1d" | "relay7d" | "relay30d") | null;
             /**
              * Video Url
              * @description URL of the input video to upscale. Output resolution is 2x the input (e.g. 640x360 -> 1280x720, 1280x720 -> 2560x1440).
@@ -4756,7 +4756,7 @@ export type components = {
              * Description
              * @default
              */
-            description: string;
+            description?: string;
             /** Disk Gb */
             disk_gb?: number | null;
             /**
@@ -4946,7 +4946,7 @@ export type components = {
              * @description Total credits consumed from promos (derived from initial_balance - balance across all promos)
              * @default 0
              */
-            promo_consumed: number;
+            promo_consumed?: number;
             /** Promos */
             promos?: components["schemas"]["PromoBalance"][] | null;
             /** Total Allocated */
@@ -4981,7 +4981,7 @@ export type components = {
              * @description True when this row comes from custom_pricing (your tier override); False when it's the default price.
              * @default false
              */
-            is_override: boolean;
+            is_override?: boolean;
             /** Mode */
             mode: string;
             /** Model */
@@ -5055,7 +5055,7 @@ export type components = {
              * Note
              * @default Effective per-model prices for your tier (overrides merged over defaults).
              */
-            note: string;
+            note?: string;
             /** Pricing */
             pricing: components["schemas"]["CustomerPricingItem"][];
             /** Tier */
@@ -5069,7 +5069,7 @@ export type components = {
              * Status
              * @default success
              */
-            status: string;
+            status?: string;
             /** Updated At */
             updated_at: string;
             /** Warning Threshold */
@@ -5090,7 +5090,7 @@ export type components = {
              * @description True when more keys exist beyond this page.
              * @default false
              */
-            has_more: boolean;
+            has_more?: boolean;
             /** Keys */
             keys: components["schemas"]["KeyWithAnalytics"][];
             /**
@@ -5120,7 +5120,7 @@ export type components = {
              * Port
              * @default 22
              */
-            port: number;
+            port?: number;
             /** Public Ip */
             public_ip: string;
             /** User */
@@ -5140,25 +5140,25 @@ export type components = {
              * @description Return task_id immediately, poll /v2/tasks/{task_id} for result. Recommended for video (long runtime).
              * @default true
              */
-            async: boolean | null;
+            async?: boolean | null;
             /**
              * Camera Fixed
              * @description Fix the camera.
              * @default false
              */
-            camera_fixed: boolean | null;
+            camera_fixed?: boolean | null;
             /**
              * Draft
              * @description Draft mode — cheaper preview video at 480p.
              * @default false
              */
-            draft: boolean | null;
+            draft?: boolean | null;
             /**
              * Duration
              * @description Video duration in seconds (4–12).
              * @default 5
              */
-            duration: number | null;
+            duration?: number | null;
             /**
              * Execution Expires After
              * @description Provider-side deadline for the generation job, in seconds (≥3600). Not the retention of the result on Relay: task results expire 1 hour after the task finishes.
@@ -5174,7 +5174,7 @@ export type components = {
              * @description Include synchronized audio.
              * @default false
              */
-            generate_audio: boolean | null;
+            generate_audio?: boolean | null;
             /**
              * Last Frame Url
              * @description URL or base64 data URI of the last frame image (requires first_frame_url).
@@ -5185,7 +5185,7 @@ export type components = {
              * @description Routing mode: 'auto' or 'direct' (video is direct-only).
              * @default auto
              */
-            mode: ("auto" | "direct") | null;
+            mode?: ("auto" | "direct") | null;
             /**
              * Prompt
              * @description Text description (≤500 chars recommended). Required if no first_frame_url is provided.
@@ -5196,13 +5196,13 @@ export type components = {
              * @description Aspect ratio.
              * @default adaptive
              */
-            ratio: ("16:9" | "4:3" | "1:1" | "3:4" | "9:16" | "21:9" | "adaptive") | null;
+            ratio?: ("16:9" | "4:3" | "1:1" | "3:4" | "9:16" | "21:9" | "adaptive") | null;
             /**
              * Resolution
              * @description Video resolution. Draft mode only supports 480p.
              * @default 720p
              */
-            resolution: ("480p" | "720p" | "1080p") | null;
+            resolution?: ("480p" | "720p" | "1080p") | null;
             /**
              * Seed
              * @description Random seed for deterministic output.
@@ -5218,13 +5218,13 @@ export type components = {
              * @description Where this request's output media is hosted, and for how long. `provider` (default) returns a Relay CDN link that live-proxies the provider for 1 hour — the same hour the task record itself lives. `relay1d` / `relay7d` / `relay30d` copy the output into Relay's own storage and keep BOTH the link and the task record for 1, 7 or 30 days, for a flat per-file fee (see `media_storage` in GET /v2/pricing). Not available on routes that return media inline (base64), and not available to the guest tier.
              * @default provider
              */
-            store_output: ("provider" | "relay1d" | "relay7d" | "relay30d") | null;
+            store_output?: ("provider" | "relay1d" | "relay7d" | "relay30d") | null;
             /**
              * Watermark
              * @description Include watermark.
              * @default false
              */
-            watermark: boolean | null;
+            watermark?: boolean | null;
             /**
              * Webhook Url
              * @description HTTPS URL to receive a signed completion webhook when the async task reaches a terminal state (requires an API key, "async": true and direct mode; otherwise 422). See the Webhooks section for the delivery payload and events, and GET /v2/customer/webhook-secret for the signing secret + verification.
@@ -5251,7 +5251,7 @@ export type components = {
              * @description Model used.
              * @default ByteDance/doubao-seedance-1-5-pro-251215
              */
-            model: string;
+            model?: string;
             /**
              * Resolution
              * @description Video resolution.
@@ -5289,19 +5289,19 @@ export type components = {
              * @description Return task_id immediately, poll /v2/tasks/{task_id} for result. Recommended for video (long runtime).
              * @default true
              */
-            async: boolean | null;
+            async?: boolean | null;
             /**
              * Camera Fixed
              * @description Fix the camera.
              * @default false
              */
-            camera_fixed: boolean | null;
+            camera_fixed?: boolean | null;
             /**
              * Duration
              * @description Video duration in seconds (4–15).
              * @default 5
              */
-            duration: number | null;
+            duration?: number | null;
             /**
              * Execution Expires After
              * @description Provider-side deadline for the generation job, in seconds (≥3600). Not the retention of the result on Relay: task results expire 1 hour after the task finishes.
@@ -5317,7 +5317,7 @@ export type components = {
              * @description Include synchronized audio.
              * @default false
              */
-            generate_audio: boolean | null;
+            generate_audio?: boolean | null;
             /**
              * Last Frame Url
              * @description URL or base64 data URI of the last frame image (requires first_frame_url).
@@ -5328,7 +5328,7 @@ export type components = {
              * @description Routing mode: 'auto' or 'direct' (video is direct-only).
              * @default auto
              */
-            mode: ("auto" | "direct") | null;
+            mode?: ("auto" | "direct") | null;
             /**
              * Prompt
              * @description Text description (≤500 chars recommended).
@@ -5339,7 +5339,7 @@ export type components = {
              * @description Aspect ratio.
              * @default adaptive
              */
-            ratio: ("16:9" | "4:3" | "1:1" | "3:4" | "9:16" | "21:9" | "adaptive") | null;
+            ratio?: ("16:9" | "4:3" | "1:1" | "3:4" | "9:16" | "21:9" | "adaptive") | null;
             /**
              * Reference Audio Url
              * @description URL of a reference audio (role=reference_audio).
@@ -5365,7 +5365,7 @@ export type components = {
              * @description Video resolution.
              * @default 720p
              */
-            resolution: ("480p" | "720p" | "1080p") | null;
+            resolution?: ("480p" | "720p" | "1080p") | null;
             /**
              * Seed
              * @description Random seed for deterministic output.
@@ -5376,13 +5376,13 @@ export type components = {
              * @description Where this request's output media is hosted, and for how long. `provider` (default) returns a Relay CDN link that live-proxies the provider for 1 hour — the same hour the task record itself lives. `relay1d` / `relay7d` / `relay30d` copy the output into Relay's own storage and keep BOTH the link and the task record for 1, 7 or 30 days, for a flat per-file fee (see `media_storage` in GET /v2/pricing). Not available on routes that return media inline (base64), and not available to the guest tier.
              * @default provider
              */
-            store_output: ("provider" | "relay1d" | "relay7d" | "relay30d") | null;
+            store_output?: ("provider" | "relay1d" | "relay7d" | "relay30d") | null;
             /**
              * Watermark
              * @description Include watermark.
              * @default false
              */
-            watermark: boolean | null;
+            watermark?: boolean | null;
             /**
              * Webhook Url
              * @description HTTPS URL to receive a signed completion webhook when the async task reaches a terminal state (requires an API key, "async": true and direct mode; otherwise 422). See the Webhooks section for the delivery payload and events, and GET /v2/customer/webhook-secret for the signing secret + verification.
@@ -5409,7 +5409,7 @@ export type components = {
              * @description Model used.
              * @default ByteDance/doubao-seedance-2-0-260128
              */
-            model: string;
+            model?: string;
             /**
              * Resolution
              * @description Video resolution.
@@ -5450,19 +5450,19 @@ export type components = {
              * @description Return task_id immediately, poll /v2/tasks/{task_id} for result. Recommended for video (long runtime).
              * @default true
              */
-            async: boolean | null;
+            async?: boolean | null;
             /**
              * Camera Fixed
              * @description Fix the camera.
              * @default false
              */
-            camera_fixed: boolean | null;
+            camera_fixed?: boolean | null;
             /**
              * Duration
              * @description Video duration in seconds (4–15).
              * @default 5
              */
-            duration: number | null;
+            duration?: number | null;
             /**
              * Execution Expires After
              * @description Provider-side deadline for the generation job, in seconds (≥3600). Not the retention of the result on Relay: task results expire 1 hour after the task finishes.
@@ -5478,7 +5478,7 @@ export type components = {
              * @description Include synchronized audio.
              * @default false
              */
-            generate_audio: boolean | null;
+            generate_audio?: boolean | null;
             /**
              * Last Frame Url
              * @description URL or base64 data URI of the last frame image (requires first_frame_url).
@@ -5489,7 +5489,7 @@ export type components = {
              * @description Routing mode: 'auto' or 'direct' (video is direct-only).
              * @default auto
              */
-            mode: ("auto" | "direct") | null;
+            mode?: ("auto" | "direct") | null;
             /**
              * Prompt
              * @description Text description (≤500 chars recommended).
@@ -5500,7 +5500,7 @@ export type components = {
              * @description Aspect ratio.
              * @default adaptive
              */
-            ratio: ("16:9" | "4:3" | "1:1" | "3:4" | "9:16" | "21:9" | "adaptive") | null;
+            ratio?: ("16:9" | "4:3" | "1:1" | "3:4" | "9:16" | "21:9" | "adaptive") | null;
             /**
              * Reference Audio Url
              * @description URL of a reference audio (role=reference_audio).
@@ -5526,7 +5526,7 @@ export type components = {
              * @description Video resolution.
              * @default 720p
              */
-            resolution: ("480p" | "720p" | "1080p") | null;
+            resolution?: ("480p" | "720p" | "1080p") | null;
             /**
              * Seed
              * @description Random seed for deterministic output.
@@ -5537,13 +5537,13 @@ export type components = {
              * @description Where this request's output media is hosted, and for how long. `provider` (default) returns a Relay CDN link that live-proxies the provider for 1 hour — the same hour the task record itself lives. `relay1d` / `relay7d` / `relay30d` copy the output into Relay's own storage and keep BOTH the link and the task record for 1, 7 or 30 days, for a flat per-file fee (see `media_storage` in GET /v2/pricing). Not available on routes that return media inline (base64), and not available to the guest tier.
              * @default provider
              */
-            store_output: ("provider" | "relay1d" | "relay7d" | "relay30d") | null;
+            store_output?: ("provider" | "relay1d" | "relay7d" | "relay30d") | null;
             /**
              * Watermark
              * @description Include watermark.
              * @default false
              */
-            watermark: boolean | null;
+            watermark?: boolean | null;
             /**
              * Webhook Url
              * @description HTTPS URL to receive a signed completion webhook when the async task reaches a terminal state (requires an API key, "async": true and direct mode; otherwise 422). See the Webhooks section for the delivery payload and events, and GET /v2/customer/webhook-secret for the signing secret + verification.
@@ -5565,13 +5565,13 @@ export type components = {
              * @description Return task_id immediately, poll /v2/tasks/{task_id} for result. Recommended for video (long runtime).
              * @default true
              */
-            async: boolean | null;
+            async?: boolean | null;
             /**
              * Camera Fixed
              * @description Fix the camera.
              * @default false
              */
-            camera_fixed: boolean | null;
+            camera_fixed?: boolean | null;
             /**
              * Duration
              * @description -1 if the output should follow the input video (Seedance requires this for editing-style prompts), or 4–15 seconds.
@@ -5592,7 +5592,7 @@ export type components = {
              * @description Include synchronized audio.
              * @default false
              */
-            generate_audio: boolean | null;
+            generate_audio?: boolean | null;
             /**
              * Last Frame Url
              * @description URL or base64 data URI of the last frame image (requires first_frame_url).
@@ -5603,7 +5603,7 @@ export type components = {
              * @description Routing mode: 'auto' or 'direct' (video is direct-only).
              * @default auto
              */
-            mode: ("auto" | "direct") | null;
+            mode?: ("auto" | "direct") | null;
             /**
              * Prompt
              * @description Text description (≤500 chars recommended).
@@ -5639,7 +5639,7 @@ export type components = {
              * @description Video resolution.
              * @default 720p
              */
-            resolution: ("480p" | "720p" | "1080p") | null;
+            resolution?: ("480p" | "720p" | "1080p") | null;
             /**
              * Seed
              * @description Random seed for deterministic output.
@@ -5650,13 +5650,13 @@ export type components = {
              * @description Where this request's output media is hosted, and for how long. `provider` (default) returns a Relay CDN link that live-proxies the provider for 1 hour — the same hour the task record itself lives. `relay1d` / `relay7d` / `relay30d` copy the output into Relay's own storage and keep BOTH the link and the task record for 1, 7 or 30 days, for a flat per-file fee (see `media_storage` in GET /v2/pricing). Not available on routes that return media inline (base64), and not available to the guest tier.
              * @default provider
              */
-            store_output: ("provider" | "relay1d" | "relay7d" | "relay30d") | null;
+            store_output?: ("provider" | "relay1d" | "relay7d" | "relay30d") | null;
             /**
              * Watermark
              * @description Include watermark.
              * @default false
              */
-            watermark: boolean | null;
+            watermark?: boolean | null;
             /**
              * Webhook Url
              * @description HTTPS URL to receive a signed completion webhook when the async task reaches a terminal state (requires an API key, "async": true and direct mode; otherwise 422). See the Webhooks section for the delivery payload and events, and GET /v2/customer/webhook-secret for the signing secret + verification.
@@ -5677,19 +5677,19 @@ export type components = {
              * @description Return task_id immediately, poll /v2/tasks/{task_id} for result. Recommended for video (long runtime).
              * @default true
              */
-            async: boolean | null;
+            async?: boolean | null;
             /**
              * Camera Fixed
              * @description Fix the camera.
              * @default false
              */
-            camera_fixed: boolean | null;
+            camera_fixed?: boolean | null;
             /**
              * Duration
              * @description Video duration in seconds (4–15).
              * @default 5
              */
-            duration: number | null;
+            duration?: number | null;
             /**
              * Execution Expires After
              * @description Provider-side deadline for the generation job, in seconds (≥3600). Not the retention of the result on Relay: task results expire 1 hour after the task finishes.
@@ -5705,7 +5705,7 @@ export type components = {
              * @description Include synchronized audio.
              * @default false
              */
-            generate_audio: boolean | null;
+            generate_audio?: boolean | null;
             /**
              * Last Frame Url
              * @description URL or base64 data URI of the last frame image (requires first_frame_url).
@@ -5716,7 +5716,7 @@ export type components = {
              * @description Routing mode: 'auto' or 'direct' (video is direct-only).
              * @default auto
              */
-            mode: ("auto" | "direct") | null;
+            mode?: ("auto" | "direct") | null;
             /**
              * Prompt
              * @description Text description (≤500 chars recommended).
@@ -5727,7 +5727,7 @@ export type components = {
              * @description Aspect ratio.
              * @default adaptive
              */
-            ratio: ("16:9" | "4:3" | "1:1" | "3:4" | "9:16" | "21:9" | "adaptive") | null;
+            ratio?: ("16:9" | "4:3" | "1:1" | "3:4" | "9:16" | "21:9" | "adaptive") | null;
             /**
              * Reference Audio Url
              * @description URL of a reference audio (role=reference_audio).
@@ -5753,7 +5753,7 @@ export type components = {
              * @description Video resolution.
              * @default 720p
              */
-            resolution: ("480p" | "720p" | "1080p") | null;
+            resolution?: ("480p" | "720p" | "1080p") | null;
             /**
              * Seed
              * @description Random seed for deterministic output.
@@ -5764,13 +5764,13 @@ export type components = {
              * @description Where this request's output media is hosted, and for how long. `provider` (default) returns a Relay CDN link that live-proxies the provider for 1 hour — the same hour the task record itself lives. `relay1d` / `relay7d` / `relay30d` copy the output into Relay's own storage and keep BOTH the link and the task record for 1, 7 or 30 days, for a flat per-file fee (see `media_storage` in GET /v2/pricing). Not available on routes that return media inline (base64), and not available to the guest tier.
              * @default provider
              */
-            store_output: ("provider" | "relay1d" | "relay7d" | "relay30d") | null;
+            store_output?: ("provider" | "relay1d" | "relay7d" | "relay30d") | null;
             /**
              * Watermark
              * @description Include watermark.
              * @default false
              */
-            watermark: boolean | null;
+            watermark?: boolean | null;
             /**
              * Webhook Url
              * @description HTTPS URL to receive a signed completion webhook when the async task reaches a terminal state (requires an API key, "async": true and direct mode; otherwise 422). See the Webhooks section for the delivery payload and events, and GET /v2/customer/webhook-secret for the signing secret + verification.
@@ -5792,7 +5792,7 @@ export type components = {
              * @description Embedding payload format. Default 'float'.
              * @default float
              */
-            encoding_format: ("float" | "base64") | null;
+            encoding_format?: ("float" | "base64") | null;
             /**
              * Input
              * @description Input text(s) or pre-tokenized IDs. Single string, list of strings, list of token IDs, or list of token-ID lists.
@@ -5804,7 +5804,7 @@ export type components = {
              * @description Routing mode: 'auto' or 'direct' (embeddings are direct-only).
              * @default auto
              */
-            mode: ("auto" | "direct") | null;
+            mode?: ("auto" | "direct") | null;
             /**
              * Model
              * @description Embedding model ID (e.g. 'openai/text-embedding-3-small').
@@ -5839,7 +5839,7 @@ export type components = {
              * @description Always 'list'.
              * @default list
              */
-            object: string;
+            object?: string;
             /**
              * Usage
              * @description Token usage: {prompt_tokens, total_tokens} (billed on prompt_tokens only).
@@ -5934,20 +5934,20 @@ export type components = {
              * @description Return task_id immediately, poll /v2/tasks/{task_id} for result.
              * @default false
              */
-            async: boolean | null;
+            async?: boolean | null;
             /**
              * Guidance Scale
              * @description How closely to follow the prompt (higher = more literal)
              * @default 0
              */
-            guidance_scale: number | null;
+            guidance_scale?: number | null;
             /**
              * Height
              * @description Image height in pixels
              * @default 1024
              * @example 1024
              */
-            height: number | null;
+            height?: number | null;
             /**
              * Inputs
              * @description Text prompt for image generation
@@ -5959,20 +5959,20 @@ export type components = {
              * @description Routing mode: 'auto' (default), 'direct', or 'opengpu'
              * @default auto
              */
-            mode: ("auto" | "opengpu" | "direct") | null;
+            mode?: ("auto" | "opengpu" | "direct") | null;
             /**
              * Model
              * @description Image generation model. Default: 'black-forest-labs/FLUX.2-klein-4B'
              * @default black-forest-labs/FLUX.2-klein-4B
              * @example black-forest-labs/FLUX.2-klein-4B
              */
-            model: string | null;
+            model?: string | null;
             /**
              * Num Inference Steps
              * @description Number of denoising steps (more steps = higher quality, slower)
              * @default 4
              */
-            num_inference_steps: number | null;
+            num_inference_steps?: number | null;
             /**
              * Seed
              * @description Random seed for reproducible results
@@ -5983,7 +5983,7 @@ export type components = {
              * @description Where this request's output media is hosted, and for how long. `provider` (default) returns a Relay CDN link that live-proxies the provider for 1 hour — the same hour the task record itself lives. `relay1d` / `relay7d` / `relay30d` copy the output into Relay's own storage and keep BOTH the link and the task record for 1, 7 or 30 days, for a flat per-file fee (see `media_storage` in GET /v2/pricing). Not available on routes that return media inline (base64), and not available to the guest tier.
              * @default provider
              */
-            store_output: ("provider" | "relay1d" | "relay7d" | "relay30d") | null;
+            store_output?: ("provider" | "relay1d" | "relay7d" | "relay30d") | null;
             /**
              * Webhook Url
              * @description HTTPS URL to receive a signed completion webhook when the async task reaches a terminal state (requires an API key, "async": true and direct mode; otherwise 422). See the Webhooks section for the delivery payload and events, and GET /v2/customer/webhook-secret for the signing secret + verification.
@@ -5995,7 +5995,7 @@ export type components = {
              * @default 1024
              * @example 1024
              */
-            width: number | null;
+            width?: number | null;
         };
         /**
          * Flux1Response
@@ -6052,14 +6052,14 @@ export type components = {
              * @description Return task_id immediately, poll /v2/tasks/{task_id} for result.
              * @default false
              */
-            async: boolean | null;
+            async?: boolean | null;
             /**
              * Height
              * @description Image height in pixels (min 64, must be multiple of 32)
              * @default 1024
              * @example 1024
              */
-            height: number | null;
+            height?: number | null;
             /**
              * Input Image
              * @description Reference image as base64 string
@@ -6085,20 +6085,20 @@ export type components = {
              * @description Routing mode: 'auto' or 'direct' (FLUX is direct-only)
              * @default auto
              */
-            mode: ("auto" | "direct") | null;
+            mode?: ("auto" | "direct") | null;
             /**
              * Model
              * @description Image generation model. Available: 'black-forest-labs/FLUX-2-pro' (default)
              * @default black-forest-labs/FLUX-2-pro
              * @example black-forest-labs/FLUX-2-pro
              */
-            model: string | null;
+            model?: string | null;
             /**
              * Output Format
              * @description Output image format
              * @default png
              */
-            output_format: ("png" | "jpeg") | null;
+            output_format?: ("png" | "jpeg") | null;
             /**
              * Prompt
              * @description Text description of the image to generate
@@ -6110,7 +6110,7 @@ export type components = {
              * @description Safety tolerance level (0=strictest, 6=least strict)
              * @default 2
              */
-            safety_tolerance: number | null;
+            safety_tolerance?: number | null;
             /**
              * Seed
              * @description Random seed for reproducible results
@@ -6121,7 +6121,7 @@ export type components = {
              * @description Where this request's output media is hosted, and for how long. `provider` (default) returns a Relay CDN link that live-proxies the provider for 1 hour — the same hour the task record itself lives. `relay1d` / `relay7d` / `relay30d` copy the output into Relay's own storage and keep BOTH the link and the task record for 1, 7 or 30 days, for a flat per-file fee (see `media_storage` in GET /v2/pricing). Not available on routes that return media inline (base64), and not available to the guest tier.
              * @default provider
              */
-            store_output: ("provider" | "relay1d" | "relay7d" | "relay30d") | null;
+            store_output?: ("provider" | "relay1d" | "relay7d" | "relay30d") | null;
             /**
              * Webhook Url
              * @description HTTPS URL to receive a signed completion webhook when the async task reaches a terminal state (requires an API key, "async": true and direct mode; otherwise 422). See the Webhooks section for the delivery payload and events, and GET /v2/customer/webhook-secret for the signing secret + verification.
@@ -6133,7 +6133,7 @@ export type components = {
              * @default 1024
              * @example 1024
              */
-            width: number | null;
+            width?: number | null;
         };
         /**
          * FluxResponse
@@ -6193,13 +6193,13 @@ export type components = {
              * @description Image aspect ratio
              * @default 1:1
              */
-            aspect_ratio: ("1:1" | "2:3" | "3:2" | "3:4" | "4:3" | "4:5" | "5:4" | "9:16" | "16:9" | "21:9") | null;
+            aspect_ratio?: ("1:1" | "2:3" | "3:2" | "3:4" | "4:3" | "4:5" | "5:4" | "9:16" | "16:9" | "21:9") | null;
             /**
              * Async
              * @description Return task_id immediately, poll /v2/tasks/{task_id} for result.
              * @default false
              */
-            async: boolean | null;
+            async?: boolean | null;
             /**
              * Image
              * @description Optional reference image for image-to-image editing. Accepts raw base64 or a data URI (data:image/png;base64,...). If omitted, the request is treated as text-to-image. Mutually exclusive with `images`.
@@ -6210,7 +6210,7 @@ export type components = {
              * @description Output resolution: 0.5K (~512px, gemini-3.1-flash-image-preview only), 1K (~1024px), 2K (~2048px), or 4K (~4096px). Billed per resolution tier (see /v2/pricing).
              * @default 1K
              */
-            image_size: ("0.5K" | "1K" | "2K" | "4K") | null;
+            image_size?: ("0.5K" | "1K" | "2K" | "4K") | null;
             /**
              * Images
              * @description Multiple reference images for image-to-image editing (1-14), **google/gemini-3-pro-image only**. Each item is raw base64 or a data URI. Use instead of `image` — setting both is a 422.
@@ -6221,14 +6221,14 @@ export type components = {
              * @description Routing mode: 'auto' or 'direct' (Gemini is direct-only)
              * @default auto
              */
-            mode: ("auto" | "direct") | null;
+            mode?: ("auto" | "direct") | null;
             /**
              * Model
              * @description Image generation model. Available: 'google/gemini-3-pro-image' (default), 'google/gemini-2.5-flash-image', 'google/gemini-3.1-flash-image-preview'.
              * @default google/gemini-3-pro-image
              * @example google/gemini-3-pro-image
              */
-            model: string | null;
+            model?: string | null;
             /**
              * Prompt
              * @description Text description for image generation or editing
@@ -6240,7 +6240,7 @@ export type components = {
              * @description Where this request's output media is hosted, and for how long. `provider` (default) returns a Relay CDN link that live-proxies the provider for 1 hour — the same hour the task record itself lives. `relay1d` / `relay7d` / `relay30d` copy the output into Relay's own storage and keep BOTH the link and the task record for 1, 7 or 30 days, for a flat per-file fee (see `media_storage` in GET /v2/pricing). Not available on routes that return media inline (base64), and not available to the guest tier.
              * @default provider
              */
-            store_output: ("provider" | "relay1d" | "relay7d" | "relay30d") | null;
+            store_output?: ("provider" | "relay1d" | "relay7d" | "relay30d") | null;
             /**
              * Webhook Url
              * @description HTTPS URL to receive a signed completion webhook when the async task reaches a terminal state (requires an API key, "async": true and direct mode; otherwise 422). See the Webhooks section for the delivery payload and events, and GET /v2/customer/webhook-secret for the signing secret + verification.
@@ -6307,7 +6307,7 @@ export type components = {
              * @description Return task_id immediately, poll /v2/tasks/{task_id} for result.
              * @default false
              */
-            async: boolean | null;
+            async?: boolean | null;
             /**
              * Image
              * @description Optional. Omit for text-to-image; single base64 PNG for edit; list of base64 PNGs for multi-image composition.
@@ -6323,32 +6323,32 @@ export type components = {
              * @description Routing mode: 'auto' or 'direct' (image is direct-only)
              * @default auto
              */
-            mode: ("auto" | "direct") | null;
+            mode?: ("auto" | "direct") | null;
             /**
              * Model
              * @description Which model in the family generates the image. The 2.5 variants are billed per token rather than per image — see `GET /v2/pricing`.
              * @default openai/gpt-image-2
              * @enum {string}
              */
-            model: "openai/gpt-image-2" | "openai/gpt-image-2.5-sunburst" | "openai/gpt-image-2.5-flare";
+            model?: "openai/gpt-image-2" | "openai/gpt-image-2.5-sunburst" | "openai/gpt-image-2.5-flare";
             /**
              * N
              * @description Number of images to generate (1-10)
              * @default 1
              */
-            n: number | null;
+            n?: number | null;
             /**
              * Output Compression
              * @description Compression strength (0=none, 100=max)
              * @default 100
              */
-            output_compression: number | null;
+            output_compression?: number | null;
             /**
              * Output Format
              * @description Output image format
              * @default png
              */
-            output_format: ("png" | "jpeg") | null;
+            output_format?: ("png" | "jpeg") | null;
             /**
              * Prompt
              * @description Text prompt describing the desired image
@@ -6359,19 +6359,19 @@ export type components = {
              * @description Generation quality (higher = slower)
              * @default high
              */
-            quality: ("low" | "medium" | "high") | null;
+            quality?: ("low" | "medium" | "high") | null;
             /**
              * Size
              * @description Output image size (WxH). Limited to priced sizes for exact billing.
              * @default 1024x1024
              */
-            size: ("1024x768" | "1024x1024" | "1024x1536" | "1536x1024" | "1920x1080" | "2560x1440" | "3840x2160") | null;
+            size?: ("1024x768" | "1024x1024" | "1024x1536" | "1536x1024" | "1920x1080" | "2560x1440" | "3840x2160") | null;
             /**
              * Store Output
              * @description Where this request's output media is hosted, and for how long. `provider` (default) returns a Relay CDN link that live-proxies the provider for 1 hour — the same hour the task record itself lives. `relay1d` / `relay7d` / `relay30d` copy the output into Relay's own storage and keep BOTH the link and the task record for 1, 7 or 30 days, for a flat per-file fee (see `media_storage` in GET /v2/pricing). Not available on routes that return media inline (base64), and not available to the guest tier.
              * @default provider
              */
-            store_output: ("provider" | "relay1d" | "relay7d" | "relay30d") | null;
+            store_output?: ("provider" | "relay1d" | "relay7d" | "relay30d") | null;
             /**
              * Webhook Url
              * @description HTTPS URL to receive a signed completion webhook when the async task reaches a terminal state (requires an API key, "async": true and direct mode; otherwise 422). See the Webhooks section for the delivery payload and events, and GET /v2/customer/webhook-secret for the signing secret + verification.
@@ -6398,7 +6398,7 @@ export type components = {
              * @description Model used
              * @default openai/gpt-image-2
              */
-            model: string;
+            model?: string;
             /**
              * Size
              * @description Image size (the 2.5 variants may report a size of their own choosing)
@@ -6427,7 +6427,7 @@ export type components = {
              * @description Return task_id immediately, poll /v2/tasks/{task_id} for result.
              * @default false
              */
-            async: boolean | null;
+            async?: boolean | null;
             /**
              * Image
              * @description Source image as base64 encoded string
@@ -6443,25 +6443,25 @@ export type components = {
              * @description Routing mode
              * @default auto
              */
-            mode: ("auto" | "direct") | null;
+            mode?: ("auto" | "direct") | null;
             /**
              * N
              * @description Number of images to generate (1-4)
              * @default 1
              */
-            n: (1 | 2 | 3 | 4) | null;
+            n?: (1 | 2 | 3 | 4) | null;
             /**
              * Output Compression
              * @description Compression level (0-100)
              * @default 100
              */
-            output_compression: number | null;
+            output_compression?: number | null;
             /**
              * Output Format
              * @description Output format
              * @default png
              */
-            output_format: ("png" | "jpeg" | "webp") | null;
+            output_format?: ("png" | "jpeg" | "webp") | null;
             /**
              * Prompt
              * @description Text description for image editing
@@ -6472,19 +6472,19 @@ export type components = {
              * @description Image quality
              * @default medium
              */
-            quality: ("low" | "medium" | "high") | null;
+            quality?: ("low" | "medium" | "high") | null;
             /**
              * Size
              * @description Image size
              * @default 1024x1024
              */
-            size: ("1024x1024" | "1024x1536" | "1536x1024") | null;
+            size?: ("1024x1024" | "1024x1536" | "1536x1024") | null;
             /**
              * Store Output
              * @description Where this request's output media is hosted, and for how long. `provider` (default) returns a Relay CDN link that live-proxies the provider for 1 hour — the same hour the task record itself lives. `relay1d` / `relay7d` / `relay30d` copy the output into Relay's own storage and keep BOTH the link and the task record for 1, 7 or 30 days, for a flat per-file fee (see `media_storage` in GET /v2/pricing). Not available on routes that return media inline (base64), and not available to the guest tier.
              * @default provider
              */
-            store_output: ("provider" | "relay1d" | "relay7d" | "relay30d") | null;
+            store_output?: ("provider" | "relay1d" | "relay7d" | "relay30d") | null;
             /**
              * Webhook Url
              * @description HTTPS URL to receive a signed completion webhook when the async task reaches a terminal state (requires an API key, "async": true and direct mode; otherwise 422). See the Webhooks section for the delivery payload and events, and GET /v2/customer/webhook-secret for the signing secret + verification.
@@ -6511,7 +6511,7 @@ export type components = {
              * @description Model used
              * @default openai/gpt-image-1.5-I2I
              */
-            model: string;
+            model?: string;
             /**
              * Size
              * @description Image size
@@ -6540,31 +6540,31 @@ export type components = {
              * @description Return task_id immediately, poll /v2/tasks/{task_id} for result.
              * @default false
              */
-            async: boolean | null;
+            async?: boolean | null;
             /**
              * Mode
              * @description Routing mode
              * @default auto
              */
-            mode: ("auto" | "direct") | null;
+            mode?: ("auto" | "direct") | null;
             /**
              * N
              * @description Number of images to generate (1-4)
              * @default 1
              */
-            n: (1 | 2 | 3 | 4) | null;
+            n?: (1 | 2 | 3 | 4) | null;
             /**
              * Output Compression
              * @description Compression level (0-100)
              * @default 100
              */
-            output_compression: number | null;
+            output_compression?: number | null;
             /**
              * Output Format
              * @description Output format
              * @default png
              */
-            output_format: ("png" | "jpeg" | "webp") | null;
+            output_format?: ("png" | "jpeg" | "webp") | null;
             /**
              * Prompt
              * @description Text description for image generation
@@ -6575,19 +6575,19 @@ export type components = {
              * @description Image quality
              * @default medium
              */
-            quality: ("low" | "medium" | "high") | null;
+            quality?: ("low" | "medium" | "high") | null;
             /**
              * Size
              * @description Image size
              * @default 1024x1024
              */
-            size: ("1024x1024" | "1024x1536" | "1536x1024") | null;
+            size?: ("1024x1024" | "1024x1536" | "1536x1024") | null;
             /**
              * Store Output
              * @description Where this request's output media is hosted, and for how long. `provider` (default) returns a Relay CDN link that live-proxies the provider for 1 hour — the same hour the task record itself lives. `relay1d` / `relay7d` / `relay30d` copy the output into Relay's own storage and keep BOTH the link and the task record for 1, 7 or 30 days, for a flat per-file fee (see `media_storage` in GET /v2/pricing). Not available on routes that return media inline (base64), and not available to the guest tier.
              * @default provider
              */
-            store_output: ("provider" | "relay1d" | "relay7d" | "relay30d") | null;
+            store_output?: ("provider" | "relay1d" | "relay7d" | "relay30d") | null;
             /**
              * Webhook Url
              * @description HTTPS URL to receive a signed completion webhook when the async task reaches a terminal state (requires an API key, "async": true and direct mode; otherwise 422). See the Webhooks section for the delivery payload and events, and GET /v2/customer/webhook-secret for the signing secret + verification.
@@ -6614,7 +6614,7 @@ export type components = {
              * @description Model used
              * @default openai/gpt-image-1.5-T2I
              */
-            model: string;
+            model?: string;
             /**
              * Size
              * @description Image size
@@ -6661,19 +6661,19 @@ export type components = {
              * @description Async mode (DEFAULT true for video — long runtime). Returns task_id immediately; poll /v2/tasks/{task_id}. Set false to block for the result.
              * @default true
              */
-            async: boolean | null;
+            async?: boolean | null;
             /**
              * Duration
              * @description Video duration in seconds (3–15).
              * @default 5
              */
-            duration: number | null;
+            duration?: number | null;
             /**
              * Mode
              * @description Routing mode: 'auto' or 'direct' (video is direct-only).
              * @default auto
              */
-            mode: ("auto" | "direct") | null;
+            mode?: ("auto" | "direct") | null;
             /**
              * Prompt
              * @description Text description of the video to generate.
@@ -6684,13 +6684,13 @@ export type components = {
              * @description Video aspect ratio (expanded set in 1.1).
              * @default 16:9
              */
-            ratio: ("16:9" | "9:16" | "1:1" | "4:3" | "3:4" | "4:5" | "5:4" | "9:21" | "21:9") | null;
+            ratio?: ("16:9" | "9:16" | "1:1" | "4:3" | "3:4" | "4:5" | "5:4" | "9:21" | "21:9") | null;
             /**
              * Resolution
              * @description Video resolution tier.
              * @default 1080P
              */
-            resolution: ("720P" | "1080P") | null;
+            resolution?: ("720P" | "1080P") | null;
             /**
              * Seed
              * @description Random seed for reproducibility.
@@ -6701,13 +6701,13 @@ export type components = {
              * @description Where this request's output media is hosted, and for how long. `provider` (default) returns a Relay CDN link that live-proxies the provider for 1 hour — the same hour the task record itself lives. `relay1d` / `relay7d` / `relay30d` copy the output into Relay's own storage and keep BOTH the link and the task record for 1, 7 or 30 days, for a flat per-file fee (see `media_storage` in GET /v2/pricing). Not available on routes that return media inline (base64), and not available to the guest tier.
              * @default provider
              */
-            store_output: ("provider" | "relay1d" | "relay7d" | "relay30d") | null;
+            store_output?: ("provider" | "relay1d" | "relay7d" | "relay30d") | null;
             /**
              * Watermark
              * @description Add a watermark to the output.
              * @default true
              */
-            watermark: boolean | null;
+            watermark?: boolean | null;
             /**
              * Webhook Url
              * @description HTTPS URL to receive a signed completion webhook when the async task reaches a terminal state (requires an API key, "async": true and direct mode; otherwise 422). See the Webhooks section for the delivery payload and events, and GET /v2/customer/webhook-secret for the signing secret + verification.
@@ -6726,13 +6726,13 @@ export type components = {
              * @description Async mode (DEFAULT true for video — long runtime). Returns task_id immediately; poll /v2/tasks/{task_id}. Set false to block for the result.
              * @default true
              */
-            async: boolean | null;
+            async?: boolean | null;
             /**
              * Duration
              * @description Video duration in seconds (3–15).
              * @default 5
              */
-            duration: number | null;
+            duration?: number | null;
             /**
              * First Frame Url
              * @description URL of the first frame image.
@@ -6743,7 +6743,7 @@ export type components = {
              * @description Routing mode: 'auto' or 'direct' (video is direct-only).
              * @default auto
              */
-            mode: ("auto" | "direct") | null;
+            mode?: ("auto" | "direct") | null;
             /**
              * Prompt
              * @description Optional text prompt to guide the video generation.
@@ -6754,7 +6754,7 @@ export type components = {
              * @description Video resolution tier.
              * @default 1080P
              */
-            resolution: ("720P" | "1080P") | null;
+            resolution?: ("720P" | "1080P") | null;
             /**
              * Seed
              * @description Random seed for reproducibility.
@@ -6765,13 +6765,13 @@ export type components = {
              * @description Where this request's output media is hosted, and for how long. `provider` (default) returns a Relay CDN link that live-proxies the provider for 1 hour — the same hour the task record itself lives. `relay1d` / `relay7d` / `relay30d` copy the output into Relay's own storage and keep BOTH the link and the task record for 1, 7 or 30 days, for a flat per-file fee (see `media_storage` in GET /v2/pricing). Not available on routes that return media inline (base64), and not available to the guest tier.
              * @default provider
              */
-            store_output: ("provider" | "relay1d" | "relay7d" | "relay30d") | null;
+            store_output?: ("provider" | "relay1d" | "relay7d" | "relay30d") | null;
             /**
              * Watermark
              * @description Add a watermark to the output.
              * @default true
              */
-            watermark: boolean | null;
+            watermark?: boolean | null;
             /**
              * Webhook Url
              * @description HTTPS URL to receive a signed completion webhook when the async task reaches a terminal state (requires an API key, "async": true and direct mode; otherwise 422). See the Webhooks section for the delivery payload and events, and GET /v2/customer/webhook-secret for the signing secret + verification.
@@ -6791,13 +6791,13 @@ export type components = {
              * @description Async mode (DEFAULT true for video — long runtime). Returns task_id immediately; poll /v2/tasks/{task_id}. Set false to block for the result.
              * @default true
              */
-            async: boolean | null;
+            async?: boolean | null;
             /**
              * Duration
              * @description Video duration in seconds (3–15).
              * @default 5
              */
-            duration: number | null;
+            duration?: number | null;
             /**
              * Images
              * @description Reference image URL list (1 to 9 images).
@@ -6808,7 +6808,7 @@ export type components = {
              * @description Routing mode: 'auto' or 'direct' (video is direct-only).
              * @default auto
              */
-            mode: ("auto" | "direct") | null;
+            mode?: ("auto" | "direct") | null;
             /**
              * Prompt
              * @description Text prompt. Reference images in order via `character1`, `character2`, …
@@ -6819,13 +6819,13 @@ export type components = {
              * @description Video aspect ratio.
              * @default 16:9
              */
-            ratio: ("16:9" | "9:16" | "1:1") | null;
+            ratio?: ("16:9" | "9:16" | "1:1") | null;
             /**
              * Resolution
              * @description Video resolution tier.
              * @default 1080P
              */
-            resolution: ("720P" | "1080P") | null;
+            resolution?: ("720P" | "1080P") | null;
             /**
              * Seed
              * @description Random seed for reproducibility.
@@ -6836,13 +6836,13 @@ export type components = {
              * @description Where this request's output media is hosted, and for how long. `provider` (default) returns a Relay CDN link that live-proxies the provider for 1 hour — the same hour the task record itself lives. `relay1d` / `relay7d` / `relay30d` copy the output into Relay's own storage and keep BOTH the link and the task record for 1, 7 or 30 days, for a flat per-file fee (see `media_storage` in GET /v2/pricing). Not available on routes that return media inline (base64), and not available to the guest tier.
              * @default provider
              */
-            store_output: ("provider" | "relay1d" | "relay7d" | "relay30d") | null;
+            store_output?: ("provider" | "relay1d" | "relay7d" | "relay30d") | null;
             /**
              * Watermark
              * @description Add a watermark to the output.
              * @default true
              */
-            watermark: boolean | null;
+            watermark?: boolean | null;
             /**
              * Webhook Url
              * @description HTTPS URL to receive a signed completion webhook when the async task reaches a terminal state (requires an API key, "async": true and direct mode; otherwise 422). See the Webhooks section for the delivery payload and events, and GET /v2/customer/webhook-secret for the signing secret + verification.
@@ -6859,19 +6859,19 @@ export type components = {
              * @description Async mode (DEFAULT true for video — long runtime). Returns task_id immediately; poll /v2/tasks/{task_id}. Set false to block for the result.
              * @default true
              */
-            async: boolean | null;
+            async?: boolean | null;
             /**
              * Duration
              * @description Video duration in seconds (3–15).
              * @default 5
              */
-            duration: number | null;
+            duration?: number | null;
             /**
              * Mode
              * @description Routing mode: 'auto' or 'direct' (video is direct-only).
              * @default auto
              */
-            mode: ("auto" | "direct") | null;
+            mode?: ("auto" | "direct") | null;
             /**
              * Prompt
              * @description Text description of the video to generate.
@@ -6882,13 +6882,13 @@ export type components = {
              * @description Video aspect ratio.
              * @default 16:9
              */
-            ratio: ("16:9" | "9:16" | "1:1") | null;
+            ratio?: ("16:9" | "9:16" | "1:1") | null;
             /**
              * Resolution
              * @description Video resolution tier.
              * @default 1080P
              */
-            resolution: ("720P" | "1080P") | null;
+            resolution?: ("720P" | "1080P") | null;
             /**
              * Seed
              * @description Random seed for reproducibility.
@@ -6899,13 +6899,13 @@ export type components = {
              * @description Where this request's output media is hosted, and for how long. `provider` (default) returns a Relay CDN link that live-proxies the provider for 1 hour — the same hour the task record itself lives. `relay1d` / `relay7d` / `relay30d` copy the output into Relay's own storage and keep BOTH the link and the task record for 1, 7 or 30 days, for a flat per-file fee (see `media_storage` in GET /v2/pricing). Not available on routes that return media inline (base64), and not available to the guest tier.
              * @default provider
              */
-            store_output: ("provider" | "relay1d" | "relay7d" | "relay30d") | null;
+            store_output?: ("provider" | "relay1d" | "relay7d" | "relay30d") | null;
             /**
              * Watermark
              * @description Add a watermark to the output.
              * @default true
              */
-            watermark: boolean | null;
+            watermark?: boolean | null;
             /**
              * Webhook Url
              * @description HTTPS URL to receive a signed completion webhook when the async task reaches a terminal state (requires an API key, "async": true and direct mode; otherwise 422). See the Webhooks section for the delivery payload and events, and GET /v2/customer/webhook-secret for the signing secret + verification.
@@ -6926,13 +6926,13 @@ export type components = {
              * @description Async mode (DEFAULT true for video — long runtime). Returns task_id immediately; poll /v2/tasks/{task_id}. Set false to block for the result.
              * @default true
              */
-            async: boolean | null;
+            async?: boolean | null;
             /**
              * Audio Setting
              * @description Audio control: 'auto' (model decides) or 'origin' (preserve source audio).
              * @default auto
              */
-            audio_setting: ("auto" | "origin") | null;
+            audio_setting?: ("auto" | "origin") | null;
             /**
              * Images
              * @description Optional reference image URL list (up to 5).
@@ -6943,7 +6943,7 @@ export type components = {
              * @description Routing mode: 'auto' or 'direct' (video is direct-only).
              * @default auto
              */
-            mode: ("auto" | "direct") | null;
+            mode?: ("auto" | "direct") | null;
             /**
              * Prompt
              * @description Editing instruction.
@@ -6954,7 +6954,7 @@ export type components = {
              * @description Output video resolution tier.
              * @default 1080P
              */
-            resolution: ("720P" | "1080P") | null;
+            resolution?: ("720P" | "1080P") | null;
             /**
              * Seed
              * @description Random seed for reproducibility.
@@ -6965,7 +6965,7 @@ export type components = {
              * @description Where this request's output media is hosted, and for how long. `provider` (default) returns a Relay CDN link that live-proxies the provider for 1 hour — the same hour the task record itself lives. `relay1d` / `relay7d` / `relay30d` copy the output into Relay's own storage and keep BOTH the link and the task record for 1, 7 or 30 days, for a flat per-file fee (see `media_storage` in GET /v2/pricing). Not available on routes that return media inline (base64), and not available to the guest tier.
              * @default provider
              */
-            store_output: ("provider" | "relay1d" | "relay7d" | "relay30d") | null;
+            store_output?: ("provider" | "relay1d" | "relay7d" | "relay30d") | null;
             /**
              * Video Url
              * @description URL of the source video to edit.
@@ -6976,7 +6976,7 @@ export type components = {
              * @description Add a watermark to the output.
              * @default true
              */
-            watermark: boolean | null;
+            watermark?: boolean | null;
             /**
              * Webhook Url
              * @description HTTPS URL to receive a signed completion webhook when the async task reaches a terminal state (requires an API key, "async": true and direct mode; otherwise 422). See the Webhooks section for the delivery payload and events, and GET /v2/customer/webhook-secret for the signing secret + verification.
@@ -7081,7 +7081,7 @@ export type components = {
              * Description
              * @default
              */
-            description: string;
+            description?: string;
             /**
              * Includes
              * @description Bundled software, as the catalog lists it
@@ -7117,7 +7117,7 @@ export type components = {
              * @description Async mode: returns task_id immediately, poll /v2/tasks/{task_id} for result.
              * @default false
              */
-            async: boolean | null;
+            async?: boolean | null;
             /**
              * Emo Alpha
              * @description Emotion fusion weight (clone mode).
@@ -7164,7 +7164,7 @@ export type components = {
              * @description Routing mode: 'auto' or 'direct' (TTS is direct-only).
              * @default auto
              */
-            mode: ("auto" | "direct") | null;
+            mode?: ("auto" | "direct") | null;
             /**
              * Sample Rate
              * @description Output sample rate in Hz (e.g. 22050, 44100, 48000). Default 22050.
@@ -7185,7 +7185,7 @@ export type components = {
              * @description Where this request's output media is hosted, and for how long. `provider` (default) returns a Relay CDN link that live-proxies the provider for 1 hour — the same hour the task record itself lives. `relay1d` / `relay7d` / `relay30d` copy the output into Relay's own storage and keep BOTH the link and the task record for 1, 7 or 30 days, for a flat per-file fee (see `media_storage` in GET /v2/pricing). Not available on routes that return media inline (base64), and not available to the guest tier.
              * @default provider
              */
-            store_output: ("provider" | "relay1d" | "relay7d" | "relay30d") | null;
+            store_output?: ("provider" | "relay1d" | "relay7d" | "relay30d") | null;
             /**
              * Use Random
              * @description Introduce random emotion variation.
@@ -7325,7 +7325,7 @@ export type components = {
              * Currency
              * @default USD
              */
-            currency: string;
+            currency?: string;
             /** Instances */
             instances: components["schemas"]["UsageRow"][];
             totals: components["schemas"]["UsageTotals"];
@@ -7369,7 +7369,7 @@ export type components = {
              * @description Periods charged so far × their length, in hours (the ledger)
              * @default 0
              */
-            hours_billed: number;
+            hours_billed?: number;
             /** Id */
             id: string;
             /** Image */
@@ -7400,7 +7400,7 @@ export type components = {
              * @description USD charged to your wallet for this instance so far
              * @default 0
              */
-            spend_usd: number;
+            spend_usd?: number;
             /**
              * Ssh Key Fingerprint
              * @description `SHA256:…` of the key the instance was spawned with
@@ -7595,7 +7595,7 @@ export type components = {
              * @description Management key for custom-tier customers. At most one per customer (DB-enforced).
              * @default false
              */
-            is_superkey: boolean;
+            is_superkey?: boolean;
             /**
              * Key
              * @description Masked key secret: its first 20 characters followed by `...`. The full secret is returned only once, by `POST /v2/customer/keys`.
@@ -7626,7 +7626,7 @@ export type components = {
              * @description Relay-managed system key (e.g. the __relayfront__ dashboard attribution key). Read-only: not a usable credential, cannot be renamed, revoked, deleted, or promoted, and does not count toward your tier's key limit.
              * @default false
              */
-            system: boolean;
+            system?: boolean;
         };
         /**
          * KeyRestrictions
@@ -7652,7 +7652,7 @@ export type components = {
              * @description True for the designated management key.
              * @default false
              */
-            is_superkey: boolean;
+            is_superkey?: boolean;
             /**
              * Key
              * @description Masked key secret: its first 20 characters followed by `...`. The full secret is returned only once, by `POST /v2/customer/keys`.
@@ -7679,7 +7679,7 @@ export type components = {
              * @description Relay-managed system key (dashboard attribution) — read-only.
              * @default false
              */
-            system: boolean;
+            system?: boolean;
         };
         /**
          * KlingI2VRequest
@@ -7691,19 +7691,19 @@ export type components = {
              * @description Video aspect ratio
              * @default 16:9
              */
-            aspect_ratio: ("16:9" | "9:16" | "1:1") | null;
+            aspect_ratio?: ("16:9" | "9:16" | "1:1") | null;
             /**
              * Async
              * @description Return task_id immediately, poll /v2/tasks/{task_id} for result.
              * @default true
              */
-            async: boolean | null;
+            async?: boolean | null;
             /**
              * Duration
              * @description Video duration in seconds: 5 or 10
              * @default 5
              */
-            duration: (5 | 10) | null;
+            duration?: (5 | 10) | null;
             /**
              * Image
              * @description Reference image URL or base64 encoded string
@@ -7719,7 +7719,7 @@ export type components = {
              * @description Routing mode: 'auto' or 'direct' (video is direct-only)
              * @default auto
              */
-            mode: ("auto" | "direct") | null;
+            mode?: ("auto" | "direct") | null;
             /**
              * Negative Prompt
              * @description Things to avoid in the video
@@ -7735,7 +7735,7 @@ export type components = {
              * @description Where this request's output media is hosted, and for how long. `provider` (default) returns a Relay CDN link that live-proxies the provider for 1 hour — the same hour the task record itself lives. `relay1d` / `relay7d` / `relay30d` copy the output into Relay's own storage and keep BOTH the link and the task record for 1, 7 or 30 days, for a flat per-file fee (see `media_storage` in GET /v2/pricing). Not available on routes that return media inline (base64), and not available to the guest tier.
              * @default provider
              */
-            store_output: ("provider" | "relay1d" | "relay7d" | "relay30d") | null;
+            store_output?: ("provider" | "relay1d" | "relay7d" | "relay30d") | null;
             /**
              * Webhook Url
              * @description HTTPS URL to receive a signed completion webhook when the async task reaches a terminal state (requires an API key, "async": true and direct mode; otherwise 422). See the Webhooks section for the delivery payload and events, and GET /v2/customer/webhook-secret for the signing secret + verification.
@@ -7767,7 +7767,7 @@ export type components = {
              * @description Model used
              * @default KlingTeam/v2.6-I2V
              */
-            model: string;
+            model?: string;
             /**
              * Task Address
              * @description Blockchain task address (opengpu mode only, null for direct)
@@ -7797,13 +7797,13 @@ export type components = {
              * @description Video aspect ratio
              * @default 16:9
              */
-            aspect_ratio: ("16:9" | "9:16" | "1:1") | null;
+            aspect_ratio?: ("16:9" | "9:16" | "1:1") | null;
             /**
              * Async
              * @description Return task_id immediately, poll /v2/tasks/{task_id} for result. Async is the DEFAULT for video (long runtime); set false to block for the result.
              * @default true
              */
-            async: boolean | null;
+            async?: boolean | null;
             /**
              * Base Video Keep Audio
              * @description Keep the base video's audio track.
@@ -7819,7 +7819,7 @@ export type components = {
              * @description Video duration in seconds: 5 or 10
              * @default 5
              */
-            duration: (5 | 10) | null;
+            duration?: (5 | 10) | null;
             /**
              * End Frame Url
              * @description End-frame image — URL or base64 data URI (start→end-frame interpolation).
@@ -7835,7 +7835,7 @@ export type components = {
              * @description Routing mode: 'auto' or 'direct' (video is direct-only)
              * @default auto
              */
-            mode: ("auto" | "direct") | null;
+            mode?: ("auto" | "direct") | null;
             /**
              * Prompt
              * @description Text description of the video to generate
@@ -7846,7 +7846,7 @@ export type components = {
              * @description Generation quality: 'std' or 'pro' (currently only 'pro' is supported).
              * @default pro
              */
-            quality_mode: ("std" | "pro") | null;
+            quality_mode?: ("std" | "pro") | null;
             /**
              * Reference Video Keep Audio
              * @description Keep the reference video's audio track.
@@ -7862,7 +7862,7 @@ export type components = {
              * @description Where this request's output media is hosted, and for how long. `provider` (default) returns a Relay CDN link that live-proxies the provider for 1 hour — the same hour the task record itself lives. `relay1d` / `relay7d` / `relay30d` copy the output into Relay's own storage and keep BOTH the link and the task record for 1, 7 or 30 days, for a flat per-file fee (see `media_storage` in GET /v2/pricing). Not available on routes that return media inline (base64), and not available to the guest tier.
              * @default provider
              */
-            store_output: ("provider" | "relay1d" | "relay7d" | "relay30d") | null;
+            store_output?: ("provider" | "relay1d" | "relay7d" | "relay30d") | null;
             /**
              * Webhook Url
              * @description HTTPS URL to receive a signed completion webhook when the async task reaches a terminal state (requires an API key, "async": true and direct mode; otherwise 422). See the Webhooks section for the delivery payload and events, and GET /v2/customer/webhook-secret for the signing secret + verification.
@@ -7894,7 +7894,7 @@ export type components = {
              * @description Model used
              * @default KlingTeam/kling-video-o1
              */
-            model: string;
+            model?: string;
             /**
              * Task Address
              * @description Blockchain task address (opengpu mode only, null for direct)
@@ -7923,25 +7923,25 @@ export type components = {
              * @description Video aspect ratio
              * @default 16:9
              */
-            aspect_ratio: ("16:9" | "9:16" | "1:1") | null;
+            aspect_ratio?: ("16:9" | "9:16" | "1:1") | null;
             /**
              * Async
              * @description Return task_id immediately, poll /v2/tasks/{task_id} for result.
              * @default true
              */
-            async: boolean | null;
+            async?: boolean | null;
             /**
              * Duration
              * @description Video duration in seconds: 5 or 10
              * @default 5
              */
-            duration: (5 | 10) | null;
+            duration?: (5 | 10) | null;
             /**
              * Mode
              * @description Routing mode: 'auto' or 'direct' (video is direct-only)
              * @default auto
              */
-            mode: ("auto" | "direct") | null;
+            mode?: ("auto" | "direct") | null;
             /**
              * Negative Prompt
              * @description Things to avoid in the video
@@ -7957,7 +7957,7 @@ export type components = {
              * @description Where this request's output media is hosted, and for how long. `provider` (default) returns a Relay CDN link that live-proxies the provider for 1 hour — the same hour the task record itself lives. `relay1d` / `relay7d` / `relay30d` copy the output into Relay's own storage and keep BOTH the link and the task record for 1, 7 or 30 days, for a flat per-file fee (see `media_storage` in GET /v2/pricing). Not available on routes that return media inline (base64), and not available to the guest tier.
              * @default provider
              */
-            store_output: ("provider" | "relay1d" | "relay7d" | "relay30d") | null;
+            store_output?: ("provider" | "relay1d" | "relay7d" | "relay30d") | null;
             /**
              * Webhook Url
              * @description HTTPS URL to receive a signed completion webhook when the async task reaches a terminal state (requires an API key, "async": true and direct mode; otherwise 422). See the Webhooks section for the delivery payload and events, and GET /v2/customer/webhook-secret for the signing secret + verification.
@@ -7989,7 +7989,7 @@ export type components = {
              * @description Model used
              * @default KlingTeam/v2.6-T2V
              */
-            model: string;
+            model?: string;
             /**
              * Task Address
              * @description Blockchain task address (opengpu mode only, null for direct)
@@ -8018,19 +8018,19 @@ export type components = {
              * @description Video aspect ratio
              * @default 16:9
              */
-            aspect_ratio: ("16:9" | "9:16" | "1:1") | null;
+            aspect_ratio?: ("16:9" | "9:16" | "1:1") | null;
             /**
              * Async
              * @description Return task_id immediately, poll /v2/tasks/{task_id} for result. Async is the DEFAULT for video (long runtime); set false to block for the result.
              * @default true
              */
-            async: boolean | null;
+            async?: boolean | null;
             /**
              * Duration
              * @description Video duration in seconds (3-15)
              * @default 5
              */
-            duration: number | null;
+            duration?: number | null;
             /**
              * Image
              * @description Reference image URL or base64 encoded string
@@ -8046,7 +8046,7 @@ export type components = {
              * @description Routing mode: 'auto' or 'direct' (video is direct-only)
              * @default auto
              */
-            mode: ("auto" | "direct") | null;
+            mode?: ("auto" | "direct") | null;
             /**
              * Negative Prompt
              * @description Things to avoid in the video
@@ -8062,19 +8062,19 @@ export type components = {
              * @description Generation quality: 'std' (720P) or 'pro' (1080P).
              * @default std
              */
-            quality_mode: ("std" | "pro") | null;
+            quality_mode?: ("std" | "pro") | null;
             /**
              * Sound
              * @description Generate native audio (synchronized sound/dialogue from the prompt).
              * @default false
              */
-            sound: boolean | null;
+            sound?: boolean | null;
             /**
              * Store Output
              * @description Where this request's output media is hosted, and for how long. `provider` (default) returns a Relay CDN link that live-proxies the provider for 1 hour — the same hour the task record itself lives. `relay1d` / `relay7d` / `relay30d` copy the output into Relay's own storage and keep BOTH the link and the task record for 1, 7 or 30 days, for a flat per-file fee (see `media_storage` in GET /v2/pricing). Not available on routes that return media inline (base64), and not available to the guest tier.
              * @default provider
              */
-            store_output: ("provider" | "relay1d" | "relay7d" | "relay30d") | null;
+            store_output?: ("provider" | "relay1d" | "relay7d" | "relay30d") | null;
             /**
              * Webhook Url
              * @description HTTPS URL to receive a signed completion webhook when the async task reaches a terminal state (requires an API key, "async": true and direct mode; otherwise 422). See the Webhooks section for the delivery payload and events, and GET /v2/customer/webhook-secret for the signing secret + verification.
@@ -8106,7 +8106,7 @@ export type components = {
              * @description Model used
              * @default KlingTeam/v3-I2V
              */
-            model: string;
+            model?: string;
             /**
              * Task Address
              * @description Blockchain task address (opengpu mode only, null for direct)
@@ -8136,13 +8136,13 @@ export type components = {
              * @description Video aspect ratio
              * @default 16:9
              */
-            aspect_ratio: ("16:9" | "9:16" | "1:1") | null;
+            aspect_ratio?: ("16:9" | "9:16" | "1:1") | null;
             /**
              * Async
              * @description Return task_id immediately, poll /v2/tasks/{task_id} for result. Async is the DEFAULT for video (long runtime); set false to block for the result.
              * @default true
              */
-            async: boolean | null;
+            async?: boolean | null;
             /**
              * Character Orientation
              * @description Which input decides the character's facing direction: 'image' matches the reference image, 'video' matches the reference video.
@@ -8154,7 +8154,7 @@ export type components = {
              * @description Video duration in seconds (5 or 10). Billed per second.
              * @default 5
              */
-            duration: (5 | 10) | null;
+            duration?: (5 | 10) | null;
             /**
              * Image Url
              * @description Reference character image URL. JPG/PNG, max 10MB, 300-65536px, aspect ratio between 1:2.5 and 2.5:1. Must show a clear human character.
@@ -8165,13 +8165,13 @@ export type components = {
              * @description Keep the reference video's own audio in the result.
              * @default true
              */
-            keep_original_sound: boolean | null;
+            keep_original_sound?: boolean | null;
             /**
              * Mode
              * @description Routing mode: 'auto' or 'direct' (video is direct-only)
              * @default auto
              */
-            mode: ("auto" | "direct") | null;
+            mode?: ("auto" | "direct") | null;
             /**
              * Prompt
              * @description Optional text prompt guiding the generation
@@ -8182,13 +8182,13 @@ export type components = {
              * @description Generation quality: 'std' (standard) or 'pro' (high quality). Priced per tier — see /v2/pricing.
              * @default std
              */
-            quality_mode: ("std" | "pro") | null;
+            quality_mode?: ("std" | "pro") | null;
             /**
              * Store Output
              * @description Where this request's output media is hosted, and for how long. `provider` (default) returns a Relay CDN link that live-proxies the provider for 1 hour — the same hour the task record itself lives. `relay1d` / `relay7d` / `relay30d` copy the output into Relay's own storage and keep BOTH the link and the task record for 1, 7 or 30 days, for a flat per-file fee (see `media_storage` in GET /v2/pricing). Not available on routes that return media inline (base64), and not available to the guest tier.
              * @default provider
              */
-            store_output: ("provider" | "relay1d" | "relay7d" | "relay30d") | null;
+            store_output?: ("provider" | "relay1d" | "relay7d" | "relay30d") | null;
             /**
              * Video Url
              * @description Reference motion video URL. MP4/MOV, max 100MB, 340-3850px, at least 3s (landscape up to 30s, portrait up to 10s). Must feature a person performing the motion to transfer.
@@ -8225,7 +8225,7 @@ export type components = {
              * @description Model used
              * @default KlingTeam/v3-Motion-Control
              */
-            model: string;
+            model?: string;
             /**
              * Task Address
              * @description Blockchain task address (opengpu mode only, null for direct)
@@ -8254,25 +8254,25 @@ export type components = {
              * @description Video aspect ratio
              * @default 16:9
              */
-            aspect_ratio: ("16:9" | "9:16" | "1:1") | null;
+            aspect_ratio?: ("16:9" | "9:16" | "1:1") | null;
             /**
              * Async
              * @description Return task_id immediately, poll /v2/tasks/{task_id} for result. Async is the DEFAULT for video (long runtime); set false to block for the result.
              * @default true
              */
-            async: boolean | null;
+            async?: boolean | null;
             /**
              * Duration
              * @description Video duration in seconds (3-15)
              * @default 5
              */
-            duration: number | null;
+            duration?: number | null;
             /**
              * Mode
              * @description Routing mode: 'auto' or 'direct' (video is direct-only)
              * @default auto
              */
-            mode: ("auto" | "direct") | null;
+            mode?: ("auto" | "direct") | null;
             /**
              * Negative Prompt
              * @description Things to avoid in the video
@@ -8288,19 +8288,19 @@ export type components = {
              * @description Generation quality: 'std' (720P) or 'pro' (1080P).
              * @default std
              */
-            quality_mode: ("std" | "pro") | null;
+            quality_mode?: ("std" | "pro") | null;
             /**
              * Sound
              * @description Generate native audio (synchronized sound/dialogue from the prompt).
              * @default false
              */
-            sound: boolean | null;
+            sound?: boolean | null;
             /**
              * Store Output
              * @description Where this request's output media is hosted, and for how long. `provider` (default) returns a Relay CDN link that live-proxies the provider for 1 hour — the same hour the task record itself lives. `relay1d` / `relay7d` / `relay30d` copy the output into Relay's own storage and keep BOTH the link and the task record for 1, 7 or 30 days, for a flat per-file fee (see `media_storage` in GET /v2/pricing). Not available on routes that return media inline (base64), and not available to the guest tier.
              * @default provider
              */
-            store_output: ("provider" | "relay1d" | "relay7d" | "relay30d") | null;
+            store_output?: ("provider" | "relay1d" | "relay7d" | "relay30d") | null;
             /**
              * Webhook Url
              * @description HTTPS URL to receive a signed completion webhook when the async task reaches a terminal state (requires an API key, "async": true and direct mode; otherwise 422). See the Webhooks section for the delivery payload and events, and GET /v2/customer/webhook-secret for the signing secret + verification.
@@ -8332,7 +8332,7 @@ export type components = {
              * @description Model used
              * @default KlingTeam/v3-T2V
              */
-            model: string;
+            model?: string;
             /**
              * Task Address
              * @description Blockchain task address (opengpu mode only, null for direct)
@@ -8402,19 +8402,19 @@ export type components = {
              * @description Async mode (DEFAULT true for video — long runtime). Returns task_id immediately; poll /v2/tasks/{task_id}. Set false to block for the result.
              * @default true
              */
-            async: boolean | null;
+            async?: boolean | null;
             /**
              * Enhance Prompt
              * @description Auto-enhance the prompt.
              * @default true
              */
-            enhance_prompt: boolean | null;
+            enhance_prompt?: boolean | null;
             /**
              * Mode
              * @description Routing mode: 'auto' or 'direct' (video is direct-only).
              * @default auto
              */
-            mode: ("auto" | "direct") | null;
+            mode?: ("auto" | "direct") | null;
             /**
              * Prompt
              * @description Text edit directive.
@@ -8430,7 +8430,7 @@ export type components = {
              * @description Output resolution (720p only).
              * @default 720p
              */
-            resolution: "720p" | null;
+            resolution?: "720p" | null;
             /**
              * Seed
              * @description Random seed.
@@ -8441,13 +8441,13 @@ export type components = {
              * @description Re-anchor generation on the model's own latent.
              * @default true
              */
-            self_anchor: boolean | null;
+            self_anchor?: boolean | null;
             /**
              * Store Output
              * @description Where this request's output media is hosted, and for how long. `provider` (default) returns a Relay CDN link that live-proxies the provider for 1 hour — the same hour the task record itself lives. `relay1d` / `relay7d` / `relay30d` copy the output into Relay's own storage and keep BOTH the link and the task record for 1, 7 or 30 days, for a flat per-file fee (see `media_storage` in GET /v2/pricing). Not available on routes that return media inline (base64), and not available to the guest tier.
              * @default provider
              */
-            store_output: ("provider" | "relay1d" | "relay7d" | "relay30d") | null;
+            store_output?: ("provider" | "relay1d" | "relay7d" | "relay30d") | null;
             /**
              * Video Url
              * @description URL of the input video to edit.
@@ -8515,19 +8515,19 @@ export type components = {
              * @description Async mode (DEFAULT true for video — long runtime). Returns task_id immediately; poll /v2/tasks/{task_id}. Set false to block for the result.
              * @default true
              */
-            async: boolean | null;
+            async?: boolean | null;
             /**
              * Enhance Prompt
              * @description Auto-enhance the prompt.
              * @default true
              */
-            enhance_prompt: boolean | null;
+            enhance_prompt?: boolean | null;
             /**
              * Mode
              * @description Routing mode: 'auto' or 'direct' (video is direct-only).
              * @default auto
              */
-            mode: ("auto" | "direct") | null;
+            mode?: ("auto" | "direct") | null;
             /**
              * Prompt
              * @description Text edit directive.
@@ -8543,7 +8543,7 @@ export type components = {
              * @description Output resolution (720p only).
              * @default 720p
              */
-            resolution: "720p" | null;
+            resolution?: "720p" | null;
             /**
              * Seed
              * @description Random seed.
@@ -8554,7 +8554,7 @@ export type components = {
              * @description Where this request's output media is hosted, and for how long. `provider` (default) returns a Relay CDN link that live-proxies the provider for 1 hour — the same hour the task record itself lives. `relay1d` / `relay7d` / `relay30d` copy the output into Relay's own storage and keep BOTH the link and the task record for 1, 7 or 30 days, for a flat per-file fee (see `media_storage` in GET /v2/pricing). Not available on routes that return media inline (base64), and not available to the guest tier.
              * @default provider
              */
-            store_output: ("provider" | "relay1d" | "relay7d" | "relay30d") | null;
+            store_output?: ("provider" | "relay1d" | "relay7d" | "relay30d") | null;
             /**
              * Video Url
              * @description URL of the input video to edit.
@@ -8597,7 +8597,7 @@ export type components = {
              * @description The fee is charged once per output FILE, so a multi-output generation is charged per output
              * @default per_file
              */
-            unit: string;
+            unit?: string;
         };
         /** MetricsBucket */
         MetricsBucket: {
@@ -8610,7 +8610,7 @@ export type components = {
              * Object
              * @default bucket
              */
-            object: string;
+            object?: string;
             /** Results */
             results: components["schemas"]["MetricsResult"][];
             /**
@@ -8634,7 +8634,7 @@ export type components = {
              * Object
              * @default page
              */
-            object: string;
+            object?: string;
             /** @description Whole-range rollup over the full [start_time, end_time); identical on every page of the query. */
             summary?: components["schemas"]["MetricsSummary"] | null;
         };
@@ -8705,7 +8705,7 @@ export type components = {
              * Object
              * @default summary
              */
-            object: string;
+            object?: string;
             /** Results */
             results: components["schemas"]["MetricsResult"][];
             /**
@@ -8729,7 +8729,7 @@ export type components = {
              * @description Async mode: returns task_id immediately, poll /v2/tasks/{task_id} for result.
              * @default false
              */
-            async: boolean | null;
+            async?: boolean | null;
             /**
              * Audio Bitrate
              * @description Audio bitrate (mp3 only). Default 128000.
@@ -8765,7 +8765,7 @@ export type components = {
              * @description Routing mode: 'auto' or 'direct' (TTS is direct-only).
              * @default auto
              */
-            mode: ("auto" | "direct") | null;
+            mode?: ("auto" | "direct") | null;
             /**
              * Pitch
              * @description Pitch in semitones (-12 to 12). Default 0.
@@ -8781,7 +8781,7 @@ export type components = {
              * @description Where this request's output media is hosted, and for how long. `provider` (default) returns a Relay CDN link that live-proxies the provider for 1 hour — the same hour the task record itself lives. `relay1d` / `relay7d` / `relay30d` copy the output into Relay's own storage and keep BOTH the link and the task record for 1, 7 or 30 days, for a flat per-file fee (see `media_storage` in GET /v2/pricing). Not available on routes that return media inline (base64), and not available to the guest tier.
              * @default provider
              */
-            store_output: ("provider" | "relay1d" | "relay7d" | "relay30d") | null;
+            store_output?: ("provider" | "relay1d" | "relay7d" | "relay30d") | null;
             /**
              * Subtitle Enable
              * @description Generate a subtitle .json file (non-streaming only). Default false.
@@ -9145,7 +9145,7 @@ export type components = {
              * @description Async mode: returns task_id immediately, poll /v2/tasks/{task_id} for result.
              * @default false
              */
-            async: boolean | null;
+            async?: boolean | null;
             /**
              * Chat Template Kwargs
              * @description Chat template parameters (e.g. {"enable_thinking": true} for reasoning models)
@@ -9202,7 +9202,7 @@ export type components = {
              * @description Routing mode: 'auto' (default), 'direct', or 'opengpu'. 'auto' uses direct when your key may, else opengpu — it does not fail over between modes at run time. Streaming is direct-only.
              * @default auto
              */
-            mode: ("auto" | "opengpu" | "direct") | null;
+            mode?: ("auto" | "opengpu" | "direct") | null;
             /**
              * Model
              * @description Model name, case-sensitive, e.g. `openai/gpt-5.4` or `deepseek-ai/DeepSeek-V4-Flash`. Any `text-to-text` model listed under the `openai` source in `GET /v2/models` works here; Claude models use `/v2/anthropic/v1/messages`.
@@ -9262,7 +9262,7 @@ export type components = {
              * @description Enable streaming responses (SSE format, direct mode only)
              * @default false
              */
-            stream: boolean | null;
+            stream?: boolean | null;
             /**
              * Stream Options
              * @description Streaming options (e.g. {"include_usage": true})
@@ -9357,7 +9357,7 @@ export type components = {
              * @description Object type
              * @default chat.completion
              */
-            object: string;
+            object?: string;
             /**
              * System Fingerprint
              * @description System fingerprint
@@ -9405,7 +9405,7 @@ export type components = {
              * @description Non-null samples feeding this set. May be < request_count — e.g. ttft_ms counts streamed rows only, provider_latency_ms only requests that reached a provider.
              * @default 0
              */
-            sample_count: number;
+            sample_count?: number;
         };
         /**
          * PricingItem
@@ -9578,7 +9578,7 @@ export type components = {
              * @description Low-credit warning line (credits; 0 = off). Read side of PATCH /settings — responses carry X-Credit-Warning: true while the balance is below this value.
              * @default 0
              */
-            warning_threshold: number;
+            warning_threshold?: number;
         };
         /** PromoBalance */
         PromoBalance: {
@@ -9611,7 +9611,7 @@ export type components = {
              * Message
              * @default Key promoted to superkey.
              */
-            message: string;
+            message?: string;
             /** Status */
             status: string;
         };
@@ -9625,7 +9625,7 @@ export type components = {
              * @description Async mode: returns task_id immediately, poll /v2/tasks/{task_id} for result.
              * @default false
              */
-            async: boolean | null;
+            async?: boolean | null;
             /**
              * Input
              * @description Text to synthesize (max 600 chars; multilingual supported).
@@ -9642,13 +9642,13 @@ export type components = {
              * @description Routing mode: 'auto' or 'direct' (TTS is direct-only).
              * @default auto
              */
-            mode: ("auto" | "direct") | null;
+            mode?: ("auto" | "direct") | null;
             /**
              * Store Output
              * @description Where this request's output media is hosted, and for how long. `provider` (default) returns a Relay CDN link that live-proxies the provider for 1 hour — the same hour the task record itself lives. `relay1d` / `relay7d` / `relay30d` copy the output into Relay's own storage and keep BOTH the link and the task record for 1, 7 or 30 days, for a flat per-file fee (see `media_storage` in GET /v2/pricing). Not available on routes that return media inline (base64), and not available to the guest tier.
              * @default provider
              */
-            store_output: ("provider" | "relay1d" | "relay7d" | "relay30d") | null;
+            store_output?: ("provider" | "relay1d" | "relay7d" | "relay30d") | null;
             /**
              * Voice
              * @description System voice name (e.g. 'Cherry', 'Ethan', 'Serena', 'Chelsie'). Full list: https://help.aliyun.com/zh/model-studio/qwen-tts
@@ -9704,7 +9704,7 @@ export type components = {
              * @description Return task_id immediately, poll /v2/tasks/{task_id} for result.
              * @default false
              */
-            async: boolean | null;
+            async?: boolean | null;
             /**
              * Image
              * @description Source image as URL or base64 encoded string
@@ -9716,14 +9716,14 @@ export type components = {
              * @description Routing mode: 'auto' or 'direct' (Qwen is direct-only)
              * @default auto
              */
-            mode: ("auto" | "direct") | null;
+            mode?: ("auto" | "direct") | null;
             /**
              * Model
              * @description Image editing model. Available: 'Qwen/qwen-image-edit' (default)
              * @default Qwen/qwen-image-edit
              * @example Qwen/qwen-image-edit
              */
-            model: string | null;
+            model?: string | null;
             /**
              * Prompt
              * @description Text description of the edit to apply
@@ -9741,13 +9741,13 @@ export type components = {
              * @default 1024x1024
              * @example 512x512
              */
-            size: string | null;
+            size?: string | null;
             /**
              * Store Output
              * @description Where this request's output media is hosted, and for how long. `provider` (default) returns a Relay CDN link that live-proxies the provider for 1 hour — the same hour the task record itself lives. `relay1d` / `relay7d` / `relay30d` copy the output into Relay's own storage and keep BOTH the link and the task record for 1, 7 or 30 days, for a flat per-file fee (see `media_storage` in GET /v2/pricing). Not available on routes that return media inline (base64), and not available to the guest tier.
              * @default provider
              */
-            store_output: ("provider" | "relay1d" | "relay7d" | "relay30d") | null;
+            store_output?: ("provider" | "relay1d" | "relay7d" | "relay30d") | null;
             /**
              * Webhook Url
              * @description HTTPS URL to receive a signed completion webhook when the async task reaches a terminal state (requires an API key, "async": true and direct mode; otherwise 422). See the Webhooks section for the delivery payload and events, and GET /v2/customer/webhook-secret for the signing secret + verification.
@@ -9802,20 +9802,20 @@ export type components = {
              * @description Return task_id immediately, poll /v2/tasks/{task_id} for result.
              * @default false
              */
-            async: boolean | null;
+            async?: boolean | null;
             /**
              * Mode
              * @description Routing mode: 'auto' or 'direct' (Qwen is direct-only)
              * @default auto
              */
-            mode: ("auto" | "direct") | null;
+            mode?: ("auto" | "direct") | null;
             /**
              * Model
              * @description Image generation model. Available: 'Qwen/qwen-image' (default)
              * @default Qwen/qwen-image
              * @example Qwen/qwen-image
              */
-            model: string | null;
+            model?: string | null;
             /**
              * Prompt
              * @description Text description of the image to generate
@@ -9833,13 +9833,13 @@ export type components = {
              * @default 1024x1024
              * @example 512x512
              */
-            size: string | null;
+            size?: string | null;
             /**
              * Store Output
              * @description Where this request's output media is hosted, and for how long. `provider` (default) returns a Relay CDN link that live-proxies the provider for 1 hour — the same hour the task record itself lives. `relay1d` / `relay7d` / `relay30d` copy the output into Relay's own storage and keep BOTH the link and the task record for 1, 7 or 30 days, for a flat per-file fee (see `media_storage` in GET /v2/pricing). Not available on routes that return media inline (base64), and not available to the guest tier.
              * @default provider
              */
-            store_output: ("provider" | "relay1d" | "relay7d" | "relay30d") | null;
+            store_output?: ("provider" | "relay1d" | "relay7d" | "relay30d") | null;
             /**
              * Webhook Url
              * @description HTTPS URL to receive a signed completion webhook when the async task reaches a terminal state (requires an API key, "async": true and direct mode; otherwise 422). See the Webhooks section for the delivery payload and events, and GET /v2/customer/webhook-secret for the signing secret + verification.
@@ -9894,7 +9894,7 @@ export type components = {
              * @description Return task_id immediately, poll /v2/tasks/{task_id} for result.
              * @default false
              */
-            async: boolean | null;
+            async?: boolean | null;
             /**
              * Image B64
              * @description Base64-encoded input image, raw or data URI. Provide exactly one of image_url / image_b64.
@@ -9911,26 +9911,26 @@ export type components = {
              * @description Routing mode: 'auto' (default), 'direct', or 'opengpu'. 'auto' prefers direct and uses opengpu only where direct is unavailable to you — it does not fail over between modes at run time.
              * @default auto
              */
-            mode: ("auto" | "opengpu" | "direct") | null;
+            mode?: ("auto" | "opengpu" | "direct") | null;
             /**
              * Model
              * @description Upscaling model. `RealESRGAN-x4plus` (default) 4x photographic; `RealESRGAN-x2plus` 2x, lighter compute; `RealESRGAN-x4plus-anime` 4x tuned for anime/illustration.
              * @default TencentARC/RealESRGAN-x4plus
              * @example TencentARC/RealESRGAN-x4plus
              */
-            model: ("TencentARC/RealESRGAN-x4plus" | "TencentARC/RealESRGAN-x2plus" | "TencentARC/RealESRGAN-x4plus-anime") | null;
+            model?: ("TencentARC/RealESRGAN-x4plus" | "TencentARC/RealESRGAN-x2plus" | "TencentARC/RealESRGAN-x4plus-anime") | null;
             /**
              * Output Format
              * @description Output encoding. The alpha channel survives png/webp only.
              * @default png
              */
-            output_format: ("png" | "jpeg" | "jpg" | "webp") | null;
+            output_format?: ("png" | "jpeg" | "jpg" | "webp") | null;
             /**
              * Store Output
              * @description Where this request's output media is hosted, and for how long. `provider` (default) returns a Relay CDN link that live-proxies the provider for 1 hour — the same hour the task record itself lives. `relay1d` / `relay7d` / `relay30d` copy the output into Relay's own storage and keep BOTH the link and the task record for 1, 7 or 30 days, for a flat per-file fee (see `media_storage` in GET /v2/pricing). Not available on routes that return media inline (base64), and not available to the guest tier.
              * @default provider
              */
-            store_output: ("provider" | "relay1d" | "relay7d" | "relay30d") | null;
+            store_output?: ("provider" | "relay1d" | "relay7d" | "relay30d") | null;
             /**
              * Webhook Url
              * @description HTTPS URL to receive a signed completion webhook when the async task reaches a terminal state (requires an API key, "async": true and direct mode; otherwise 422). See the Webhooks section for the delivery payload and events, and GET /v2/customer/webhook-secret for the signing secret + verification.
@@ -10019,7 +10019,7 @@ export type components = {
              * @description Return task_id immediately, poll /v2/tasks/{task_id} for result.
              * @default false
              */
-            async: boolean | null;
+            async?: boolean | null;
             /**
              * Images
              * @description Optional reference images (1-14) for image-to-image and composition. Each item is an https URL or a data URI (data:image/png;base64,...). Omit for pure text-to-image.
@@ -10030,20 +10030,20 @@ export type components = {
              * @description Routing mode: 'auto' or 'direct' (Seedream is direct-only)
              * @default auto
              */
-            mode: ("auto" | "direct") | null;
+            mode?: ("auto" | "direct") | null;
             /**
              * Model
              * @description Image generation model. Available: 'ByteDance/doubao-seedream-5-0-pro-260628' (default).
              * @default ByteDance/doubao-seedream-5-0-pro-260628
              * @example ByteDance/doubao-seedream-5-0-pro-260628
              */
-            model: string | null;
+            model?: string | null;
             /**
              * Output Format
              * @description Output image file format
              * @default jpeg
              */
-            output_format: ("png" | "jpeg") | null;
+            output_format?: ("png" | "jpeg") | null;
             /**
              * Prompt
              * @description Text description (CN/EN; keep under ~600 English words)
@@ -10055,19 +10055,19 @@ export type components = {
              * @description Output size: the preset `1K` (~1.0MP) or `2K` (~4.2MP), or exact pixels as `<width>x<height>` (e.g. `2048x2048`). Total area must not exceed 4,624,220 pixels (~4.6MP) — the published 4K tier is not available on the pro variant. **Billing**: an exact size at or below 1024x1024 in total area bills at the `1K` rate; anything larger bills at `2K`. See /v2/pricing.
              * @default 2048x2048
              */
-            size: string;
+            size?: string;
             /**
              * Store Output
              * @description Where this request's output media is hosted, and for how long. `provider` (default) returns a Relay CDN link that live-proxies the provider for 1 hour — the same hour the task record itself lives. `relay1d` / `relay7d` / `relay30d` copy the output into Relay's own storage and keep BOTH the link and the task record for 1, 7 or 30 days, for a flat per-file fee (see `media_storage` in GET /v2/pricing). Not available on routes that return media inline (base64), and not available to the guest tier.
              * @default provider
              */
-            store_output: ("provider" | "relay1d" | "relay7d" | "relay30d") | null;
+            store_output?: ("provider" | "relay1d" | "relay7d" | "relay30d") | null;
             /**
              * Watermark
              * @description Add the upstream's AI-generated watermark
              * @default false
              */
-            watermark: boolean | null;
+            watermark?: boolean | null;
             /**
              * Webhook Url
              * @description HTTPS URL to receive a signed completion webhook when the async task reaches a terminal state (requires an API key, "async": true and direct mode; otherwise 422). See the Webhooks section for the delivery payload and events, and GET /v2/customer/webhook-secret for the signing secret + verification.
@@ -10123,13 +10123,13 @@ export type components = {
              * @description Return task_id immediately, poll /v2/tasks/{task_id} for result. Async is the DEFAULT for video (long runtime); set false to block for the result.
              * @default true
              */
-            async: boolean | null;
+            async?: boolean | null;
             /**
              * Duration
              * @description Video duration in seconds: 4, 8, or 12
              * @default 4
              */
-            duration: (4 | 8 | 12) | null;
+            duration?: (4 | 8 | 12) | null;
             /**
              * First Frame Url
              * @description URL or base64 of the first frame image
@@ -10141,7 +10141,7 @@ export type components = {
              * @description Routing mode: 'auto' or 'direct' (video is direct-only)
              * @default auto
              */
-            mode: ("auto" | "direct") | null;
+            mode?: ("auto" | "direct") | null;
             /**
              * Prompt
              * @description Optional text description to guide video generation
@@ -10153,7 +10153,7 @@ export type components = {
              * @description Where this request's output media is hosted, and for how long. `provider` (default) returns a Relay CDN link that live-proxies the provider for 1 hour — the same hour the task record itself lives. `relay1d` / `relay7d` / `relay30d` copy the output into Relay's own storage and keep BOTH the link and the task record for 1, 7 or 30 days, for a flat per-file fee (see `media_storage` in GET /v2/pricing). Not available on routes that return media inline (base64), and not available to the guest tier.
              * @default provider
              */
-            store_output: ("provider" | "relay1d" | "relay7d" | "relay30d") | null;
+            store_output?: ("provider" | "relay1d" | "relay7d" | "relay30d") | null;
             /**
              * Webhook Url
              * @description HTTPS URL to receive a signed completion webhook when the async task reaches a terminal state (requires an API key, "async": true and direct mode; otherwise 422). See the Webhooks section for the delivery payload and events, and GET /v2/customer/webhook-secret for the signing secret + verification.
@@ -10180,7 +10180,7 @@ export type components = {
              * @description Model used for generation
              * @default openai/sora-2-I2V
              */
-            model: string;
+            model?: string;
             /**
              * Task Address
              * @description Blockchain task address (opengpu mode only, null for direct)
@@ -10209,13 +10209,13 @@ export type components = {
              * @description Return task_id immediately, poll /v2/tasks/{task_id} for result.
              * @default true
              */
-            async: boolean | null;
+            async?: boolean | null;
             /**
              * Duration
              * @description Video duration in seconds: 4, 8, or 12
              * @default 4
              */
-            duration: (4 | 8 | 12) | null;
+            duration?: (4 | 8 | 12) | null;
             /**
              * First Frame Url
              * @description URL or base64 of the first frame image
@@ -10226,7 +10226,7 @@ export type components = {
              * @description Routing mode: 'auto' or 'direct' (video is direct-only)
              * @default auto
              */
-            mode: ("auto" | "direct") | null;
+            mode?: ("auto" | "direct") | null;
             /**
              * Prompt
              * @description Optional text description to guide generation
@@ -10237,13 +10237,13 @@ export type components = {
              * @description Video resolution
              * @default 720p
              */
-            resolution: ("720p" | "1080p") | null;
+            resolution?: ("720p" | "1080p") | null;
             /**
              * Store Output
              * @description Where this request's output media is hosted, and for how long. `provider` (default) returns a Relay CDN link that live-proxies the provider for 1 hour — the same hour the task record itself lives. `relay1d` / `relay7d` / `relay30d` copy the output into Relay's own storage and keep BOTH the link and the task record for 1, 7 or 30 days, for a flat per-file fee (see `media_storage` in GET /v2/pricing). Not available on routes that return media inline (base64), and not available to the guest tier.
              * @default provider
              */
-            store_output: ("provider" | "relay1d" | "relay7d" | "relay30d") | null;
+            store_output?: ("provider" | "relay1d" | "relay7d" | "relay30d") | null;
             /**
              * Webhook Url
              * @description HTTPS URL to receive a signed completion webhook when the async task reaches a terminal state (requires an API key, "async": true and direct mode; otherwise 422). See the Webhooks section for the delivery payload and events, and GET /v2/customer/webhook-secret for the signing secret + verification.
@@ -10270,7 +10270,7 @@ export type components = {
              * @description Model used
              * @default openai/sora-2-pro-I2V
              */
-            model: string;
+            model?: string;
             /**
              * Resolution
              * @description Video resolution
@@ -10304,19 +10304,19 @@ export type components = {
              * @description Return task_id immediately, poll /v2/tasks/{task_id} for result.
              * @default true
              */
-            async: boolean | null;
+            async?: boolean | null;
             /**
              * Duration
              * @description Video duration in seconds: 4, 8, or 12
              * @default 4
              */
-            duration: (4 | 8 | 12) | null;
+            duration?: (4 | 8 | 12) | null;
             /**
              * Mode
              * @description Routing mode: 'auto' or 'direct' (video is direct-only)
              * @default auto
              */
-            mode: ("auto" | "direct") | null;
+            mode?: ("auto" | "direct") | null;
             /**
              * Prompt
              * @description Text description of the video to generate
@@ -10327,13 +10327,13 @@ export type components = {
              * @description Video resolution
              * @default 720x1280
              */
-            size: ("720x1280" | "1280x720" | "1024x1792" | "1792x1024") | null;
+            size?: ("720x1280" | "1280x720" | "1024x1792" | "1792x1024") | null;
             /**
              * Store Output
              * @description Where this request's output media is hosted, and for how long. `provider` (default) returns a Relay CDN link that live-proxies the provider for 1 hour — the same hour the task record itself lives. `relay1d` / `relay7d` / `relay30d` copy the output into Relay's own storage and keep BOTH the link and the task record for 1, 7 or 30 days, for a flat per-file fee (see `media_storage` in GET /v2/pricing). Not available on routes that return media inline (base64), and not available to the guest tier.
              * @default provider
              */
-            store_output: ("provider" | "relay1d" | "relay7d" | "relay30d") | null;
+            store_output?: ("provider" | "relay1d" | "relay7d" | "relay30d") | null;
             /**
              * Webhook Url
              * @description HTTPS URL to receive a signed completion webhook when the async task reaches a terminal state (requires an API key, "async": true and direct mode; otherwise 422). See the Webhooks section for the delivery payload and events, and GET /v2/customer/webhook-secret for the signing secret + verification.
@@ -10360,7 +10360,7 @@ export type components = {
              * @description Model used
              * @default openai/sora-2-pro-T2V
              */
-            model: string;
+            model?: string;
             /**
              * Size
              * @description Video resolution
@@ -10394,19 +10394,19 @@ export type components = {
              * @description Return task_id immediately, poll /v2/tasks/{task_id} for result.
              * @default true
              */
-            async: boolean | null;
+            async?: boolean | null;
             /**
              * Duration
              * @description Video duration in seconds: 4, 8, or 12
              * @default 4
              */
-            duration: (4 | 8 | 12) | null;
+            duration?: (4 | 8 | 12) | null;
             /**
              * Mode
              * @description Routing mode: 'auto' or 'direct' (video is direct-only)
              * @default auto
              */
-            mode: ("auto" | "direct") | null;
+            mode?: ("auto" | "direct") | null;
             /**
              * Prompt
              * @description Text description of the video to generate
@@ -10417,13 +10417,13 @@ export type components = {
              * @description Video resolution (portrait or landscape)
              * @default 720x1280
              */
-            size: ("720x1280" | "1280x720") | null;
+            size?: ("720x1280" | "1280x720") | null;
             /**
              * Store Output
              * @description Where this request's output media is hosted, and for how long. `provider` (default) returns a Relay CDN link that live-proxies the provider for 1 hour — the same hour the task record itself lives. `relay1d` / `relay7d` / `relay30d` copy the output into Relay's own storage and keep BOTH the link and the task record for 1, 7 or 30 days, for a flat per-file fee (see `media_storage` in GET /v2/pricing). Not available on routes that return media inline (base64), and not available to the guest tier.
              * @default provider
              */
-            store_output: ("provider" | "relay1d" | "relay7d" | "relay30d") | null;
+            store_output?: ("provider" | "relay1d" | "relay7d" | "relay30d") | null;
             /**
              * Webhook Url
              * @description HTTPS URL to receive a signed completion webhook when the async task reaches a terminal state (requires an API key, "async": true and direct mode; otherwise 422). See the Webhooks section for the delivery payload and events, and GET /v2/customer/webhook-secret for the signing secret + verification.
@@ -10450,7 +10450,7 @@ export type components = {
              * @description Model used
              * @default openai/sora-2-T2V
              */
-            model: string;
+            model?: string;
             /**
              * Size
              * @description Video resolution
@@ -10738,7 +10738,7 @@ export type components = {
              * Object
              * @default bucket
              */
-            object: string;
+            object?: string;
             /** Results */
             results: components["schemas"]["UsageTimeseriesResult"][];
             /**
@@ -10762,7 +10762,7 @@ export type components = {
              * Object
              * @default page
              */
-            object: string;
+            object?: string;
             /** @description Whole-range cost/token rollup over the full [start_time, end_time); identical on every page. */
             summary?: components["schemas"]["UsageTimeseriesSummary"] | null;
         };
@@ -10797,13 +10797,13 @@ export type components = {
              * @description Pixel-derived media input tokens (e.g. a video-to-video reference clip). A separate unit from text tokens — never included in input_tokens.
              * @default 0
              */
-            media_input_tokens: number;
+            media_input_tokens?: number;
             /**
              * Media Output Tokens
              * @description Pixel-derived media output tokens (generated video). A separate unit from text tokens — never included in output_tokens.
              * @default 0
              */
-            media_output_tokens: number;
+            media_output_tokens?: number;
             /** @description Present only on rows grouped by mode; absent otherwise. */
             mode?: string;
             /** @description Present only on rows grouped by model; absent otherwise. */
@@ -10832,7 +10832,7 @@ export type components = {
              * Object
              * @default summary
              */
-            object: string;
+            object?: string;
             /** Results */
             results: components["schemas"]["UsageTimeseriesResult"][];
             /**
@@ -10887,19 +10887,19 @@ export type components = {
              * @description Aspect ratio.
              * @default 16:9
              */
-            aspect_ratio: ("16:9" | "9:16") | null;
+            aspect_ratio?: ("16:9" | "9:16") | null;
             /**
              * Async
              * @description Return task_id immediately, poll /v2/tasks/{task_id} for result. Recommended for video (long runtime).
              * @default true
              */
-            async: boolean | null;
+            async?: boolean | null;
             /**
              * Duration
              * @description Video duration in seconds: 4, 6 or 8.
              * @default 8
              */
-            duration: (4 | 6 | 8) | null;
+            duration?: (4 | 6 | 8) | null;
             /**
              * First Frame Url
              * @description URL or base64 data URI of the first frame image (image-to-video).
@@ -10910,7 +10910,7 @@ export type components = {
              * @description Routing mode: 'auto' or 'direct' (video is direct-only).
              * @default auto
              */
-            mode: ("auto" | "direct") | null;
+            mode?: ("auto" | "direct") | null;
             /**
              * Negative Prompt
              * @description What the video should NOT contain.
@@ -10926,7 +10926,7 @@ export type components = {
              * @description Video resolution (4k requires duration=8).
              * @default 720p
              */
-            resolution: ("720p" | "1080p" | "4k") | null;
+            resolution?: ("720p" | "1080p" | "4k") | null;
             /**
              * Seed
              * @description Random seed for deterministic output.
@@ -10937,7 +10937,7 @@ export type components = {
              * @description Where this request's output media is hosted, and for how long. `provider` (default) returns a Relay CDN link that live-proxies the provider for 1 hour — the same hour the task record itself lives. `relay1d` / `relay7d` / `relay30d` copy the output into Relay's own storage and keep BOTH the link and the task record for 1, 7 or 30 days, for a flat per-file fee (see `media_storage` in GET /v2/pricing). Not available on routes that return media inline (base64), and not available to the guest tier.
              * @default provider
              */
-            store_output: ("provider" | "relay1d" | "relay7d" | "relay30d") | null;
+            store_output?: ("provider" | "relay1d" | "relay7d" | "relay30d") | null;
             /**
              * Webhook Url
              * @description HTTPS URL to receive a signed completion webhook when the async task reaches a terminal state (requires an API key, "async": true and direct mode; otherwise 422). See the Webhooks section for the delivery payload and events, and GET /v2/customer/webhook-secret for the signing secret + verification.
@@ -10964,7 +10964,7 @@ export type components = {
              * @description Model used.
              * @default google/veo-3.1-fast-generate-preview
              */
-            model: string;
+            model?: string;
             /**
              * Resolution
              * @description Video resolution.
@@ -11030,7 +11030,7 @@ export type components = {
              * @description Return task_id immediately, poll /v2/tasks/{task_id} for result.Async is the DEFAULT for video (long runtime); set false to block for the result.
              * @default true
              */
-            async: boolean | null;
+            async?: boolean | null;
             /**
              * Audio Url
              * @description URL of audio file to include in the video
@@ -11041,7 +11041,7 @@ export type components = {
              * @description Video duration in seconds: 5, 10, or 15
              * @default 5
              */
-            duration: (5 | 10 | 15) | null;
+            duration?: (5 | 10 | 15) | null;
             /**
              * First Frame Url
              * @description URL of the first frame image
@@ -11052,7 +11052,7 @@ export type components = {
              * @description Routing mode: 'auto' or 'direct' (video is direct-only)
              * @default auto
              */
-            mode: ("auto" | "direct") | null;
+            mode?: ("auto" | "direct") | null;
             /**
              * Negative Prompt
              * @description Things to avoid in the video
@@ -11068,13 +11068,13 @@ export type components = {
              * @description Enable AI-powered prompt enhancement
              * @default true
              */
-            prompt_extend: boolean | null;
+            prompt_extend?: boolean | null;
             /**
              * Resolution
              * @description Video resolution: '720P' or '1080P'
              * @default 1080P
              */
-            resolution: ("720P" | "1080P") | null;
+            resolution?: ("720P" | "1080P") | null;
             /**
              * Seed
              * @description Random seed for reproducibility
@@ -11090,7 +11090,7 @@ export type components = {
              * @description Where this request's output media is hosted, and for how long. `provider` (default) returns a Relay CDN link that live-proxies the provider for 1 hour — the same hour the task record itself lives. `relay1d` / `relay7d` / `relay30d` copy the output into Relay's own storage and keep BOTH the link and the task record for 1, 7 or 30 days, for a flat per-file fee (see `media_storage` in GET /v2/pricing). Not available on routes that return media inline (base64), and not available to the guest tier.
              * @default provider
              */
-            store_output: ("provider" | "relay1d" | "relay7d" | "relay30d") | null;
+            store_output?: ("provider" | "relay1d" | "relay7d" | "relay30d") | null;
             /**
              * Webhook Url
              * @description HTTPS URL to receive a signed completion webhook when the async task reaches a terminal state (requires an API key, "async": true and direct mode; otherwise 422). See the Webhooks section for the delivery payload and events, and GET /v2/customer/webhook-secret for the signing secret + verification.
@@ -11117,7 +11117,7 @@ export type components = {
              * @description Model used
              * @default Wan-AI/Wan2.6-I2V
              */
-            model: string;
+            model?: string;
             /**
              * Resolution
              * @description Video resolution
@@ -11151,7 +11151,7 @@ export type components = {
              * @description Return task_id immediately, poll /v2/tasks/{task_id} for result.Async is the DEFAULT for video (long runtime); set false to block for the result.
              * @default true
              */
-            async: boolean | null;
+            async?: boolean | null;
             /**
              * Audio Url
              * @description URL of audio file to include in the video
@@ -11162,13 +11162,13 @@ export type components = {
              * @description Video duration in seconds: 5, 10, or 15
              * @default 5
              */
-            duration: (5 | 10 | 15) | null;
+            duration?: (5 | 10 | 15) | null;
             /**
              * Mode
              * @description Routing mode: 'auto' or 'direct' (video is direct-only)
              * @default auto
              */
-            mode: ("auto" | "direct") | null;
+            mode?: ("auto" | "direct") | null;
             /**
              * Negative Prompt
              * @description Things to avoid in the video
@@ -11184,7 +11184,7 @@ export type components = {
              * @description Enable AI-powered prompt enhancement
              * @default true
              */
-            prompt_extend: boolean | null;
+            prompt_extend?: boolean | null;
             /**
              * Seed
              * @description Random seed for reproducibility
@@ -11200,13 +11200,13 @@ export type components = {
              * @description Video resolution
              * @default 1280x720
              */
-            size: ("1280x720" | "720x1280" | "1920x1080" | "1080x1920") | null;
+            size?: ("1280x720" | "720x1280" | "1920x1080" | "1080x1920") | null;
             /**
              * Store Output
              * @description Where this request's output media is hosted, and for how long. `provider` (default) returns a Relay CDN link that live-proxies the provider for 1 hour — the same hour the task record itself lives. `relay1d` / `relay7d` / `relay30d` copy the output into Relay's own storage and keep BOTH the link and the task record for 1, 7 or 30 days, for a flat per-file fee (see `media_storage` in GET /v2/pricing). Not available on routes that return media inline (base64), and not available to the guest tier.
              * @default provider
              */
-            store_output: ("provider" | "relay1d" | "relay7d" | "relay30d") | null;
+            store_output?: ("provider" | "relay1d" | "relay7d" | "relay30d") | null;
             /**
              * Webhook Url
              * @description HTTPS URL to receive a signed completion webhook when the async task reaches a terminal state (requires an API key, "async": true and direct mode; otherwise 422). See the Webhooks section for the delivery payload and events, and GET /v2/customer/webhook-secret for the signing secret + verification.
@@ -11233,7 +11233,7 @@ export type components = {
              * @description Model used
              * @default Wan-AI/Wan2.6-T2V
              */
-            model: string;
+            model?: string;
             /**
              * Size
              * @description Video resolution
@@ -11269,7 +11269,7 @@ export type components = {
              * @description Return task_id immediately, poll /v2/tasks/{task_id} for result. Async is the DEFAULT for video (long runtime); set false to block for the result.
              * @default true
              */
-            async: boolean | null;
+            async?: boolean | null;
             /**
              * Audio Url
              * @description URL of audio file to include in the video
@@ -11280,13 +11280,13 @@ export type components = {
              * @description Video duration in seconds: 5 or 10
              * @default 5
              */
-            duration: (5 | 10) | null;
+            duration?: (5 | 10) | null;
             /**
              * Enable Prompt Expansion
              * @description Enable AI-powered prompt enhancement for better results
              * @default false
              */
-            enable_prompt_expansion: boolean | null;
+            enable_prompt_expansion?: boolean | null;
             /**
              * First Frame Url
              * @description URL of the first frame image
@@ -11298,7 +11298,7 @@ export type components = {
              * @description Routing mode: 'auto' or 'direct' (video is direct-only)
              * @default auto
              */
-            mode: ("auto" | "direct") | null;
+            mode?: ("auto" | "direct") | null;
             /**
              * Negative Prompt
              * @description Things to avoid in the video
@@ -11317,7 +11317,7 @@ export type components = {
              * @default 720p
              * @example 720p
              */
-            resolution: ("480p" | "720p" | "1080p") | null;
+            resolution?: ("480p" | "720p" | "1080p") | null;
             /**
              * Seed
              * @description Random seed for reproducible results
@@ -11328,7 +11328,7 @@ export type components = {
              * @description Where this request's output media is hosted, and for how long. `provider` (default) returns a Relay CDN link that live-proxies the provider for 1 hour — the same hour the task record itself lives. `relay1d` / `relay7d` / `relay30d` copy the output into Relay's own storage and keep BOTH the link and the task record for 1, 7 or 30 days, for a flat per-file fee (see `media_storage` in GET /v2/pricing). Not available on routes that return media inline (base64), and not available to the guest tier.
              * @default provider
              */
-            store_output: ("provider" | "relay1d" | "relay7d" | "relay30d") | null;
+            store_output?: ("provider" | "relay1d" | "relay7d" | "relay30d") | null;
             /**
              * Webhook Url
              * @description HTTPS URL to receive a signed completion webhook when the async task reaches a terminal state (requires an API key, "async": true and direct mode; otherwise 422). See the Webhooks section for the delivery payload and events, and GET /v2/customer/webhook-secret for the signing secret + verification.
@@ -11355,7 +11355,7 @@ export type components = {
              * @description Model used for generation
              * @default Wan-AI/Wan2.5-I2V
              */
-            model: string;
+            model?: string;
             /**
              * Resolution
              * @description Video resolution (480p, 720p, 1080p)
@@ -11390,13 +11390,13 @@ export type components = {
              * @description Return task_id immediately, poll /v2/tasks/{task_id} for result.
              * @default false
              */
-            async: boolean | null;
+            async?: boolean | null;
             /**
              * Enable Sequential
              * @description Generate a sequential group — a set of related images rather than variations. Pair with `n`, and it lifts the 4-image cap.
              * @default false
              */
-            enable_sequential: boolean | null;
+            enable_sequential?: boolean | null;
             /**
              * Image
              * @description Single input image to edit — an https URL or a data URI (data:image/png;base64,...). For several, use `images` instead; if you send both, the upstream uses `images`.
@@ -11412,20 +11412,20 @@ export type components = {
              * @description Routing mode: 'auto' or 'direct' (Wan2.7 is direct-only)
              * @default auto
              */
-            mode: ("auto" | "direct") | null;
+            mode?: ("auto" | "direct") | null;
             /**
              * Model
              * @description Image generation model. Available: 'Wan-AI/Wan2.7-Image-Pro' (default).
              * @default Wan-AI/Wan2.7-Image-Pro
              * @example Wan-AI/Wan2.7-Image-Pro
              */
-            model: string | null;
+            model?: string | null;
             /**
              * N
              * @description Number of images to generate: 1-4, or up to 16 together with `enable_sequential`. **Every image returned is billed**, so `n: 2` costs twice `n: 1` — and so does the per-file charge when you pass `store_output`.
              * @default 1
              */
-            n: number | null;
+            n?: number | null;
             /**
              * Prompt
              * @description Text prompt (Chinese or English).
@@ -11447,19 +11447,19 @@ export type components = {
              * @description Where this request's output media is hosted, and for how long. `provider` (default) returns a Relay CDN link that live-proxies the provider for 1 hour — the same hour the task record itself lives. `relay1d` / `relay7d` / `relay30d` copy the output into Relay's own storage and keep BOTH the link and the task record for 1, 7 or 30 days, for a flat per-file fee (see `media_storage` in GET /v2/pricing). Not available on routes that return media inline (base64), and not available to the guest tier.
              * @default provider
              */
-            store_output: ("provider" | "relay1d" | "relay7d" | "relay30d") | null;
+            store_output?: ("provider" | "relay1d" | "relay7d" | "relay30d") | null;
             /**
              * Thinking Mode
              * @description Enable the model's deep-thinking mode (slower, more considered)
              * @default false
              */
-            thinking_mode: boolean | null;
+            thinking_mode?: boolean | null;
             /**
              * Watermark
              * @description Add the upstream's AI-generated watermark
              * @default false
              */
-            watermark: boolean | null;
+            watermark?: boolean | null;
             /**
              * Webhook Url
              * @description HTTPS URL to receive a signed completion webhook when the async task reaches a terminal state (requires an API key, "async": true and direct mode; otherwise 422). See the Webhooks section for the delivery payload and events, and GET /v2/customer/webhook-secret for the signing secret + verification.
@@ -11515,7 +11515,7 @@ export type components = {
              * @description Return task_id immediately, poll /v2/tasks/{task_id} for result. Async is the DEFAULT for video (long runtime); set false to block for the result.
              * @default true
              */
-            async: boolean | null;
+            async?: boolean | null;
             /**
              * Audio Url
              * @description URL of audio file to include in the video
@@ -11526,13 +11526,13 @@ export type components = {
              * @description Video duration in seconds (5 or 10)
              * @default 5
              */
-            duration: (5 | 10) | null;
+            duration?: (5 | 10) | null;
             /**
              * Mode
              * @description Routing mode: 'auto' or 'direct' (video is direct-only)
              * @default auto
              */
-            mode: ("auto" | "direct") | null;
+            mode?: ("auto" | "direct") | null;
             /**
              * Model
              * @description Video generation model. Available: 'Wan-AI/Wan2.5-T2V' (default)
@@ -11556,7 +11556,7 @@ export type components = {
              * @description Enable AI-powered prompt enhancement for better results
              * @default false
              */
-            prompt_extend: boolean | null;
+            prompt_extend?: boolean | null;
             /**
              * Seed
              * @description Random seed for reproducible results
@@ -11568,13 +11568,13 @@ export type components = {
              * @default 832x480
              * @example 832x480
              */
-            size: ("832x480" | "480x832" | "1280x720" | "720x1280") | null;
+            size?: ("832x480" | "480x832" | "1280x720" | "720x1280") | null;
             /**
              * Store Output
              * @description Where this request's output media is hosted, and for how long. `provider` (default) returns a Relay CDN link that live-proxies the provider for 1 hour — the same hour the task record itself lives. `relay1d` / `relay7d` / `relay30d` copy the output into Relay's own storage and keep BOTH the link and the task record for 1, 7 or 30 days, for a flat per-file fee (see `media_storage` in GET /v2/pricing). Not available on routes that return media inline (base64), and not available to the guest tier.
              * @default provider
              */
-            store_output: ("provider" | "relay1d" | "relay7d" | "relay30d") | null;
+            store_output?: ("provider" | "relay1d" | "relay7d" | "relay30d") | null;
             /**
              * Webhook Url
              * @description HTTPS URL to receive a signed completion webhook when the async task reaches a terminal state (requires an API key, "async": true and direct mode; otherwise 422). See the Webhooks section for the delivery payload and events, and GET /v2/customer/webhook-secret for the signing secret + verification.
@@ -11668,7 +11668,7 @@ export type components = {
              * @description True once delivery is settled (delivered, gave up, or blocked) — no further attempts will happen.
              * @default false
              */
-            final: boolean;
+            final?: boolean;
             /** First Attempt At */
             first_attempt_at?: number | null;
             /** Last Attempt At */
@@ -11710,7 +11710,7 @@ export type components = {
              * @description True once delivery is settled (delivered, gave up, or blocked) — no further attempts will happen.
              * @default false
              */
-            final: boolean;
+            final?: boolean;
             /** First Attempt At */
             first_attempt_at?: number | null;
             /** Last Attempt At */
@@ -11748,7 +11748,7 @@ export type components = {
              * Object
              * @default page
              */
-            object: string;
+            object?: string;
         };
         /**
          * WebhookPayload
@@ -11905,7 +11905,7 @@ export type components = {
              * @description Where this request's output media is hosted, and for how long. `provider` (default) returns a Relay CDN link that live-proxies the provider for 1 hour — the same hour the task record itself lives. `relay1d` / `relay7d` / `relay30d` copy the output into Relay's own storage and keep BOTH the link and the task record for 1, 7 or 30 days, for a flat per-file fee (see `media_storage` in GET /v2/pricing). Not available on routes that return media inline (base64), and not available to the guest tier. On a workflow run this is RUN-LEVEL: it applies to every step that produces a file (image, video, audio), each billed per file exactly as the same request would be on its own, and steps that produce text are untouched. Each step's own task record stays pollable at /v2/tasks/{task_id} for as long as its stored output; the RUN record keeps its ordinary lifetime. A run naming a store option is refused up front if any media step's model does not offer it, rather than storing some steps and quietly skipping others.
              * @default provider
              */
-            store_output: ("provider" | "relay1d" | "relay7d" | "relay30d") | null;
+            store_output?: ("provider" | "relay1d" | "relay7d" | "relay30d") | null;
             /**
              * Webhook Url
              * @description HTTPS URL to receive ONE signed webhook when the run ends: `workflow.completed`, or `workflow.failed` for a run that failed or was cancelled (`result.status` says which). The payload's `result` is the run exactly as GET /v2/workflows/runs/{run_id} returns it. Same rules as a task's `webhook_url` (https, a public host, at most 2048 characters; otherwise 422), same signature, retries and secret (GET /v2/customer/webhook-secret). Run-level: the run's steps never send `task.*` events. Omit for no delivery.

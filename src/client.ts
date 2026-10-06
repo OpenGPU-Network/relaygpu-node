@@ -1,7 +1,7 @@
 import { HttpClient, type ClientOptions, type RequestOptions } from "./http.js";
 import { Models, Pricing, Tiers, health } from "./models.js";
 import { estimateCost, type CostEstimate, type UsageInput } from "./estimate.js";
-import { run, type RunOptions } from "./run.js";
+import { run, type AsyncAccepted, type RunOptions, type RunOutput } from "./run.js";
 import { Tasks } from "./tasks.js";
 import { Images } from "./image.js";
 import { Videos } from "./video.js";
@@ -51,6 +51,8 @@ export class Relay {
   }
 
   /** Runs any model: resolves its route through `models.get`, submits, and (by default) waits for the result. */
+  run(model: string, input: Record<string, unknown>, opts?: RunOptions & { wait?: true }): Promise<RunOutput>;
+  run(model: string, input: Record<string, unknown>, opts?: RunOptions): Promise<RunOutput | AsyncAccepted>;
   run(model: string, input: Record<string, unknown>, opts?: RunOptions) {
     return run(this, model, input, opts);
   }

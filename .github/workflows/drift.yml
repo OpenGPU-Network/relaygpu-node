@@ -1,0 +1,24 @@
+name: drift
+# F10: regenerate src/generated/ from the staging public spec; any diff fails.
+# Staging (10.0.34.27) is VPN-only: this job needs a runner on the VPN, labelled `relay-vpn`
+# (or set the repo variable RELAY_SPEC_URL to a reachable copy of the spec).
+on:
+  push:
+  schedule:
+    - cron: "17 6 * * *"
+  workflow_dispatch:
+
+jobs:
+  drift:
+    runs-on: [self-hosted, relay-vpn]
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with: { node-version: 22, cache: npm }
+      - run: npm ci
+      - run: npm run gen
+        env:
+          RELAY_BASE_URL: ${{ vars.RELAY_BASE_URL || 'http://10.0.34.27:1300' }}
+          RELAY_SPEC_URL: ${{ vars.RELAY_SPEC_URL }}
+      - name: Fail on drift
+        run: npm run drift:check

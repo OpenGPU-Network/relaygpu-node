@@ -40,7 +40,9 @@
     "test:e2e": "vitest run --dir test/e2e --no-file-parallelism",
     "size": "node scripts/size.mjs",
     "lint:pkg": "publint && attw --pack .",
-    "prepack": "npm run build"
+    "prepack": "npm run build",
+    "drift:check": "git add -N src/generated && git diff --stat --exit-code -- src/generated/",
+    "smoke": "node test/smoke/bun-smoke.mjs"
   },
   "devDependencies": {
     "@arethetypeswrong/cli": "^0.18.5",
