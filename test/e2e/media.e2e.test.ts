@@ -84,7 +84,8 @@ suite("media e2e (staging, billed)", () => {
     expect(inference.every((c) => c.idem === null)).toBe(true);
     expect(calls.filter((c) => c.method === "POST" && c.url.includes("/v2/files"))).toHaveLength(1);
     // The implicit relay1h upload of the clip: delete it (test hygiene; it would expire in 1 h anyway).
-    const up = (await relay.files.list({ source: "upload", limit: 5 })).files.find((f) => f.used_by?.length);
+    const sent = calls.find((c) => c.method === "POST" && c.url.includes("/v2/audio/asr/"))!.body.audio_url;
+    const up = (await relay.files.list({ source: "upload", limit: 5 })).files.find((f) => f.url === sent);
     if (up) await relay.files.delete(up.file_id);
   }, 5 * 60_000);
 
