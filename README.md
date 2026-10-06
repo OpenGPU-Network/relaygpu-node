@@ -1,6 +1,6 @@
 # @relaygpu/client
 
-> **Status: pre-release (v0.1), not yet published to npm.** The API may change before 1.0.
+> **Status: pre-release (0.x).** The API may change before 1.0.
 
 The TypeScript client for [Relay](https://relaygpu.com): image, video and audio generation, async tasks,
 file uploads, webhook verification, workflows, account and keys, with typed errors. Request and response
