@@ -4,7 +4,8 @@ import { KeyBudgetExhaustedError, PermissionDeniedError, Relay, env } from "./sd
 
 const budgetZero = process.env.RELAY_BUDGET_ZERO_KEY;
 const allowlisted = process.env.RELAY_ALLOWLISTED_KEY;
-const allowedModel = process.env.RELAY_ALLOWLISTED_MODEL;
+// The allowlist holds a scope, `{mode}.{source}.{model}`; the model name is what follows the second dot.
+const allowedModel = process.env.RELAY_ALLOWLISTED_MODEL?.split(".").slice(2).join(".") || undefined;
 const suite = env.ready && budgetZero && allowlisted && allowedModel ? describe : describe.skip;
 
 // The model's own documented example: a valid body, so only the credential decides the answer.
