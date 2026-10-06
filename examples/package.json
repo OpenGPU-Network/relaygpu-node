@@ -1,0 +1,19 @@
+{
+  "name": "relaygpu-examples",
+  "private": true,
+  "type": "module",
+  "description": "Runnable quickstarts for @relaygpu/client. Run `npm pack` at the repo root first.",
+  "scripts": {
+    "typecheck": "tsc --noEmit -p .",
+    "webhook:self-test": "tsx 04-webhook-receiver.ts --self-test"
+  },
+  "dependencies": {
+    "@relaygpu/client": "file:../relaygpu-client-0.1.0.tgz",
+    "openai": "^6.0.0"
+  },
+  "devDependencies": {
+    "@types/node": "^18.19.130",
+    "tsx": "^4.20.0",
+    "typescript": "^5.9.3"
+  }
+}
