@@ -6,6 +6,9 @@ import type { Relay } from "../../src/client.js";
 import { FileNotFoundError, FileQuotaExceededError, FileTooLargeError, FileTypeUnsupportedError, InsufficientCreditsError, RateLimitError, RelayAPIError } from "../../src/errors.js";
 import { json, mockFetch, relayError, type Recorded } from "./helpers.js";
 
+// Node 18 has no global File; node:buffer has had one since 18.13.
+const File = globalThis.File ?? ((await import("node:buffer")).File as unknown as typeof globalThis.File);
+
 const fixture = (name: string) => JSON.parse(readFileSync(new URL(`../fixtures/${name}_20261006.json`, import.meta.url), "utf8"));
 const UPLOAD = fixture("files_upload_201");
 const UPLOAD_STREAM = fixture("files_upload_stream_201");
