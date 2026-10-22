@@ -2,37 +2,28 @@
 
 /** Live model names per tag → the operation that serves them (from `x-relay-models`). */
 export interface ModelOperations {
-  "Anthropic": {
-    "anthropic/claude-fable-5": "anthropic_messages";
-    "anthropic/claude-fable-5-1": "anthropic_messages";
-    "anthropic/claude-haiku-4-5-20251001": "anthropic_messages";
-    "anthropic/claude-opus-4-6": "anthropic_messages";
-    "anthropic/claude-opus-4-7": "anthropic_messages";
-    "anthropic/claude-opus-4-8": "anthropic_messages";
-    "anthropic/claude-opus-5": "anthropic_messages";
-    "anthropic/claude-opus-5-5": "anthropic_messages";
-    "anthropic/claude-sonnet-4-6": "anthropic_messages";
-    "anthropic/claude-sonnet-5": "anthropic_messages";
-  };
   "Audio": {
     "IndexTeam/IndexTTS-2": "audio_index_tts_2_generate";
     "MiniMax/speech-2.8-hd": "audio_minimax_speech_2_8_hd_generate";
     "Qwen/qwen3-tts-flash": "audio_qwen3_tts_flash_generate";
     "openai/gpt-4o-mini-transcribe": "audio_asr_whisper";
     "openai/whisper-1": "audio_asr_whisper";
+    "relay/music-1": "audio_music_1_generate";
+    "relay/stt-1": "audio_asr_whisper";
+    "relay/tts-1": "audio_tts_1_generate";
+    "relay/tts-1-turbo": "audio_tts_1_turbo_generate";
   };
   "Embeddings": {
     "openai/text-embedding-3-small": "openai_embeddings";
   };
   "Image": {
     "ByteDance/doubao-seedream-5-0-pro-260628": "image_seedream_5_0_pro_generate";
-    "Qwen/qwen-image": "image_qwen_generate";
-    "Qwen/qwen-image-edit": "image_qwen_edit";
     "Wan-AI/Wan2.7-Image-Pro": "image_wan_2_7_image_pro_generate";
     "black-forest-labs/FLUX-2-pro": "image_flux_generate";
     "google/gemini-2.5-flash-image": "image_gemini_3_generate";
     "google/gemini-3-pro-image": "image_gemini_3_generate";
     "google/gemini-3.1-flash-image-preview": "image_gemini_3_generate";
+    "google/gemini-nano-banana-2.1": "image_gemini_3_generate";
     "openai/gpt-image-1.5-I2I": "image_gpt_image_edit";
     "openai/gpt-image-1.5-T2I": "image_gpt_image_generate";
     "openai/gpt-image-2": "image_gpt_image_2_generate";
@@ -47,7 +38,6 @@ export interface ModelOperations {
     "deepseek-ai/DeepSeek-V4-Flash": "openai_chat_completions";
     "deepseek-ai/DeepSeek-V4-Pro": "openai_chat_completions";
     "deepseek-ai/DeepSeek-V4.1-Flash": "openai_chat_completions";
-    "google/gemini-3.5-flash": "openai_chat_completions";
     "google/gemma-4-26b-a4b-it": "openai_chat_completions";
     "google/gemma-4-31B-turbo": "openai_chat_completions";
     "moonshotai/kimi-k2.6": "openai_chat_completions";
@@ -59,6 +49,7 @@ export interface ModelOperations {
     "openai/gpt-5.5": "openai_chat_completions";
     "openai/gpt-5.5-pro": "openai_chat_completions";
     "openai/gpt-6-astra": "openai_chat_completions";
+    "relay/conductor": "openai_chat_completions";
     "x-ai/grok-4.3": "openai_chat_completions";
     "zai-org/glm-5.1": "openai_chat_completions";
     "zai-org/glm-5.2": "openai_chat_completions";
@@ -85,7 +76,9 @@ export interface ModelOperations {
     "KlingTeam/kling-video-o1": "video_kling_o1_generate";
     "KlingTeam/v3-I2V": "video_kling_3_i2v";
     "KlingTeam/v3-Motion-Control": "video_kling_3_motion_control";
+    "KlingTeam/v3-Omni": "video_kling_3_omni";
     "KlingTeam/v3-T2V": "video_kling_3_t2v";
+    "MiniMax/MiniMax-H3": "video_minimax_h3_generate";
     "Wan-AI/Wan2.5-I2V": "video_wan_25_i2v";
     "Wan-AI/Wan2.5-T2V": "video_wan_25_t2v";
     "Wan-AI/Wan2.6-T2V": "video_wan_26_t2v";

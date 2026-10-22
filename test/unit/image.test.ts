@@ -70,12 +70,12 @@ describe("image.generate", () => {
 
   it("types: known models get the generated body; unknown names fall back to a record", () => {
     const relay = relayWith(mockFetch().fetch);
-    type QwenIn = Parameters<typeof relay.image.generate<"Qwen/qwen-image">>[1];
-    expectTypeOf<QwenIn>().toHaveProperty("prompt");
-    expectTypeOf<QwenIn>().not.toHaveProperty("model");
+    type GeminiIn = Parameters<typeof relay.image.generate<"google/gemini-3-pro-image">>[1];
+    expectTypeOf<GeminiIn>().toHaveProperty("prompt");
+    expectTypeOf<GeminiIn>().not.toHaveProperty("model");
     type AnyIn = Parameters<typeof relay.image.generate<"someone/new-model">>[1];
     expectTypeOf<AnyIn>().toEqualTypeOf<Record<string, unknown>>();
-    // @ts-expect-error prompt is required on the qwen route
-    void (() => relay.image.generate("Qwen/qwen-image", { size: "512x512" }));
+    // @ts-expect-error prompt is required on the gemini route
+    void (() => relay.image.generate("google/gemini-3-pro-image", { aspect_ratio: "1:1" }));
   });
 });

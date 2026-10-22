@@ -11,7 +11,8 @@ export type paths = {
         get?: never;
         put?: never;
         /**
-         * Create a message (Anthropic-compatible)
+         * Create a message (Anthropic-compatible) — currently unavailable
+         * @deprecated
          * @description Create a message with the Anthropic Messages request and response shape (Claude models).
          *
          *     ## Authentication
@@ -24,16 +25,15 @@ export type paths = {
          *
          *     If both are provided, `X-API-Key` takes priority.
          *
-         *     **Available Models:** the `anthropic` source in `GET /v2/models` — for
-         *     example `anthropic/claude-opus-5-5`, `anthropic/claude-sonnet-5`,
-         *     `anthropic/claude-sonnet-4-6`, `anthropic/claude-haiku-4-5-20251001`.
+         *     **Models:** Claude models, for example `anthropic/claude-opus-5-5`,
+         *     `anthropic/claude-sonnet-5`, `anthropic/claude-sonnet-4-6`.
          *
          *     ## Required Parameters
          *     | Parameter | Type | Description |
          *     |-----------|------|-------------|
          *     | model | string | Model name from `GET /v2/models` (case-sensitive) |
          *     | messages | array | Array of message objects with `role` (`user`/`assistant`) and `content` (string or content blocks) |
-         *     | max_tokens | integer | Maximum number of tokens to generate (1-128000, required) |
+         *     | max_tokens | integer | Maximum number of tokens to generate, from 1 up to the model's output limit (above it: 422 naming the limit; required) |
          *
          *     ## Optional Parameters
          *     | Parameter | Type | Default | Description |
@@ -95,6 +95,7 @@ export type paths = {
          *     |---|---|---|
          *     | `openai/whisper-1` | per second of audio | text, language, duration |
          *     | `openai/gpt-4o-mini-transcribe` | per token | text |
+         *     | `relay/stt-1` | per second of audio (per channel) | text, language, duration, billable_seconds, words, … |
          *     | `openai/whisper-large-v3` | currently unavailable (403 `MODEL_NOT_AVAILABLE`) | text, language, duration |
          *
          *     `model` is required — see `GET /v2/pricing` for the rates.
@@ -107,9 +108,10 @@ export type paths = {
          *
          *     ## Optional Parameters
          *     `language` and `temperature` apply to every model. The rest belong to one
-         *     API or the other — `prompt` to the two OpenAI models, `task`,
+         *     model family — `prompt` to whisper-1 and gpt-4o-mini-transcribe, `task`,
          *     `return_timestamps`, `chunk_length_s` and `batch_size` to
-         *     whisper-large-v3 — and each field below says which. **Sending one to a
+         *     whisper-large-v3, diarization, entities, multichannel and the export
+         *     options to stt-1 — and each field below says which. **Sending one to a
          *     model that does not take it is a 422 naming the model**, rather than a 200
          *     that quietly ignored it.
          *
@@ -124,6 +126,12 @@ export type paths = {
          *
          *     `language` and `duration` are omitted by `gpt-4o-mini-transcribe`, which
          *     reports neither.
+         *
+         *     `relay/stt-1` adds `billable_seconds` (what the request is billed on:
+         *     `duration` × channels with `use_multi_channel`, else `duration`) and,
+         *     depending on the options sent, `words`, `entities`, `transcripts` and
+         *     `additional_formats`. Exports come back inline (docx and pdf base64), so
+         *     use `async: true` for long recordings.
          *
          *     Supports 90+ languages including English, Spanish, French, German, Chinese, Japanese, etc.
          *
@@ -213,6 +221,58 @@ export type paths = {
         patch?: never;
         trace?: never;
     };
+    "/v2/audio/music-1/generate": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Generate music with Relay Music-1
+         * @description Generate a song or an instrumental using **relay/music-1** (direct mode only).
+         *
+         *     ## Required (exactly one)
+         *     | Parameter | Type | Description |
+         *     |-----------|------|-------------|
+         *     | prompt | string | What to make: genre, mood, instruments, structure, lyrics (max 4,100 characters) |
+         *     | composition_plan | object | `chunks`: 1–30 sections, each `text`, `duration_ms` (3–120 s), `positive_styles`, optional `negative_styles` and `context_adherence` |
+         *
+         *     ## Optional
+         *     | Parameter | Type | Description |
+         *     |-----------|------|-------------|
+         *     | music_length_ms | integer | 3,000–600,000 (prompt only) |
+         *     | force_instrumental | boolean | no vocals (prompt only) |
+         *     | seed | integer | best-effort determinism (composition_plan only) |
+         *     | output_format | string | codec_samplerate[_bitrate], default `mp3_48000_192` |
+         *     | with_timestamps / with_waveform_visual | boolean | also return `words_timestamps` / `waveform_visual` |
+         *
+         *     ## Billing
+         *     Billed per second on `billable_seconds`: the requested length —
+         *     `music_length_ms`, or the sum of the plan's `duration_ms` — or, when a
+         *     prompt omits the length, the length the model chose. `duration` is the
+         *     delivered length and may run slightly longer.
+         *
+         *     ## Response
+         *     Returns the audio **inline**: `audio_base64` plus `content_type`,
+         *     `duration`, `billable_seconds`, `composition_plan` and `song_metadata`
+         *     (no link — `store_output` is therefore refused on this model). A 5-minute
+         *     song is about 10 MB of base64: use `async: true` for anything past a
+         *     minute and poll the `task_id`.
+         *
+         *     Prompts naming real artists, songs, albums or labels, or quoting lyrics,
+         *     are refused (400 `UPSTREAM_INVALID_REQUEST`) with a suggested prompt in
+         *     the message.
+         */
+        post: operations["audio_music_1_generate"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/v2/audio/qwen3-tts-flash/generate": {
         parameters: {
             query?: never;
@@ -250,6 +310,86 @@ export type paths = {
         patch?: never;
         trace?: never;
     };
+    "/v2/audio/tts-1-turbo/generate": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Generate speech with Relay TTS-1 Turbo
+         * @description Generate speech from text using **relay/tts-1-turbo** (direct mode only).
+         *
+         *     ## Required
+         *     | Parameter | Type | Description |
+         *     |-----------|------|-------------|
+         *     | text | string | Text to speak (max 10,000 characters; `[whispers]`, `[laughs]`, … audio tags steer the delivery) |
+         *
+         *     ## Optional (selected)
+         *     | Parameter | Type | Description |
+         *     |-----------|------|-------------|
+         *     | voice | string | One of 18 voices (default `atlas`) |
+         *     | output_format | string | codec_samplerate[_bitrate], default `mp3_44100_128` |
+         *     | language_code | string | ISO 639-1 language to enforce |
+         *     | stability / similarity_boost / seed | number | delivery controls |
+         *     | with_timestamps | boolean | also return `alignment` and `normalized_alignment` |
+         *     | audio_effects_* | — | filter, distance, environment, background noise, send level, pan |
+         *
+         *     ## Response
+         *     Returns the audio **inline**: `audio_base64` plus `content_type` and
+         *     `characters` (billed per character; no link — `store_output` is therefore
+         *     refused on this model). Set `async: true` for a `task_id`.
+         */
+        post: operations["audio_tts_1_turbo_generate"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v2/audio/tts-1/generate": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Generate speech with Relay TTS-1
+         * @description Generate speech from text using **relay/tts-1** (direct mode only).
+         *
+         *     ## Required
+         *     | Parameter | Type | Description |
+         *     |-----------|------|-------------|
+         *     | text | string | Text to speak (max 10,000 characters; `[whispers]`, `[laughs]`, … audio tags steer the delivery) |
+         *
+         *     ## Optional (selected)
+         *     | Parameter | Type | Description |
+         *     |-----------|------|-------------|
+         *     | voice | string | One of 18 voices (default `atlas`) |
+         *     | output_format | string | codec_samplerate[_bitrate], default `mp3_44100_128` |
+         *     | language_code | string | ISO 639-1 language to enforce |
+         *     | stability / similarity_boost / seed | number | delivery controls |
+         *     | with_timestamps | boolean | also return `alignment` and `normalized_alignment` |
+         *     | audio_effects_* | — | filter, distance, environment, background noise, send level, pan |
+         *
+         *     ## Response
+         *     Returns the audio **inline**: `audio_base64` plus `content_type` and
+         *     `characters` (billed per character; no link — `store_output` is therefore
+         *     refused on this model). Set `async: true` for a `task_id`.
+         */
+        post: operations["audio_tts_1_generate"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/v2/customer/credits": {
         parameters: {
             query?: never;
@@ -272,6 +412,8 @@ export type paths = {
          *     | total_consumed | float | Total credits consumed (lifetime, includes promo-funded usage) |
          *     | promo_consumed | float | Credits consumed specifically from promos |
          *     | total_allocated | float | Total credits ever allocated (top-ups) |
+         *     | promo_allocated | float | Total promo credits ever granted (every promo on the account, active, exhausted or expired) |
+         *     | adjustments | float | Credits removed outside usage: admin adjustments and expired grants. Everything granted is accounted for: `total_allocated + promo_allocated = total_consumed + balance + (the sum of promos[].balance) + adjustments` (never below 0, rounded to the cent) |
          *     | consumed_by_mode | object | Breakdown by mode (`{"opengpu": 0.5, "direct": 12.3}`) |
          *     | last_topup | object | Last top-up details (`{"amount": 100, "timestamp": "..."}`) |
          *     | promos | array | Active promo balances (balance > 0, not expired) |
@@ -285,6 +427,8 @@ export type paths = {
          *       "total_consumed": 12.5,
          *       "promo_consumed": 10.0,
          *       "total_allocated": 100.0,
+         *       "promo_allocated": 100.0,
+         *       "adjustments": 0.0,
          *       "consumed_by_mode": {"direct": 12.5, "opengpu": 0.0},
          *       "last_topup": {"amount": 100.0, "timestamp": "2026-03-10T00:00:00Z"},
          *       "promos": [
@@ -311,16 +455,18 @@ export type paths = {
         };
         /**
          * Get Credit History
-         * @description Get credit transaction history (topups and deductions).
+         * @description Get the credit history: every movement of your credits.
          *
-         *     Returns a paginated list of your credit transactions.
-         *     Only returns credit-related actions (credit_topup, credit_deduct).
+         *     Returns a paginated list, newest first: top-ups and deductions
+         *     (`credit_topup`, `credit_deduct`), promo grants and expiry write-offs
+         *     (`promo_granted`, `promo_expired`), and sub-key budget changes
+         *     (`key_budget_set`, `key_budget_topup`, `key_budget_cleared`).
          *
          *     **Query parameters:**
          *     - `limit`: Number of transactions to return (1-100, default 50)
          *     - `offset`: Number of transactions to skip (default 0)
          *     - `via`: Filter by source ('stripe', 'admin' or 'payment_service')
-         *     - `action`: Filter by action type ('credit_topup' or 'credit_deduct')
+         *     - `action`: Filter by one action from the list above
          */
         get: operations["customer_credits_history_get"];
         put?: never;
@@ -397,6 +543,7 @@ export type paths = {
          *     | name | string | Yes | Key name (3-100 chars, unique per customer; names starting with `__` are reserved) |
          *     | restrictions | object | No | Optional narrowing restrictions (model blacklist, rate limits) |
          *     | key_budget | number | No | Per-key USD cap for an end-user sub-key; `null` = uncapped. Custom tiers only (403 otherwise). At ≤ 0 the key's requests fail with `402 KEY_BUDGET_EXHAUSTED` |
+         *     | instances_allowed | boolean | No | May this key rent Instances; omitted = `false`. Custom tiers only (403 otherwise). The superkey and the dashboard login are always allowed |
          *
          *     ## Key limits
          *     Each tier allows a fixed number of keys (`max_keys` in `GET /v2/tiers`;
@@ -404,7 +551,7 @@ export type paths = {
          *
          *     ## Response (201)
          *     `key` (the full secret, this once), `key_id`, `name`, `status`,
-         *     `created_at`, `restrictions`, `key_budget`, `is_superkey`, `warning`.
+         *     `created_at`, `restrictions`, `key_budget`, `instances_allowed`, `is_superkey`, `warning`.
          *
          *     ## Example — Simple Key
          *     ```json
@@ -465,9 +612,11 @@ export type paths = {
          *       explicit `null` **removes** it (uncapped), omitting the field leaves it
          *       unchanged. Partner tiers only (403 otherwise). For increments prefer
          *       `POST /keys/{key_id}/topup`, which is concurrency-safe.
+         *     - `instances_allowed` — `true`/`false`: may this key rent Instances.
+         *       Partner tiers only (403 otherwise); an explicit `null` is 422.
          *
          *     Returns `updated_fields` plus the new values (`new_restrictions`,
-         *     `new_key_budget`).
+         *     `new_key_budget`) and the key's `instances_allowed` after the update.
          */
         patch: operations["customer_keys_update"];
         trace?: never;
@@ -768,6 +917,38 @@ export type paths = {
         patch: operations["customer_settings_update"];
         trace?: never;
     };
+    "/v2/customer/tasks": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * List Tasks
+         * @description Your async tasks for one key, newest-first: model, status,
+         *     cost, the prompt and any result links still alive. Only async submits are
+         *     listed (no sync or streamed calls, no workflow steps).
+         *
+         *     `key_id` defaults to the key your dashboard calls run on. Filter by `status`;
+         *     page with the opaque cursor (`next_page` → pass back as `page`). A task the
+         *     relay accepted but that never reported back, and is past the longest time a
+         *     task can run, lists as `unknown`.
+         *
+         *     What is kept: the task row stays; the prompt for 90 days; a result link while
+         *     it is alive (1 hour by default, longer with `store_output`).
+         *
+         *     Auth: dashboard login (JWT) only.
+         */
+        get: operations["customer_tasks_list"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/v2/customer/usage": {
         parameters: {
             query?: never;
@@ -779,6 +960,7 @@ export type paths = {
          * Get Usage
          * @description Get usage analytics for the authenticated customer — one entry per
          *     (non-deleted) key, newest first, each with requests/tokens/cost per model.
+         *     `requests` counts completed, billed requests; failures are not counted here, see `GET /v2/customer/metrics`.
          *     Auth: JWT or superkey.
          *
          *     **Pagination (opt-in):** pass `limit` (max 1000) to page; read `next_cursor`
@@ -829,6 +1011,7 @@ export type paths = {
         /**
          * Get Key Usage
          * @description Get usage analytics (requests, tokens, cost) for a specific API key.
+         *     `requests` counts completed, billed requests; failures are not counted here, see `GET /v2/customer/metrics`.
          *     `{key}` is the key's `key_id` (the secret is not accepted in URLs — 400);
          *     the `key` field in the response is masked.
          *
@@ -1063,6 +1246,50 @@ export type paths = {
         patch?: never;
         trace?: never;
     };
+    "/v2/files/slots": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Create an upload slot
+         * @description Mint a single-use upload URL so a caller without your key — a shell an agent runs, a browser — can upload ONE file to your account: `curl -T photo.png <put_url>`. The slot lives 10 minutes and is spent by its first upload, successful or not. `retention` (default `relay1h`) and `filename` are fixed here; the upload cannot change them, and is charged, counted against the free quota and recorded exactly like `POST /v2/files`. Send `Idempotency-Key` to make a retry safe: within 24 h it answers the same slot.
+         */
+        post: operations["files_slots_create"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v2/files/slots/{token}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Open an upload slot
+         * @description The upload page for a slot from `POST /v2/files/slots`: open `put_url` in a browser, pick one file, and the page uploads it to the same URL and shows the hosted link with a copy button. No credential: the token in the path is one. Opening the page never spends the slot; the upload does. A caller that does not accept `text/html` gets the slot's `retention` and `expires_at` as JSON. A spent, expired or unknown slot answers 404 (an HTML page to a browser).
+         */
+        get: operations["files_slots_page"];
+        /**
+         * Upload to a slot
+         * @description Upload one file to a slot from `POST /v2/files/slots`. No credential: the token in the path is one, like the task poll's id. The file is stored on the minting account with the minted retention and filename, and answers the same file record as `POST /v2/files`. The type is read from the bytes (PNG, JPEG, GIF, WebP, AVIF, HEIC, MP4, MOV, WebM, MKV, MP3, AAC, WAV, OGG, FLAC). The first upload spends the slot even when it fails; a spent, expired or unknown slot answers 404 before the body is read.
+         */
+        put: operations["files_slots_upload"];
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/v2/health": {
         parameters: {
             query?: never;
@@ -1169,12 +1396,12 @@ export type paths = {
          *     | seed | integer | - | Random seed for reproducibility |
          *     | safety_tolerance | integer | `2` | Safety filter level (0 = strictest, 6 = least strict) |
          *     | output_format | string | `png` | Output format: `png` or `jpeg` |
-         *     | input_image | string | - | Reference image 1 as base64 string (guides style/composition) |
-         *     | input_image_2 | string | - | Reference image 2 as base64 string |
-         *     | input_image_3 | string | - | Reference image 3 as base64 string |
-         *     | input_image_4 | string | - | Reference image 4 as base64 string |
+         *     | input_image | string | - | Reference image 1 (guides style/composition): base64, a data URI, or a Relay file link from `POST /v2/files` |
+         *     | input_image_2 | string | - | Reference image 2, same forms |
+         *     | input_image_3 | string | - | Reference image 3, same forms |
+         *     | input_image_4 | string | - | Reference image 4, same forms |
          *
-         *     Up to 4 reference images can be provided as base64 to guide the generation style and composition.
+         *     Up to 4 reference images can be provided to guide the generation style and composition.
          *
          *     ## Response
          *     ```json
@@ -1210,14 +1437,15 @@ export type paths = {
          * @description Generate or edit images using Google Gemini models.
          *
          *     Supports both text-to-image and image-to-image editing. If `image` (single)
-         *     or `images` (1-14 references, gemini-3-pro-image only) is provided, the
+         *     or `images` (1-14 references; 1-3 on gemini-2.5-flash-image) is provided, the
          *     request is treated as image-to-image; otherwise it's text-to-image.
          *     `image` and `images` are mutually exclusive — sending both is a 422.
          *
          *     **Available Models:**
          *     - `google/gemini-3-pro-image` (default) — high quality, supports aspect_ratio + image_size, and multi-image editing via `images` (1-14)
-         *     - `google/gemini-2.5-flash-image` — fast/cheap, prompt + optional reference image only
-         *     - `google/gemini-3.1-flash-image-preview` — fast, per-resolution billing (`0.5K`/`1K`/`2K`/`4K` via image_size; aspect_ratio not supported)
+         *     - `google/gemini-2.5-flash-image` — fast/cheap, aspect_ratio, `images` (1-3); flat per-image price
+         *     - `google/gemini-3.1-flash-image-preview` — fast, per-resolution billing (`0.5K`/`1K`/`2K`/`4K` via image_size), all fourteen aspect ratios incl. `1:4`/`4:1`/`1:8`/`8:1`, `images` (1-14)
+         *     - `google/gemini-nano-banana-2.1` — `images` (1-14), extra aspect ratios `1:4`/`4:1`/`1:8`/`8:1`, `1K`/`2K`/`4K`; omit aspect_ratio to let the model choose
          *
          *     ## Required Parameters
          *     | Parameter | Type | Description |
@@ -1228,9 +1456,9 @@ export type paths = {
          *     | Parameter | Type | Default | Description |
          *     |-----------|------|---------|-------------|
          *     | model | string | `google/gemini-3-pro-image` | Image generation model |
-         *     | image | string | - | Single reference image (raw base64 or `data:image/...;base64,...`). If present, triggers image-to-image editing. Mutually exclusive with `images`. |
-         *     | images | string[] | - | 1-14 reference images for multi-image editing, **gemini-3-pro-image only**. Same encoding as `image`. Mutually exclusive with `image`. |
-         *     | aspect_ratio | string | `1:1` | Image aspect ratio: `1:1`, `2:3`, `3:2`, `3:4`, `4:3`, `4:5`, `5:4`, `9:16`, `16:9`, `21:9` (gemini-3-pro-image; ignored by gemini-3.1-flash-image-preview) |
+         *     | image | string | - | Single reference image: raw base64, `data:image/...;base64,...`, or a Relay file link from `POST /v2/files`. If present, triggers image-to-image editing. Mutually exclusive with `images`. |
+         *     | images | string[] | - | Reference images for multi-image editing: 1-14, or 1-3 on gemini-2.5-flash-image. Same encoding as `image`. Mutually exclusive with `image`. |
+         *     | aspect_ratio | string | `1:1` | Image aspect ratio: `1:1`, `2:3`, `3:2`, `3:4`, `4:3`, `4:5`, `5:4`, `9:16`, `16:9`, `21:9`; `1:4`, `4:1`, `1:8`, `8:1` on gemini-3.1-flash-image-preview and gemini-nano-banana-2.1 only. On gemini-nano-banana-2.1 an omitted value lets the model choose (echoed as null). |
          *     | image_size | string | `1K` | Output resolution: `0.5K` (3.1-flash-preview only), `1K`, `2K`, or `4K`. Billed per resolution tier. |
          *
          *     ## Response
@@ -1273,14 +1501,15 @@ export type paths = {
          *     | `openai/gpt-image-2.5-flare` | per token |
          *
          *     One body serves all three. Text-to-image with `prompt` alone; image edit
-         *     with a single base64 `image` (plus optional `mask`); multi-image
-         *     composition with a list of base64 `image`s. `size` is limited to the priced
+         *     with a single `image` (plus optional `mask`); multi-image composition
+         *     with a list of `image`s. Each image is base64, a data URI, or a Relay file
+         *     link from `POST /v2/files`. `size` is limited to the priced
          *     set — it fixes the rate on gpt-image-2, and on the 2.5 variants it asks for
          *     a resolution while the bill follows the tokens the model reports. Async
          *     recommended for large `n`.
          *
-         *     All three return their images inline as base64, so `store_output` has no
-         *     link to host: `relay1d`/`relay7d`/`relay30d` are refused with 422.
+         *     All three return their images inline as base64 and hosted: `urls` carries
+         *     a Relay link per image (1 hour, or the `store_output` lifetime).
          */
         post: operations["image_gpt_image_2_generate"];
         delete?: never;
@@ -1311,12 +1540,12 @@ export type paths = {
          *     | Parameter | Type | Description |
          *     |-----------|------|-------------|
          *     | prompt | string | Text description of the desired edit (max 32000 chars) |
-         *     | image | string | Source image as base64 encoded string |
+         *     | image | string | Source image: base64, a data URI, or a Relay file link from `POST /v2/files` |
          *
          *     ## Optional Parameters
          *     | Parameter | Type | Default | Description |
          *     |-----------|------|---------|-------------|
-         *     | mask | string | - | Base64 PNG mask, same size as `image`, with an alpha channel: fully transparent pixels mark the area to edit |
+         *     | mask | string | - | PNG mask (base64, a data URI, or a Relay file link from `POST /v2/files`), same size as `image`, with an alpha channel: fully transparent pixels mark the area to edit |
          *     | n | integer | `1` | Number of images to generate: `1`, `2`, `3`, or `4` |
          *     | size | string | `1024x1024` | Image size: `1024x1024` (square), `1024x1536` (portrait), `1536x1024` (landscape) |
          *     | quality | string | `medium` | Image quality: `low`, `medium`, `high` |
@@ -1402,7 +1631,8 @@ export type paths = {
         get?: never;
         put?: never;
         /**
-         * Edit image using Qwen
+         * Edit image using Qwen — currently unavailable
+         * @deprecated
          * @description Edit an image using Qwen.
          *
          *     **Model:** Qwen/qwen-image-edit
@@ -1451,7 +1681,8 @@ export type paths = {
         get?: never;
         put?: never;
         /**
-         * Generate image from text prompt using Qwen
+         * Generate image from text prompt using Qwen — currently unavailable
+         * @deprecated
          * @description Generate an image from a text prompt using Qwen.
          *
          *     **Model:** Qwen/qwen-image
@@ -1559,13 +1790,13 @@ export type paths = {
          * Generate or edit images using Seedream
          * @description Generate or edit images using ByteDance Seedream.
          *
-         *     Supports text-to-image and reference-image editing: pass `images` (1-14
+         *     Supports text-to-image and reference-image editing: pass `images` (1-10
          *     https URLs or data URIs) to edit or compose from existing pictures, omit it
          *     to generate from the prompt alone.
          *
          *     **Available Models:**
          *     - `ByteDance/doubao-seedream-5-0-pro-260628` (default) — flagship quality,
-         *       up to 14 reference images, resolution tiers up to ~4.6MP
+         *       up to 10 reference images, resolution tiers up to ~4.6MP
          *
          *     ## Required Parameters
          *     | Parameter | Type | Description |
@@ -1576,7 +1807,7 @@ export type paths = {
          *     | Parameter | Type | Default | Description |
          *     |-----------|------|---------|-------------|
          *     | model | string | `ByteDance/doubao-seedream-5-0-pro-260628` | Image generation model |
-         *     | images | string[] | - | 1-14 reference images, each an https URL or `data:image/...;base64,...` |
+         *     | images | string[] | - | 1-10 reference images, each an https URL or `data:image/...;base64,...` |
          *     | size | string | `2048x2048` | `1K`, `2K`, or exact `<width>x<height>`; max ~4.6MP total area |
          *     | watermark | boolean | `false` | Add the upstream's AI-generated watermark |
          *     | output_format | string | `jpeg` | `png` or `jpeg` |
@@ -1692,7 +1923,7 @@ export type paths = {
         put?: never;
         /**
          * Request an instance
-         * @description Rent a GPU instance that opens to YOUR SSH public key. Needs an API key on a tier allowed to rent instances (others get 403). Validated before anything is written, in order: tier → catalog pair (prescription, mode, image, region) → key syntax and type against the row's `ssh_key_types` → `billing_mode` against the row's priced modes → `max_lifetime_hours` only where the row has a `lifetime` → your REAL balance (promo credits never count) against `min_commit_hours × your rate` (a prepaid mode: one full term) → your instance cap. Then the request is recorded and provisioning starts; poll `GET /v2/instances/{id}` for `provisioning` → `ready`. The instance opens to your key ALONE. Billing starts at `ready`, per period, in full periods, and ends at the earliest of your terminate request, the provider ending it, or `expires_at`.
+         * @description Rent a GPU instance that opens to YOUR SSH public key. Needs an API key on a tier allowed to rent instances (others get 403); a key with a `key_budget`, or a sub-key the account has not allowed to rent, gets 403 `CREDENTIAL_NOT_PERMITTED`. Validated before anything is written, in order: tier → key budget → the key's Instances switch → catalog pair (prescription, mode, image, region) → key syntax and type against the row's `ssh_key_types` → `billing_mode` against the row's priced modes → `max_lifetime_hours` only where the row has a `lifetime` → your REAL balance (promo credits never count) against `min_commit_hours × your rate` (a prepaid mode: one full term) → your instance cap. Then the request is recorded and provisioning starts; poll `GET /v2/instances/{id}` for `provisioning` → `ready`. The instance opens to your key ALONE. Billing starts at `ready`, per period, in full periods, and ends at the earliest of your terminate request, the provider ending it, or `expires_at`.
          */
         post: operations["instances_create"];
         delete?: never;
@@ -1861,12 +2092,14 @@ export type paths = {
          *         "openai": [
          *           {"name": "openai/gpt-5.4", "tag": "text-to-text", "display_name": "GPT-5.4", "store_output_supported": false,
          *            "endpoint": {"method": "POST", "path": "/v2/openai/v1/chat/completions", "operation_id": "openai_chat_completions",
-         *                         "model_in_body": true, "model_default": null, "async_default": false, "streams": true,
-         *                         "request_schema": "OpenAIChatRequest"}}
+         *                         "model_in_body": true, "model_default": null, "async_default": false, "streams": true},
+         *            "conductable": ["code", "general"]},
+         *           {"name": "relay/conductor", "tag": "text-to-text", "display_name": "RelayConductor", "store_output_supported": false,
+         *            "endpoint": {...}, "conductable": []}
          *         ],
          *         "audio": [
          *           {"name": "Qwen/qwen3-tts-flash", "tag": "text-to-speech", "display_name": "Qwen3 TTS Flash", "store_output_supported": true,
-         *            "endpoint": {...}}
+         *            "endpoint": {...}, "conductable": []}
          *         ]
          *       },
          *       "direct": {...},
@@ -1886,6 +2119,17 @@ export type paths = {
          *     default and whether it streams. Always present; `null` when no single
          *     route can be named for the model. `GET /v2/models/{model}` returns one
          *     model with its pricing.
+         *
+         *     **`conductable`:** the use cases (`code`, `general`, `design`) in which
+         *     RelayConductor can route a request to this model — the use cases you may
+         *     name it for in a `routing.models` array. Always present; empty for a model
+         *     it does not route to.
+         *
+         *     **RelayConductor:** `relay/conductor` is listed under the `openai` source
+         *     (direct, so also `auto`) while it is offered. It has no price of its own —
+         *     a request bills the model it served — so `GET /v2/pricing` has no row for
+         *     it. It is not available to guests. `GET /v2/models/relay%2Fconductor`
+         *     returns its ladders.
          *
          *     **Note:** `model_restrictions_per_tier` is a public reference matrix —
          *     the same response is returned to every caller, authenticated or not.
@@ -1928,6 +2172,17 @@ export type paths = {
          *       `display_name` are null. `endpoint` still names its route when one
          *       remains.
          *     - An unknown name is a `404` with code `MODEL_NOT_FOUND`.
+         *
+         *     `relay/conductor` (RelayConductor; `GET /v2/models/relay%2Fconductor` or
+         *     `GET /v2/models/relay/conductor`) answers the route it runs on, the chat
+         *     request schema and an example with a `routing` object, an empty `pricing`
+         *     (each request bills the model that served it) and a `conductor` block: per
+         *     use case, the two ladders (`stream`, `sync`) of every named list — each
+         *     rung's model, effort, relative score, expected price per call, output
+         *     token floors per difficulty level, reason and any reviewer's mark — plus
+         *     the models it can route to (`conductable`) and the ones it cannot
+         *     (`excluded`, each with its reason). While RelayConductor is not offered it
+         *     is a `404 MODEL_NOT_FOUND` like any unknown name.
          *
          *     `pricing` carries the same rows `GET /v2/pricing` lists for the model —
          *     the default list prices; a custom (partner) tier may have its own
@@ -2017,8 +2272,8 @@ export type paths = {
          *     ## Optional Parameters
          *     | Parameter | Type | Default | Description |
          *     |-----------|------|---------|-------------|
-         *     | max_completion_tokens | integer | - | Max tokens to generate including reasoning (1-128000). Preferred over `max_tokens`. |
-         *     | max_tokens | integer | - | Max tokens to generate (1-128000). Deprecated — use `max_completion_tokens` instead. |
+         *     | max_completion_tokens | integer | - | Max tokens to generate including reasoning, from 1 up to the model's output limit (above it: 422 naming the limit). Preferred over `max_tokens`. |
+         *     | max_tokens | integer | - | Max tokens to generate, from 1 up to the model's output limit (above it: 422 naming the limit). Deprecated — use `max_completion_tokens` instead. |
          *     | temperature | float | - | Sampling temperature (0.0-2.0). Lower = more deterministic, higher = more creative. Some reasoning models fix it upstream and answer other values with a 400. |
          *     | top_p | float | - | Nucleus sampling threshold (0.0-1.0). Alternative to temperature. |
          *     | frequency_penalty | float | - | Penalize frequent tokens (-2.0 to 2.0). Positive values reduce repetition. |
@@ -2050,6 +2305,47 @@ export type paths = {
          *     Set `async: true` to get a `202` with a `task_id` immediately, then poll
          *     `GET /v2/tasks/{task_id}` (no credential needed). The result is the same
          *     chat completion body, kept for 1 hour after the task finishes.
+         *
+         *     ## RelayConductor (`model: "relay/conductor"`)
+         *     Send `model: "relay/conductor"` and Relay picks the model for each request:
+         *     a decision engine reads the conversation's difficulty and use case, and the
+         *     request is served by the matching rung of a ladder built from public
+         *     benchmarks, our prices and measured behaviour. The answer is a normal chat
+         *     completion whose `model` names the model that served it, plus a `routing`
+         *     receipt (on the first chunk of a stream, and on the task result of an async
+         *     request). The request is billed at the served model's list price, as if
+         *     you had called it directly. Needs an API key or a dashboard login (not available to guests).
+         *
+         *     Relay serves Claude this way: `routing: {"models": "claude-only"}` keeps every
+         *     answer on a Claude model, billed at the served model's list price.
+         *
+         *     | `routing` field | Default | Values |
+         *     |-----------------|---------|--------|
+         *     | engine | `default` | `default` or `jev` |
+         *     | models | `relay-picked` | A list name (`relay-picked`, `openai-only`, `open-source-only`, `claude-only`) or an array of 1–5 model names |
+         *     | usecase | `auto` | `auto`, `code`, `general`, `design` |
+         *     | objective | `balanced` | `cost` (one rung lower), `balanced`, `performance` (one rung higher) |
+         *     | sticky | `true` | Keep the model of an earlier turn of the same conversation unless the new pick is two rungs higher |
+         *
+         *     A model in a `models` array must be **conductable** for the use case:
+         *     `GET /v2/models` lists, on every row, the use cases in which that model can
+         *     be routed (`conductable`), and `GET /v2/models/relay%2Fconductor` shows each
+         *     use case's ladders. Every model routed to answers within its own output
+         *     limit. With `max_tokens` unset, the picked model is sent a budget sized to
+         *     what it typically needs at the request's difficulty (never above its
+         *     limit); a `max_tokens` below what the picked model needs moves the pick to
+         *     a model that needs fewer, and one above the picked model's output limit is
+         *     `422 VALIDATION_ERROR` naming the limit. A model of another API
+         *     format is translated to and from the OpenAI format; what the translation
+         *     could not carry over is listed under `translation.notes`.
+         *
+         *     Errors: `routing` on any other model is `422 ROUTING_ON_FIXED_MODEL`; an
+         *     unknown list, engine or model, more than 5 models, a model excluded from
+         *     routing or not conductable for the use case, or no candidate left is a
+         *     `422` (`ROUTING_LIST_UNKNOWN`, `ROUTING_ENGINE_UNKNOWN`,
+         *     `ROUTING_MODEL_UNKNOWN`, `ROUTING_LIST_TOO_LONG`, `ROUTING_MODEL_VETOED`,
+         *     `ROUTING_MODEL_UNSCORED`, `ROUTING_NO_CANDIDATES`); a listed model your
+         *     tier cannot use is `403 ROUTING_MODEL_RESTRICTED`.
          */
         post: operations["openai_chat_completions"];
         delete?: never;
@@ -2431,7 +2727,7 @@ export type paths = {
         /**
          * Generate video (Doubao Seedance 2.0 Fast)
          * @description Generate a video using ByteDance Doubao Seedance 2.0 Fast — the faster,
-         *     lower-cost variant of Seedance 2.0 (480p / 720p / 1080p, 4-15s).
+         *     lower-cost variant of Seedance 2.0 (480p / 720p, 4-15s; no 1080p on this tier).
          *
          *     **Model:** ByteDance/doubao-seedance-2-0-fast
          *
@@ -2832,6 +3128,12 @@ export type paths = {
          *
          *     **Model:** KlingTeam/v3-I2V
          *
+         *     ## Multi-shot
+         *     Send `multi_shot: true` and `multi_prompt` (1-6 shots of
+         *     `{index, prompt, duration}`) instead of `prompt`. Indexes run 1..n and the
+         *     shot durations add up to `duration` exactly. Same per-second price as a
+         *     single shot of that duration.
+         *
          *     ## Async Mode
          *     **Async by default** (`async` defaults to `true`): the call returns `202`
          *     with a `task_id`; poll `GET /v2/tasks/{task_id}` (no credential needed) or
@@ -2861,7 +3163,9 @@ export type paths = {
          *     **Model:** KlingTeam/v3-Motion-Control
          *
          *     Billed per second at the `quality_mode` rate — a 10s request costs twice a
-         *     5s one, and `keep_original_sound` does not change the price.
+         *     5s one, and `keep_original_sound` does not change the price. The output
+         *     keeps the reference video's aspect ratio; `aspect_ratio` is accepted for
+         *     compatibility and ignored.
          *
          *     ## Async Mode
          *     **Async by default** (`async` defaults to `true`): the call returns `202`
@@ -2870,6 +3174,47 @@ export type paths = {
          *     same call. Generation typically takes 2-20 minutes.
          */
         post: operations["video_kling_3_motion_control"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v2/video/kling-3/omni": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Generate or edit video with references (Kling v3 Omni)
+         * @description One route for text-to-video, reference images, first/end frames, a
+         *     feature-reference video, and editing an existing video while keeping its
+         *     camera and scene.
+         *
+         *     **Model:** KlingTeam/v3-Omni
+         *
+         *     Billed per second at the `quality_mode` rate, on the higher "with
+         *     reference" rate whenever the request carries a frame, a reference image or
+         *     a video. `sound: true` is refused with 422 until native audio is priced.
+         *
+         *     ## Multi-shot
+         *     Send `multi_shot: true` and `multi_prompt` (1-6 shots of
+         *     `{index, prompt, duration}`) instead of `prompt`. Indexes run 1..n and the
+         *     shot durations add up to `duration` exactly. Same per-second price as a
+         *     single shot of that duration. Not with `base_video_url`: an edit is
+         *     single-shot.
+         *
+         *     ## Async Mode
+         *     **Async by default** (`async` defaults to `true`): the call returns `202`
+         *     with a `task_id`; poll `GET /v2/tasks/{task_id}` (no credential needed) or
+         *     pass a `webhook_url`. Send `async: false` to wait for the result in the
+         *     same call. Generation typically takes 2-20 minutes.
+         */
+        post: operations["video_kling_3_omni"];
         delete?: never;
         options?: never;
         head?: never;
@@ -2890,6 +3235,12 @@ export type paths = {
          * @description Generate a video from a text prompt using Kling v3.
          *
          *     **Model:** KlingTeam/v3-T2V
+         *
+         *     ## Multi-shot
+         *     Send `multi_shot: true` and `multi_prompt` (1-6 shots of
+         *     `{index, prompt, duration}`) instead of `prompt`. Indexes run 1..n and the
+         *     shot durations add up to `duration` exactly. Same per-second price as a
+         *     single shot of that duration.
          *
          *     ## Async Mode
          *     **Async by default** (`async` defaults to `true`): the call returns `202`
@@ -3098,6 +3449,36 @@ export type paths = {
          *     ``/v2/tasks/{task_id}`` for the result.
          */
         post: operations["video_lucy_vton_3_generate"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v2/video/minimax-h3/generate": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Generate video (MiniMax H3 — text, image or reference to video)
+         * @description Generate a video with MiniMax H3: text-to-video, image-to-video from a
+         *     first and/or last frame, or reference-to-video from up to 5 reference
+         *     images plus reference audio. Native audio, 768P or 2K, 4-15 s.
+         *
+         *     **Model:** MiniMax/MiniMax-H3
+         *
+         *     The inputs pick the form: frames and references cannot be combined (422),
+         *     and text-to-video needs a concrete `ratio`. Reference video input is not
+         *     offered. Priced per output second by resolution; the response's
+         *     `duration` is the billed length. Async by default — poll
+         *     ``/v2/tasks/{task_id}``.
+         */
+        post: operations["video_minimax_h3_generate"];
         delete?: never;
         options?: never;
         head?: never;
@@ -3578,7 +3959,9 @@ export type paths = {
          *     A workflow runs its steps in order through the ordinary task pipeline, so each
          *     step bills at that model's normal rate for your account — there is no workflow
          *     surcharge. Public, no key needed — `restricted_tiers` on each entry says which
-         *     tiers cannot run it; the gate is enforced at submission.
+         *     tiers cannot run it; the gate is enforced at submission. `available: false`
+         *     means a step's model is retired or unknown (`unavailable_steps` names it) and
+         *     a run is refused before any step runs.
          */
         get: operations["workflows_list"];
         put?: never;
@@ -4214,7 +4597,7 @@ export type components = {
             } | null;
             /**
              * Max Tokens
-             * @description Maximum number of tokens to generate (required)
+             * @description Maximum number of tokens to generate (required). At most the model's output limit; a larger value is refused with 422 naming the limit.
              */
             max_tokens: number;
             /**
@@ -4239,7 +4622,7 @@ export type components = {
             mode?: ("auto" | "direct") | null;
             /**
              * Model
-             * @description Model name, case-sensitive (e.g. anthropic/claude-opus-5-5, anthropic/claude-opus-5, anthropic/claude-fable-5-1, anthropic/claude-fable-5, anthropic/claude-opus-4-8, anthropic/claude-opus-4-6, anthropic/claude-sonnet-5, anthropic/claude-sonnet-4-6, anthropic/claude-haiku-4-5-20251001). The current list is the `anthropic` source in `GET /v2/models`.
+             * @description Model name, case-sensitive (e.g. anthropic/claude-opus-5-5, anthropic/claude-sonnet-5-5, anthropic/claude-haiku-5-5, anthropic/claude-opus-5, anthropic/claude-fable-5-1, anthropic/claude-fable-5, anthropic/claude-opus-4-8, anthropic/claude-opus-4-6, anthropic/claude-sonnet-5, anthropic/claude-sonnet-4-6, anthropic/claude-haiku-4-5-20251001). The current list is the `anthropic` source in `GET /v2/models`.
              */
             model: string;
             /**
@@ -4274,12 +4657,12 @@ export type components = {
             }[] | null;
             /**
              * Temperature
-             * @description Sampling temperature (0.0-1.0). Not supported on Claude 4.7+ models (claude-opus-4-8, claude-opus-5, claude-opus-5-5, claude-sonnet-5, claude-fable-5, claude-fable-5-1); such requests are rejected with 422.
+             * @description Sampling temperature (0.0-1.0). Not supported on Claude 4.8+ models (claude-opus-4-8, claude-opus-5, claude-opus-5-5, claude-sonnet-5, claude-sonnet-5-5, claude-haiku-5-5, claude-fable-5, claude-fable-5-1); such requests are rejected with 422.
              */
             temperature?: number | null;
             /**
              * Thinking
-             * @description Extended thinking config, passed to the model unchanged. Accepted forms depend on the model. Claude Opus 4.8 and later (claude-opus-4-8, claude-opus-5, claude-sonnet-5) take `{"type": "adaptive"}` or `{"type": "disabled"}`; claude-fable-5, claude-fable-5-1 and claude-opus-5-5 always think and accept only `{"type": "adaptive"}`. On all of these the thinking block arrives empty unless you add `"display": "summarized"`, which returns a readable summary; billing is the same either way. The legacy `{"type": "enabled", "budget_tokens": N}` (N >= 1024 and below `max_tokens`) works on claude-opus-4-6, claude-sonnet-4-6 and claude-haiku-4-5 only, and is rejected with 400 elsewhere. claude-opus-4-6 and claude-sonnet-4-6 also accept `adaptive` and show the summary by default.
+             * @description Extended thinking config, passed to the model unchanged. Accepted forms depend on the model. Claude Opus 4.8 and later (claude-opus-4-8, claude-opus-5, claude-sonnet-5, claude-haiku-5-5) take `{"type": "adaptive"}` or `{"type": "disabled"}`; claude-fable-5, claude-fable-5-1 and claude-opus-5-5 always think and accept only `{"type": "adaptive"}`; claude-sonnet-5-5 takes `{"type": "adaptive"}` or `{"type": "between_tools"}` (no thinking before the reply). On all of these the thinking block arrives empty unless you add `"display": "summarized"`, which returns a readable summary; billing is the same either way. The legacy `{"type": "enabled", "budget_tokens": N}` (N >= 1024 and below `max_tokens`) works on claude-opus-4-6, claude-sonnet-4-6 and claude-haiku-4-5 only, and is rejected with 400 elsewhere. claude-opus-4-6 and claude-sonnet-4-6 also accept `adaptive` and show the summary by default.
              */
             thinking?: {
                 [key: string]: unknown;
@@ -4300,12 +4683,12 @@ export type components = {
             }[] | null;
             /**
              * Top K
-             * @description Top-K sampling parameter. Not supported on Claude 4.7+ models (claude-opus-4-8, claude-opus-5, claude-opus-5-5, claude-sonnet-5, claude-fable-5, claude-fable-5-1); such requests are rejected with 422.
+             * @description Top-K sampling parameter. Not supported on Claude 4.8+ models (claude-opus-4-8, claude-opus-5, claude-opus-5-5, claude-sonnet-5, claude-sonnet-5-5, claude-haiku-5-5, claude-fable-5, claude-fable-5-1); such requests are rejected with 422.
              */
             top_k?: number | null;
             /**
              * Top P
-             * @description Nucleus sampling parameter. Not supported on Claude 4.7+ models (claude-opus-4-8, claude-opus-5, claude-opus-5-5, claude-sonnet-5, claude-fable-5, claude-fable-5-1); such requests are rejected with 422.
+             * @description Nucleus sampling parameter. Not supported on Claude 4.8+ models (claude-opus-4-8, claude-opus-5, claude-opus-5-5, claude-sonnet-5, claude-sonnet-5-5, claude-haiku-5-5, claude-fable-5, claude-fable-5-1); such requests are rejected with 422.
              */
             top_p?: number | null;
             /**
@@ -4397,6 +4780,11 @@ export type components = {
          */
         ASRRequest: {
             /**
+             * Additional Formats
+             * @description Extra exports returned inline; needs diarize=true and timestamps. docx and pdf come base64-encoded. stt-1 only.
+             */
+            additional_formats?: components["schemas"]["Stt1AdditionalFormat"][] | null;
+            /**
              * Async
              * @description Return task_id immediately, poll /v2/tasks/{task_id} for result. Default: false (synchronous).
              * @default false
@@ -4419,8 +4807,38 @@ export type components = {
              */
             chunk_length_s?: number | null;
             /**
+             * Diarization Threshold
+             * @description Speaker-split sensitivity; needs diarize=true and no num_speakers. stt-1 only.
+             */
+            diarization_threshold?: number | null;
+            /**
+             * Diarize
+             * @description Label which speaker talks when (speaker_id per word). Default false. stt-1 only.
+             */
+            diarize?: boolean | null;
+            /**
+             * Entity Detection
+             * @description 'all', a category (pii, phi, pci, other, offensive_language) or a list of entity types. stt-1 only.
+             */
+            entity_detection?: string | string[] | null;
+            /**
+             * Entity Redaction
+             * @description Entities to redact from the text (subset of entity_detection). stt-1 only.
+             */
+            entity_redaction?: string | string[] | null;
+            /**
+             * Entity Redaction Mode
+             * @description How redacted entities are written. Default 'enumerated_entity_type'. stt-1 only.
+             */
+            entity_redaction_mode?: ("redacted" | "entity_type" | "enumerated_entity_type") | null;
+            /**
+             * File Format
+             * @description pcm_s16le_16 for raw 16-bit 16 kHz mono PCM input. Default 'other'. stt-1 only.
+             */
+            file_format?: ("pcm_s16le_16" | "other") | null;
+            /**
              * Language
-             * @description Language hint (ISO 639-1 code). Auto-detected if not specified. Honoured by all three models.
+             * @description Language hint (ISO 639-1 code). Auto-detected if not specified. Honoured by every model (stt-1 also takes ISO 639-3).
              * @example en
              */
             language?: string | null;
@@ -4432,11 +4850,26 @@ export type components = {
             mode?: ("auto" | "direct") | null;
             /**
              * Model
-             * @description ASR model. Required — the three differ in price, in response shape and in which options below they honour, so there is no sensible default to pick for you.
+             * @description ASR model. Required — the models differ in price, in response shape and in which options below they honour, so there is no sensible default to pick for you.
              * @example openai/whisper-1
              * @enum {string}
              */
-            model: "openai/whisper-large-v3" | "openai/whisper-1" | "openai/gpt-4o-mini-transcribe";
+            model: "openai/whisper-large-v3" | "openai/whisper-1" | "openai/gpt-4o-mini-transcribe" | "relay/stt-1";
+            /**
+             * Multichannel Output Style
+             * @description separate = one transcript per channel; combined = one merged transcript. Default 'separate'. stt-1 only.
+             */
+            multichannel_output_style?: ("separate" | "combined") | null;
+            /**
+             * No Verbatim
+             * @description Drop filler words, false starts and non-speech sounds. Default false. stt-1 only.
+             */
+            no_verbatim?: boolean | null;
+            /**
+             * Num Speakers
+             * @description Maximum number of speakers. stt-1 only.
+             */
+            num_speakers?: number | null;
             /**
              * Prompt
              * @description Text to guide the transcript's style, or to continue a previous segment. whisper-1 and gpt-4o-mini-transcribe only.
@@ -4449,16 +4882,36 @@ export type components = {
              */
             return_timestamps?: boolean | "word" | null;
             /**
+             * Seed
+             * @description Best-effort determinism. stt-1 only.
+             */
+            seed?: number | null;
+            /**
+             * Tag Audio Events
+             * @description Tag sounds like (laughter) in the transcript. Default true. stt-1 only.
+             */
+            tag_audio_events?: boolean | null;
+            /**
              * Task
-             * @description Task: 'transcribe' (original language) or 'translate' (to English). whisper-large-v3 only — the other two always transcribe.
+             * @description Task: 'transcribe' (original language) or 'translate' (to English). whisper-large-v3 only — the others always transcribe.
              * @default transcribe
              */
             task?: ("transcribe" | "translate") | null;
             /**
              * Temperature
-             * @description Sampling temperature (0.0 = deterministic). Honoured by all three models.
+             * @description Sampling temperature (0.0 = deterministic). Honoured by every model: 0–1, or 0–2 on stt-1.
              */
             temperature?: number | null;
+            /**
+             * Timestamps Granularity
+             * @description Timestamp detail. Default 'word'. stt-1 only.
+             */
+            timestamps_granularity?: ("none" | "word" | "character") | null;
+            /**
+             * Use Multi Channel
+             * @description Transcribe each channel separately (max 5). Billed per channel: duration = seconds x channels. Default false. stt-1 only.
+             */
+            use_multi_channel?: boolean | null;
             /**
              * Webhook Url
              * @description HTTPS URL to receive a signed completion webhook when the async task reaches a terminal state (requires an API key, "async": true and direct mode; otherwise 422). See the Webhooks section for the delivery payload and events, and GET /v2/customer/webhook-secret for the signing secret + verification.
@@ -4471,15 +4924,49 @@ export type components = {
          */
         ASRResponse: {
             /**
+             * Additional Formats
+             * @description The exports asked for in additional_formats, inline: each item is {requested_format, file_extension, content_type, is_base64_encoded, content}; docx and pdf content is base64. Use async: true for long recordings (relay/stt-1)
+             */
+            additional_formats?: {
+                [key: string]: unknown;
+            }[] | null;
+            /**
+             * Audio Duration Secs
+             * @description Reported length; in separate multichannel answers it is the sum over channels (relay/stt-1)
+             */
+            audio_duration_secs?: number | null;
+            /**
+             * Billable Seconds
+             * @description Audio seconds billed: duration x channels with use_multi_channel, otherwise equal to duration (relay/stt-1)
+             */
+            billable_seconds?: number | null;
+            /**
              * Duration
              * @description Audio duration in seconds (not reported by gpt-4o-mini-transcribe)
              */
             duration?: number | null;
             /**
+             * Entities
+             * @description Detected entities, with entity_detection (relay/stt-1)
+             */
+            entities?: {
+                [key: string]: unknown;
+            }[] | null;
+            /**
              * Language
              * @description Detected or specified language (not reported by gpt-4o-mini-transcribe)
              */
             language?: string | null;
+            /**
+             * Language Code
+             * @description Detected language code (relay/stt-1)
+             */
+            language_code?: string | null;
+            /**
+             * Language Probability
+             * @description Confidence in the detected language (relay/stt-1)
+             */
+            language_probability?: number | null;
             /**
              * Mode
              * @description Actual mode used (direct)
@@ -4500,6 +4987,20 @@ export type components = {
              * @description Transcribed/translated text
              */
             text: string;
+            /**
+             * Transcripts
+             * @description Per-channel transcripts (multichannel, separate) (relay/stt-1)
+             */
+            transcripts?: {
+                [key: string]: unknown;
+            }[] | null;
+            /**
+             * Words
+             * @description Words, spacing and audio events with start/end, speaker_id, characters (relay/stt-1)
+             */
+            words?: {
+                [key: string]: unknown;
+            }[] | null;
         } & {
             [key: string]: unknown;
         };
@@ -4665,7 +5166,7 @@ export type components = {
             output_format?: ("mp4_h264" | "mp4_h265" | "webm_vp9" | "mov_h265" | "mov_proresks" | "mkv_h264" | "mkv_h265" | "mkv_vp9" | "gif") | null;
             /**
              * Store Output
-             * @description Where this request's output media is hosted, and for how long. `provider` (default) returns a Relay CDN link that live-proxies the provider for 1 hour — the same hour the task record itself lives. `relay1d` / `relay7d` / `relay30d` copy the output into Relay's own storage and keep BOTH the link and the task record for 1, 7 or 30 days, for a flat per-file fee (see `media_storage` in GET /v2/pricing). Not available on routes that return media inline (base64), and not available to the guest tier.
+             * @description Where this request's output media is hosted, and for how long. `provider` (default) returns a Relay CDN link that live-proxies the provider for 1 hour — the same hour the task record itself lives. `relay1d` / `relay7d` / `relay30d` copy the output into Relay's own storage and keep BOTH the link and the task record for 1, 7 or 30 days, for a flat per-file fee (see `media_storage` in GET /v2/pricing). On routes that return images inline (base64) the images are also hosted, as `urls`, for the same lifetime. `relay*` is not available to the guest tier, nor on a model whose `store_output_supported` is false in GET /v2/models.
              * @default provider
              */
             store_output?: ("provider" | "relay1d" | "relay7d" | "relay30d") | null;
@@ -4804,6 +5305,171 @@ export type components = {
             ssh_key_types: string[];
         };
         /**
+         * ConductorDetail
+         * @description RelayConductor's ladders, as `GET /v2/models/relay%2Fconductor` returns them.
+         */
+        ConductorDetail: {
+            /**
+             * Max Models
+             * @description How many model names `routing.models` takes at most
+             * @example 5
+             */
+            max_models: number;
+            /**
+             * Usecases
+             * @description `code`, `general`, `design` → the use case
+             */
+            usecases: {
+                [key: string]: components["schemas"]["ConductorUseCase"];
+            };
+        };
+        /**
+         * ConductorExcluded
+         * @description A model RelayConductor does not route to for a use case.
+         */
+        ConductorExcluded: {
+            /**
+             * Effort
+             * @description The one effort excluded; null = the whole model
+             */
+            effort?: string | null;
+            /**
+             * Model
+             * @description The catalogue model
+             */
+            model: string;
+            /**
+             * Reason
+             * @description `excluded`: removed from routing by review; `unscored`: missing the benchmark results the ladder is built from; `dropped`: measured and found unable to serve at any difficulty level (empty answers within the model's output limit, or too slow); `pending`: not measured yet; `not_in_catalogue`: scored, but no longer offered (retired)
+             * @enum {string}
+             */
+            reason: "excluded" | "unscored" | "dropped" | "pending" | "not_in_catalogue";
+            /**
+             * Why
+             * @description Detail on the reason
+             */
+            why?: string | null;
+        };
+        /**
+         * ConductorList
+         * @description One candidate list's two ladders for a use case.
+         */
+        ConductorList: {
+            /** @description Used by streaming and async requests */
+            stream: components["schemas"]["ConductorTable"];
+            /** @description Used by non-streaming requests; its models are also chosen for the response-time limit */
+            sync: components["schemas"]["ConductorTable"];
+        };
+        /**
+         * ConductorRung
+         * @description One rung of a RelayConductor ladder: the model and effort it serves.
+         */
+        ConductorRung: {
+            /**
+             * Carried From
+             * @description Set when no model clears this rung's own bar at its difficulty level: the rung holds the nearest filled rung below it (else above), and this names that rung
+             * @example 3
+             */
+            carried_from?: number | null;
+            /**
+             * Effort
+             * @description The reasoning effort it runs at; `default` = no effort is sent
+             * @example low
+             */
+            effort: string;
+            /**
+             * Expert
+             * @description A reviewer's mark on this model, when one shaped the ladder
+             */
+            expert?: string | null;
+            /**
+             * Floors
+             * @description Difficulty level (`1`–`4`) → the output tokens the model typically needs there (90th percentile, measured); a request whose `max_tokens` is below it is served by a lower rung whose model needs fewer. Empty when not measured
+             */
+            floors: {
+                [key: string]: number;
+            };
+            /**
+             * Model
+             * @description The catalogue model served on this rung
+             * @example openai/gpt-5.5
+             */
+            model: string;
+            /**
+             * Price
+             * @description Expected cost of one call in USD (typical tokens at this model's list price); null when not measured
+             * @example 0.0124
+             */
+            price?: number | null;
+            /**
+             * Reason
+             * @description Why this model holds the rung
+             */
+            reason?: string | null;
+            /**
+             * Rung
+             * @description 1 (cheapest) to 4 (strongest)
+             * @example 2
+             */
+            rung: number;
+            /**
+             * Score
+             * @description Benchmark score relative to the best model of this list for the use case (1.0 = the best); rungs 2, 3 and 4 hold the cheapest model within 30, 15 and 5 % of the best
+             * @example 0.87
+             */
+            score?: number | null;
+        };
+        /**
+         * ConductorTable
+         * @description A ladder: rungs 1–4 for one list, one use case and one request kind.
+         */
+        ConductorTable: {
+            /**
+             * Empty
+             * @description Rung (`1`–`4`) → why no model clears its own bar there; the rung carries the nearest filled rung (`carried_from` on the rung)
+             */
+            empty: {
+                [key: string]: string;
+            };
+            /** @description `peak` (rung 5): the top-scoring model that answers at difficulty level 3, price ignored, the same on both ladders; served to `performance` from rung 4 and to `benchmaxxing`. The top of the benchmark boards, not a claim that it answers better; null when no model qualifies */
+            peak?: components["schemas"]["ConductorRung"] | null;
+            /**
+             * Pending
+             * @description Rung → the `model@effort` pairs whose measurement could still change it; omitted rungs have none
+             */
+            pending: {
+                [key: string]: string[];
+            };
+            /**
+             * Rungs
+             * @description The filled rungs, rung 1 first
+             */
+            rungs: components["schemas"]["ConductorRung"][];
+        };
+        /**
+         * ConductorUseCase
+         * @description Everything RelayConductor does for one use case.
+         */
+        ConductorUseCase: {
+            /**
+             * Conductable
+             * @description The models that can be routed to for this use case
+             */
+            conductable: string[];
+            /**
+             * Excluded
+             * @description The models that cannot, each with its reason
+             */
+            excluded: components["schemas"]["ConductorExcluded"][];
+            /**
+             * Lists
+             * @description Named list (`relay-picked`, `openai-only`, `open-source-only`, `claude-only`) → its two ladders
+             */
+            lists: {
+                [key: string]: components["schemas"]["ConductorList"];
+            };
+        };
+        /**
          * ContainerConnection
          * @description `managed_container`: `ssh -p <port> <user>@<hostname>`.
          */
@@ -4852,6 +5518,11 @@ export type components = {
         /** CreateKeyRequest */
         CreateKeyRequest: {
             /**
+             * Instances Allowed
+             * @description May this key rent Instances. Omitted = `false`. Custom-tier customers only (403 otherwise).
+             */
+            instances_allowed?: boolean;
+            /**
              * Key Budget
              * @description Per-key $ budget. null = uncapped (draws from parent wallet). Custom-tier customers only (403 otherwise).
              */
@@ -4876,6 +5547,11 @@ export type components = {
              * @description Creation time (ISO 8601)
              */
             created_at: string;
+            /**
+             * Instances Allowed
+             * @description Whether this key may rent Instances (`POST /v2/instances`). Custom tiers only. New keys default to `false` unless minted with it set; keys that predate the switch read `true`. The account superkey and the dashboard login are always allowed, whatever this says. Set it with `PATCH /v2/customer/keys/{key_id}`.
+             */
+            instances_allowed: boolean;
             /**
              * Is Superkey
              * @description True when this key became the account superkey (first key on a custom tier)
@@ -4931,6 +5607,12 @@ export type components = {
         };
         /** CreditsResponse */
         CreditsResponse: {
+            /**
+             * Adjustments
+             * @description Credits removed outside usage: admin adjustments and expired grants. Everything granted is accounted for: `total_allocated + promo_allocated = total_consumed + balance + (the sum of `promos[].balance`) + adjustments` (never below 0, rounded to the cent)
+             * @default 0
+             */
+            adjustments?: number;
             /** Balance */
             balance: number;
             /** Consumed By Mode */
@@ -4941,6 +5623,12 @@ export type components = {
             last_topup: {
                 [key: string]: unknown;
             } | null;
+            /**
+             * Promo Allocated
+             * @description Total promo credits ever granted (sum of `initial_balance` over every promo on the account: active, exhausted and expired alike)
+             * @default 0
+             */
+            promo_allocated?: number;
             /**
              * Promo Consumed
              * @description Total credits consumed from promos (derived from initial_balance - balance across all promos)
@@ -4956,15 +5644,31 @@ export type components = {
         };
         /** CreditTransaction */
         CreditTransaction: {
-            /** Action */
+            /**
+             * Action
+             * @description One of: credit_topup, credit_deduct, promo_granted, promo_expired, key_budget_set, key_budget_topup, key_budget_cleared
+             */
             action: string;
-            /** Amount */
-            amount: number;
+            /**
+             * Amount
+             * @description Credits moved, in cents: the top-up or deduction; the promo's balance (`promo_granted`); the written-off remainder (`promo_expired`); the cap or top-up (`key_budget_*`; null on a clear).
+             */
+            amount?: number | null;
             /** Created At */
             created_at: string;
+            /**
+             * Details
+             * @description Per-action keys. `promo_granted`: promo_id, code_id, balance, valid_for. `promo_expired`: promo_id, remainder, expires_at. `key_budget_set`/`key_budget_cleared`: key_id. `key_budget_topup`: key_id, new_budget. Empty for `credit_topup`/`credit_deduct`.
+             */
+            details?: {
+                [key: string]: unknown;
+            };
             /** Reason */
             reason: string;
-            /** Via */
+            /**
+             * Via
+             * @description `credit_*`: stripe | admin | payment_service. `promo_granted`: admin | code | signup. `key_budget_*`: superkey | jwt | consent | dashboard.
+             */
             via: string;
         };
         /** CustomerPricingItem */
@@ -5082,6 +5786,76 @@ export type components = {
              * @description Account-credit warning line (credits). When > 0, any authenticated response carries `X-Credit-Warning: true` while the account wallet balance is below this value. 0 disables it (the default). For custom-tier partners, enabling it means sub-key responses may carry the flag — else poll GET /credits.
              */
             warning_threshold: number;
+        };
+        /**
+         * CustomerTaskItem
+         * @description One async task from your history.
+         */
+        CustomerTaskItem: {
+            /** Billed */
+            billed: boolean;
+            /** Cost Usd */
+            cost_usd?: number | null;
+            /** Created At */
+            created_at: string;
+            /**
+             * Duration Ms
+             * @description null until the task settles.
+             */
+            duration_ms?: number | null;
+            /** Endpoint */
+            endpoint?: string | null;
+            /**
+             * Error Code
+             * @description Set only on a failed task.
+             */
+            error_code?: string | null;
+            /**
+             * Expires At
+             * @description When the first of `urls` expires.
+             */
+            expires_at?: string | null;
+            /** Model */
+            model?: string | null;
+            /** No Bill Reason */
+            no_bill_reason?: string | null;
+            /**
+             * Prompt
+             * @description The request's prompt, first 2,000 characters; null after 90 days or when the request had none.
+             */
+            prompt?: string | null;
+            /** Source */
+            source?: string | null;
+            /**
+             * Status
+             * @description `unknown`: the task was accepted but never reported back and is past the longest time a task can run.
+             * @enum {string}
+             */
+            status: "queued" | "running" | "completed" | "failed" | "unknown";
+            /** Task Id */
+            task_id: string;
+            /**
+             * Urls
+             * @description Result links still alive on Relay's file store.
+             */
+            urls?: string[];
+        };
+        /** CustomerTaskPage */
+        CustomerTaskPage: {
+            /** Data */
+            data: components["schemas"]["CustomerTaskItem"][];
+            /** Has More */
+            has_more: boolean;
+            /**
+             * Next Page
+             * @description Opaque cursor — pass back as `page` to fetch older tasks.
+             */
+            next_page?: string | null;
+            /**
+             * Object
+             * @default page
+             */
+            object?: string;
         };
         /** CustomerUsageResponse */
         CustomerUsageResponse: {
@@ -5215,7 +5989,7 @@ export type components = {
             service_tier?: ("default" | "flex") | null;
             /**
              * Store Output
-             * @description Where this request's output media is hosted, and for how long. `provider` (default) returns a Relay CDN link that live-proxies the provider for 1 hour — the same hour the task record itself lives. `relay1d` / `relay7d` / `relay30d` copy the output into Relay's own storage and keep BOTH the link and the task record for 1, 7 or 30 days, for a flat per-file fee (see `media_storage` in GET /v2/pricing). Not available on routes that return media inline (base64), and not available to the guest tier.
+             * @description Where this request's output media is hosted, and for how long. `provider` (default) returns a Relay CDN link that live-proxies the provider for 1 hour — the same hour the task record itself lives. `relay1d` / `relay7d` / `relay30d` copy the output into Relay's own storage and keep BOTH the link and the task record for 1, 7 or 30 days, for a flat per-file fee (see `media_storage` in GET /v2/pricing). On routes that return images inline (base64) the images are also hosted, as `urls`, for the same lifetime. `relay*` is not available to the guest tier, nor on a model whose `store_output_supported` is false in GET /v2/models.
              * @default provider
              */
             store_output?: ("provider" | "relay1d" | "relay7d" | "relay30d") | null;
@@ -5292,8 +6066,8 @@ export type components = {
             async?: boolean | null;
             /**
              * Camera Fixed
-             * @description Fix the camera.
-             * @default false
+             * @deprecated
+             * @description Deprecated: ignored; Seedance 2.x has no camera lock. `true` is a 422.
              */
             camera_fixed?: boolean | null;
             /**
@@ -5373,7 +6147,7 @@ export type components = {
             seed?: number | null;
             /**
              * Store Output
-             * @description Where this request's output media is hosted, and for how long. `provider` (default) returns a Relay CDN link that live-proxies the provider for 1 hour — the same hour the task record itself lives. `relay1d` / `relay7d` / `relay30d` copy the output into Relay's own storage and keep BOTH the link and the task record for 1, 7 or 30 days, for a flat per-file fee (see `media_storage` in GET /v2/pricing). Not available on routes that return media inline (base64), and not available to the guest tier.
+             * @description Where this request's output media is hosted, and for how long. `provider` (default) returns a Relay CDN link that live-proxies the provider for 1 hour — the same hour the task record itself lives. `relay1d` / `relay7d` / `relay30d` copy the output into Relay's own storage and keep BOTH the link and the task record for 1, 7 or 30 days, for a flat per-file fee (see `media_storage` in GET /v2/pricing). On routes that return images inline (base64) the images are also hosted, as `urls`, for the same lifetime. `relay*` is not available to the guest tier, nor on a model whose `store_output_supported` is false in GET /v2/models.
              * @default provider
              */
             store_output?: ("provider" | "relay1d" | "relay7d" | "relay30d") | null;
@@ -5434,6 +6208,226 @@ export type components = {
             [key: string]: unknown;
         };
         /**
+         * DoubaoSeedance20Up720pRequest
+         * @description The Seedance 2.0 body for the mini and fast tiers: resolution tops out at 720p.
+         */
+        DoubaoSeedance20Up720pRequest: {
+            /**
+             * Async
+             * @description Return task_id immediately, poll /v2/tasks/{task_id} for result. Recommended for video (long runtime).
+             * @default true
+             */
+            async?: boolean | null;
+            /**
+             * Camera Fixed
+             * @deprecated
+             * @description Deprecated: ignored; Seedance 2.x has no camera lock. `true` is a 422.
+             */
+            camera_fixed?: boolean | null;
+            /**
+             * Duration
+             * @description Video duration in seconds (4–15).
+             * @default 5
+             */
+            duration?: number | null;
+            /**
+             * Execution Expires After
+             * @description Provider-side deadline for the generation job, in seconds (≥3600). Not the retention of the result on Relay: task results expire 1 hour after the task finishes.
+             */
+            execution_expires_after?: number | null;
+            /**
+             * First Frame Url
+             * @description URL or base64 data URI of the first frame image.
+             */
+            first_frame_url?: string | null;
+            /**
+             * Generate Audio
+             * @description Include synchronized audio.
+             * @default false
+             */
+            generate_audio?: boolean | null;
+            /**
+             * Last Frame Url
+             * @description URL or base64 data URI of the last frame image (requires first_frame_url).
+             */
+            last_frame_url?: string | null;
+            /**
+             * Mode
+             * @description Routing mode: 'auto' or 'direct' (video is direct-only).
+             * @default auto
+             */
+            mode?: ("auto" | "direct") | null;
+            /**
+             * Prompt
+             * @description Text description (≤500 chars recommended).
+             */
+            prompt?: string | null;
+            /**
+             * Ratio
+             * @description Aspect ratio.
+             * @default adaptive
+             */
+            ratio?: ("16:9" | "4:3" | "1:1" | "3:4" | "9:16" | "21:9" | "adaptive") | null;
+            /**
+             * Reference Audio Url
+             * @description URL of a reference audio (role=reference_audio).
+             */
+            reference_audio_url?: string | null;
+            /**
+             * Reference Image Url
+             * @description URL or base64 data URI of a reference image (role=reference_image).
+             */
+            reference_image_url?: string | null;
+            /**
+             * Reference Image Urls
+             * @description Reference image URL/base64 list (1–9 images, role=reference_image); use instead of reference_image_url.
+             */
+            reference_image_urls?: string[] | null;
+            /**
+             * Reference Video Url
+             * @description URL of a reference video (role=reference_video).
+             */
+            reference_video_url?: string | null;
+            /**
+             * Resolution
+             * @description Video resolution: 480p or 720p. This tier has no 1080p.
+             * @default 720p
+             */
+            resolution?: ("480p" | "720p") | null;
+            /**
+             * Seed
+             * @description Random seed for deterministic output.
+             */
+            seed?: number | null;
+            /**
+             * Store Output
+             * @description Where this request's output media is hosted, and for how long. `provider` (default) returns a Relay CDN link that live-proxies the provider for 1 hour — the same hour the task record itself lives. `relay1d` / `relay7d` / `relay30d` copy the output into Relay's own storage and keep BOTH the link and the task record for 1, 7 or 30 days, for a flat per-file fee (see `media_storage` in GET /v2/pricing). On routes that return images inline (base64) the images are also hosted, as `urls`, for the same lifetime. `relay*` is not available to the guest tier, nor on a model whose `store_output_supported` is false in GET /v2/models.
+             * @default provider
+             */
+            store_output?: ("provider" | "relay1d" | "relay7d" | "relay30d") | null;
+            /**
+             * Watermark
+             * @description Include watermark.
+             * @default false
+             */
+            watermark?: boolean | null;
+            /**
+             * Webhook Url
+             * @description HTTPS URL to receive a signed completion webhook when the async task reaches a terminal state (requires an API key, "async": true and direct mode; otherwise 422). See the Webhooks section for the delivery payload and events, and GET /v2/customer/webhook-secret for the signing secret + verification.
+             */
+            webhook_url?: string | null;
+        };
+        /**
+         * DoubaoSeedance20Up720pV2VRequest
+         * @description The Seedance 2.0 video-to-video body for the mini and fast tiers: resolution tops out at 720p.
+         */
+        DoubaoSeedance20Up720pV2VRequest: {
+            /**
+             * Async
+             * @description Return task_id immediately, poll /v2/tasks/{task_id} for result. Recommended for video (long runtime).
+             * @default true
+             */
+            async?: boolean | null;
+            /**
+             * Camera Fixed
+             * @deprecated
+             * @description Deprecated: ignored; Seedance 2.x has no camera lock. `true` is a 422.
+             */
+            camera_fixed?: boolean | null;
+            /**
+             * Duration
+             * @description Video duration in seconds (4–15).
+             * @default 5
+             */
+            duration?: number | null;
+            /**
+             * Execution Expires After
+             * @description Provider-side deadline for the generation job, in seconds (≥3600). Not the retention of the result on Relay: task results expire 1 hour after the task finishes.
+             */
+            execution_expires_after?: number | null;
+            /**
+             * First Frame Url
+             * @description URL or base64 data URI of the first frame image.
+             */
+            first_frame_url?: string | null;
+            /**
+             * Generate Audio
+             * @description Include synchronized audio.
+             * @default false
+             */
+            generate_audio?: boolean | null;
+            /**
+             * Last Frame Url
+             * @description URL or base64 data URI of the last frame image (requires first_frame_url).
+             */
+            last_frame_url?: string | null;
+            /**
+             * Mode
+             * @description Routing mode: 'auto' or 'direct' (video is direct-only).
+             * @default auto
+             */
+            mode?: ("auto" | "direct") | null;
+            /**
+             * Prompt
+             * @description Text description (≤500 chars recommended).
+             */
+            prompt?: string | null;
+            /**
+             * Ratio
+             * @description Aspect ratio.
+             * @default adaptive
+             */
+            ratio?: ("16:9" | "4:3" | "1:1" | "3:4" | "9:16" | "21:9" | "adaptive") | null;
+            /**
+             * Reference Audio Url
+             * @description URL of a reference audio (role=reference_audio).
+             */
+            reference_audio_url?: string | null;
+            /**
+             * Reference Image Url
+             * @description URL or base64 data URI of a reference image (role=reference_image).
+             */
+            reference_image_url?: string | null;
+            /**
+             * Reference Image Urls
+             * @description Reference image URL/base64 list (1–9 images, role=reference_image); use instead of reference_image_url.
+             */
+            reference_image_urls?: string[] | null;
+            /**
+             * Reference Video Url
+             * @description URL of the reference video to restyle/edit (required).
+             */
+            reference_video_url: string;
+            /**
+             * Resolution
+             * @description Video resolution: 480p or 720p. This tier has no 1080p.
+             * @default 720p
+             */
+            resolution?: ("480p" | "720p") | null;
+            /**
+             * Seed
+             * @description Random seed for deterministic output.
+             */
+            seed?: number | null;
+            /**
+             * Store Output
+             * @description Where this request's output media is hosted, and for how long. `provider` (default) returns a Relay CDN link that live-proxies the provider for 1 hour — the same hour the task record itself lives. `relay1d` / `relay7d` / `relay30d` copy the output into Relay's own storage and keep BOTH the link and the task record for 1, 7 or 30 days, for a flat per-file fee (see `media_storage` in GET /v2/pricing). On routes that return images inline (base64) the images are also hosted, as `urls`, for the same lifetime. `relay*` is not available to the guest tier, nor on a model whose `store_output_supported` is false in GET /v2/models.
+             * @default provider
+             */
+            store_output?: ("provider" | "relay1d" | "relay7d" | "relay30d") | null;
+            /**
+             * Watermark
+             * @description Include watermark.
+             * @default false
+             */
+            watermark?: boolean | null;
+            /**
+             * Webhook Url
+             * @description HTTPS URL to receive a signed completion webhook when the async task reaches a terminal state (requires an API key, "async": true and direct mode; otherwise 422). See the Webhooks section for the delivery payload and events, and GET /v2/customer/webhook-secret for the signing secret + verification.
+             */
+            webhook_url?: string | null;
+        };
+        /**
          * DoubaoSeedance25Request
          * @description Request schema for the base (non-V2V) Doubao Seedance 2.5 route.
          *
@@ -5453,8 +6447,8 @@ export type components = {
             async?: boolean | null;
             /**
              * Camera Fixed
-             * @description Fix the camera.
-             * @default false
+             * @deprecated
+             * @description Deprecated: ignored; Seedance 2.x has no camera lock. `true` is a 422.
              */
             camera_fixed?: boolean | null;
             /**
@@ -5534,7 +6528,7 @@ export type components = {
             seed?: number | null;
             /**
              * Store Output
-             * @description Where this request's output media is hosted, and for how long. `provider` (default) returns a Relay CDN link that live-proxies the provider for 1 hour — the same hour the task record itself lives. `relay1d` / `relay7d` / `relay30d` copy the output into Relay's own storage and keep BOTH the link and the task record for 1, 7 or 30 days, for a flat per-file fee (see `media_storage` in GET /v2/pricing). Not available on routes that return media inline (base64), and not available to the guest tier.
+             * @description Where this request's output media is hosted, and for how long. `provider` (default) returns a Relay CDN link that live-proxies the provider for 1 hour — the same hour the task record itself lives. `relay1d` / `relay7d` / `relay30d` copy the output into Relay's own storage and keep BOTH the link and the task record for 1, 7 or 30 days, for a flat per-file fee (see `media_storage` in GET /v2/pricing). On routes that return images inline (base64) the images are also hosted, as `urls`, for the same lifetime. `relay*` is not available to the guest tier, nor on a model whose `store_output_supported` is false in GET /v2/models.
              * @default provider
              */
             store_output?: ("provider" | "relay1d" | "relay7d" | "relay30d") | null;
@@ -5568,8 +6562,8 @@ export type components = {
             async?: boolean | null;
             /**
              * Camera Fixed
-             * @description Fix the camera.
-             * @default false
+             * @deprecated
+             * @description Deprecated: ignored; Seedance 2.x has no camera lock. `true` is a 422.
              */
             camera_fixed?: boolean | null;
             /**
@@ -5647,7 +6641,7 @@ export type components = {
             seed?: number | null;
             /**
              * Store Output
-             * @description Where this request's output media is hosted, and for how long. `provider` (default) returns a Relay CDN link that live-proxies the provider for 1 hour — the same hour the task record itself lives. `relay1d` / `relay7d` / `relay30d` copy the output into Relay's own storage and keep BOTH the link and the task record for 1, 7 or 30 days, for a flat per-file fee (see `media_storage` in GET /v2/pricing). Not available on routes that return media inline (base64), and not available to the guest tier.
+             * @description Where this request's output media is hosted, and for how long. `provider` (default) returns a Relay CDN link that live-proxies the provider for 1 hour — the same hour the task record itself lives. `relay1d` / `relay7d` / `relay30d` copy the output into Relay's own storage and keep BOTH the link and the task record for 1, 7 or 30 days, for a flat per-file fee (see `media_storage` in GET /v2/pricing). On routes that return images inline (base64) the images are also hosted, as `urls`, for the same lifetime. `relay*` is not available to the guest tier, nor on a model whose `store_output_supported` is false in GET /v2/models.
              * @default provider
              */
             store_output?: ("provider" | "relay1d" | "relay7d" | "relay30d") | null;
@@ -5680,8 +6674,8 @@ export type components = {
             async?: boolean | null;
             /**
              * Camera Fixed
-             * @description Fix the camera.
-             * @default false
+             * @deprecated
+             * @description Deprecated: ignored; Seedance 2.x has no camera lock. `true` is a 422.
              */
             camera_fixed?: boolean | null;
             /**
@@ -5761,7 +6755,7 @@ export type components = {
             seed?: number | null;
             /**
              * Store Output
-             * @description Where this request's output media is hosted, and for how long. `provider` (default) returns a Relay CDN link that live-proxies the provider for 1 hour — the same hour the task record itself lives. `relay1d` / `relay7d` / `relay30d` copy the output into Relay's own storage and keep BOTH the link and the task record for 1, 7 or 30 days, for a flat per-file fee (see `media_storage` in GET /v2/pricing). Not available on routes that return media inline (base64), and not available to the guest tier.
+             * @description Where this request's output media is hosted, and for how long. `provider` (default) returns a Relay CDN link that live-proxies the provider for 1 hour — the same hour the task record itself lives. `relay1d` / `relay7d` / `relay30d` copy the output into Relay's own storage and keep BOTH the link and the task record for 1, 7 or 30 days, for a flat per-file fee (see `media_storage` in GET /v2/pricing). On routes that return images inline (base64) the images are also hosted, as `urls`, for the same lifetime. `relay*` is not available to the guest tier, nor on a model whose `store_output_supported` is false in GET /v2/models.
              * @default provider
              */
             store_output?: ("provider" | "relay1d" | "relay7d" | "relay30d") | null;
@@ -5980,7 +6974,7 @@ export type components = {
             seed?: number | null;
             /**
              * Store Output
-             * @description Where this request's output media is hosted, and for how long. `provider` (default) returns a Relay CDN link that live-proxies the provider for 1 hour — the same hour the task record itself lives. `relay1d` / `relay7d` / `relay30d` copy the output into Relay's own storage and keep BOTH the link and the task record for 1, 7 or 30 days, for a flat per-file fee (see `media_storage` in GET /v2/pricing). Not available on routes that return media inline (base64), and not available to the guest tier.
+             * @description Where this request's output media is hosted, and for how long. `provider` (default) returns a Relay CDN link that live-proxies the provider for 1 hour — the same hour the task record itself lives. `relay1d` / `relay7d` / `relay30d` copy the output into Relay's own storage and keep BOTH the link and the task record for 1, 7 or 30 days, for a flat per-file fee (see `media_storage` in GET /v2/pricing). On routes that return images inline (base64) the images are also hosted, as `urls`, for the same lifetime. `relay*` is not available to the guest tier, nor on a model whose `store_output_supported` is false in GET /v2/models.
              * @default provider
              */
             store_output?: ("provider" | "relay1d" | "relay7d" | "relay30d") | null;
@@ -6062,22 +7056,22 @@ export type components = {
             height?: number | null;
             /**
              * Input Image
-             * @description Reference image as base64 string
+             * @description Reference image: base64, a data URI, or a Relay file link from `POST /v2/files` (`https://cdn.relaygpu.com/content/...`, up to 20 MB; the file must still be live when the task runs).
              */
             input_image?: string | null;
             /**
              * Input Image 2
-             * @description Second reference image as base64 string
+             * @description Second reference image: base64, a data URI, or a Relay file link from `POST /v2/files` (`https://cdn.relaygpu.com/content/...`, up to 20 MB; the file must still be live when the task runs).
              */
             input_image_2?: string | null;
             /**
              * Input Image 3
-             * @description Third reference image as base64 string
+             * @description Third reference image: base64, a data URI, or a Relay file link from `POST /v2/files` (`https://cdn.relaygpu.com/content/...`, up to 20 MB; the file must still be live when the task runs).
              */
             input_image_3?: string | null;
             /**
              * Input Image 4
-             * @description Fourth reference image as base64 string
+             * @description Fourth reference image: base64, a data URI, or a Relay file link from `POST /v2/files` (`https://cdn.relaygpu.com/content/...`, up to 20 MB; the file must still be live when the task runs).
              */
             input_image_4?: string | null;
             /**
@@ -6118,7 +7112,7 @@ export type components = {
             seed?: number | null;
             /**
              * Store Output
-             * @description Where this request's output media is hosted, and for how long. `provider` (default) returns a Relay CDN link that live-proxies the provider for 1 hour — the same hour the task record itself lives. `relay1d` / `relay7d` / `relay30d` copy the output into Relay's own storage and keep BOTH the link and the task record for 1, 7 or 30 days, for a flat per-file fee (see `media_storage` in GET /v2/pricing). Not available on routes that return media inline (base64), and not available to the guest tier.
+             * @description Where this request's output media is hosted, and for how long. `provider` (default) returns a Relay CDN link that live-proxies the provider for 1 hour — the same hour the task record itself lives. `relay1d` / `relay7d` / `relay30d` copy the output into Relay's own storage and keep BOTH the link and the task record for 1, 7 or 30 days, for a flat per-file fee (see `media_storage` in GET /v2/pricing). On routes that return images inline (base64) the images are also hosted, as `urls`, for the same lifetime. `relay*` is not available to the guest tier, nor on a model whose `store_output_supported` is false in GET /v2/models.
              * @default provider
              */
             store_output?: ("provider" | "relay1d" | "relay7d" | "relay30d") | null;
@@ -6171,6 +7165,11 @@ export type components = {
              */
             task_id?: string | null;
             /**
+             * Urls
+             * @description Relay-hosted links to the same images, in the same order as `images` (`https://cdn.relaygpu.com/content/...`). They live 1 hour, or for the `store_output` lifetime you chose; pass one straight into another request's image field. Absent when hosting was not possible — `images` is always there.
+             */
+            urls?: string[] | null;
+            /**
              * Width
              * @description Image width in pixels
              */
@@ -6183,17 +7182,17 @@ export type components = {
          * @description Request schema for Gemini image generation / editing.
          *
          *     Supports text-to-image and image-to-image editing: if `image` (single) or
-         *     `images` (1-14, gemini-3-pro-image only) is provided, the model edits those
+         *     `images` (bounded per model, MAX_REFERENCE_IMAGES) is provided, the model edits those
          *     reference images; otherwise it generates from the prompt. `image` and
          *     `images` are mutually exclusive.
          */
         GeminiRequest: {
             /**
              * Aspect Ratio
-             * @description Image aspect ratio
+             * @description Image aspect ratio. `1:4`, `4:1`, `1:8` and `8:1` are gemini-3.1-flash-image-preview and gemini-nano-banana-2.1 only. On gemini-nano-banana-2.1 an omitted aspect_ratio lets the model choose (an edit follows its input) and the response echoes null.
              * @default 1:1
              */
-            aspect_ratio?: ("1:1" | "2:3" | "3:2" | "3:4" | "4:3" | "4:5" | "5:4" | "9:16" | "16:9" | "21:9") | null;
+            aspect_ratio?: ("1:1" | "2:3" | "3:2" | "3:4" | "4:3" | "4:5" | "5:4" | "9:16" | "16:9" | "21:9" | "1:4" | "4:1" | "1:8" | "8:1") | null;
             /**
              * Async
              * @description Return task_id immediately, poll /v2/tasks/{task_id} for result.
@@ -6202,7 +7201,7 @@ export type components = {
             async?: boolean | null;
             /**
              * Image
-             * @description Optional reference image for image-to-image editing. Accepts raw base64 or a data URI (data:image/png;base64,...). If omitted, the request is treated as text-to-image. Mutually exclusive with `images`.
+             * @description Optional reference image for image-to-image editing: base64, a data URI, or a Relay file link from `POST /v2/files` (`https://cdn.relaygpu.com/content/...`, up to 20 MB; the file must still be live when the task runs). If omitted, the request is treated as text-to-image. Mutually exclusive with `images`.
              */
             image?: string | null;
             /**
@@ -6213,7 +7212,7 @@ export type components = {
             image_size?: ("0.5K" | "1K" | "2K" | "4K") | null;
             /**
              * Images
-             * @description Multiple reference images for image-to-image editing (1-14), **google/gemini-3-pro-image only**. Each item is raw base64 or a data URI. Use instead of `image` — setting both is a 422.
+             * @description Multiple reference images for image-to-image editing: up to 14 on gemini-3-pro-image, gemini-3.1-flash-image-preview and gemini-nano-banana-2.1, up to 3 on gemini-2.5-flash-image (more is a 422). Each item is base64, a data URI, or a Relay file link from `POST /v2/files` (`https://cdn.relaygpu.com/content/...`, up to 20 MB; the file must still be live when the task runs). Use instead of `image` — setting both is a 422.
              */
             images?: string[] | null;
             /**
@@ -6224,7 +7223,7 @@ export type components = {
             mode?: ("auto" | "direct") | null;
             /**
              * Model
-             * @description Image generation model. Available: 'google/gemini-3-pro-image' (default), 'google/gemini-2.5-flash-image', 'google/gemini-3.1-flash-image-preview'.
+             * @description Image generation model. Available: 'google/gemini-3-pro-image' (default), 'google/gemini-2.5-flash-image', 'google/gemini-3.1-flash-image-preview', 'google/gemini-nano-banana-2.1'.
              * @default google/gemini-3-pro-image
              * @example google/gemini-3-pro-image
              */
@@ -6237,7 +7236,7 @@ export type components = {
             prompt: string;
             /**
              * Store Output
-             * @description Where this request's output media is hosted, and for how long. `provider` (default) returns a Relay CDN link that live-proxies the provider for 1 hour — the same hour the task record itself lives. `relay1d` / `relay7d` / `relay30d` copy the output into Relay's own storage and keep BOTH the link and the task record for 1, 7 or 30 days, for a flat per-file fee (see `media_storage` in GET /v2/pricing). Not available on routes that return media inline (base64), and not available to the guest tier.
+             * @description Where this request's output media is hosted, and for how long. `provider` (default) returns a Relay CDN link that live-proxies the provider for 1 hour — the same hour the task record itself lives. `relay1d` / `relay7d` / `relay30d` copy the output into Relay's own storage and keep BOTH the link and the task record for 1, 7 or 30 days, for a flat per-file fee (see `media_storage` in GET /v2/pricing). On routes that return images inline (base64) the images are also hosted, as `urls`, for the same lifetime. `relay*` is not available to the guest tier, nor on a model whose `store_output_supported` is false in GET /v2/models.
              * @default provider
              */
             store_output?: ("provider" | "relay1d" | "relay7d" | "relay30d") | null;
@@ -6254,9 +7253,9 @@ export type components = {
         GeminiResponse: {
             /**
              * Aspect Ratio
-             * @description Image aspect ratio
+             * @description Image aspect ratio; null when the model chose it (gemini-nano-banana-2.1 with aspect_ratio omitted)
              */
-            aspect_ratio: string;
+            aspect_ratio: string | null;
             /**
              * Finish Reason
              * @description The model's own completion verdict, forwarded verbatim from upstream (`STOP` on a normal generation). Null when upstream reported none. The same field appears under `error.detail` when a request produces no image, so the value you see on a success and the value behind a failure are the same field.
@@ -6293,6 +7292,11 @@ export type components = {
              * @description Task identifier (direct:{uuid} or opengpu:{uuid})
              */
             task_id?: string | null;
+            /**
+             * Urls
+             * @description Relay-hosted links to the same images, in the same order as `images` (`https://cdn.relaygpu.com/content/...`). They live 1 hour, or for the `store_output` lifetime you chose; pass one straight into another request's image field. Absent when hosting was not possible — `images` is always there.
+             */
+            urls?: string[] | null;
         } & {
             [key: string]: unknown;
         };
@@ -6310,12 +7314,12 @@ export type components = {
             async?: boolean | null;
             /**
              * Image
-             * @description Optional. Omit for text-to-image; single base64 PNG for edit; list of base64 PNGs for multi-image composition.
+             * @description Optional. Omit for text-to-image; a single PNG for edit; a list of PNGs for multi-image composition. Each PNG is base64, a data URI, or a Relay file link from `POST /v2/files` (`https://cdn.relaygpu.com/content/...`, up to 20 MB; the file must still be live when the task runs).
              */
             image?: string | string[] | null;
             /**
              * Mask
-             * @description Optional base64 PNG mask (single-image edit mode only; same dimensions as image)
+             * @description Optional PNG mask (single-image edit mode only; same dimensions as image): base64, a data URI, or a Relay file link from `POST /v2/files` (`https://cdn.relaygpu.com/content/...`, up to 20 MB; the file must still be live when the task runs).
              */
             mask?: string | null;
             /**
@@ -6356,19 +7360,19 @@ export type components = {
             prompt: string;
             /**
              * Quality
-             * @description Generation quality (higher = slower)
+             * @description Generation quality (higher = slower): `low`, `medium`, `high`, `auto`; the 2.5 variants also take `xhigh` and `max`.
              * @default high
              */
-            quality?: ("low" | "medium" | "high") | null;
+            quality?: ("low" | "medium" | "high" | "auto" | "xhigh" | "max") | null;
             /**
              * Size
-             * @description Output image size (WxH). Limited to priced sizes for exact billing.
+             * @description Output image size (WxH). Limited to priced sizes for exact billing; both sides are multiples of 16 (the provider's rule).
              * @default 1024x1024
              */
-            size?: ("1024x768" | "1024x1024" | "1024x1536" | "1536x1024" | "1920x1080" | "2560x1440" | "3840x2160") | null;
+            size?: ("1024x768" | "1024x1024" | "1024x1536" | "1536x1024" | "2560x1440" | "3840x2160") | null;
             /**
              * Store Output
-             * @description Where this request's output media is hosted, and for how long. `provider` (default) returns a Relay CDN link that live-proxies the provider for 1 hour — the same hour the task record itself lives. `relay1d` / `relay7d` / `relay30d` copy the output into Relay's own storage and keep BOTH the link and the task record for 1, 7 or 30 days, for a flat per-file fee (see `media_storage` in GET /v2/pricing). Not available on routes that return media inline (base64), and not available to the guest tier.
+             * @description Where this request's output media is hosted, and for how long. `provider` (default) returns a Relay CDN link that live-proxies the provider for 1 hour — the same hour the task record itself lives. `relay1d` / `relay7d` / `relay30d` copy the output into Relay's own storage and keep BOTH the link and the task record for 1, 7 or 30 days, for a flat per-file fee (see `media_storage` in GET /v2/pricing). On routes that return images inline (base64) the images are also hosted, as `urls`, for the same lifetime. `relay*` is not available to the guest tier, nor on a model whose `store_output_supported` is false in GET /v2/models.
              * @default provider
              */
             store_output?: ("provider" | "relay1d" | "relay7d" | "relay30d") | null;
@@ -6414,6 +7418,11 @@ export type components = {
              * @description Task identifier (direct:{uuid})
              */
             task_id?: string | null;
+            /**
+             * Urls
+             * @description Relay-hosted links to the same images, in the same order as `images` (`https://cdn.relaygpu.com/content/...`). They live 1 hour, or for the `store_output` lifetime you chose; pass one straight into another request's image field. Absent when hosting was not possible — `images` is always there.
+             */
+            urls?: string[] | null;
         } & {
             [key: string]: unknown;
         };
@@ -6430,12 +7439,12 @@ export type components = {
             async?: boolean | null;
             /**
              * Image
-             * @description Source image as base64 encoded string
+             * @description Source image: base64, a data URI, or a Relay file link from `POST /v2/files` (`https://cdn.relaygpu.com/content/...`, up to 20 MB; the file must still be live when the task runs).
              */
             image: string;
             /**
              * Mask
-             * @description Mask image as base64 encoded string (optional)
+             * @description Mask image (optional): base64, a data URI, or a Relay file link from `POST /v2/files` (`https://cdn.relaygpu.com/content/...`, up to 20 MB; the file must still be live when the task runs).
              */
             mask?: string | null;
             /**
@@ -6481,7 +7490,7 @@ export type components = {
             size?: ("1024x1024" | "1024x1536" | "1536x1024") | null;
             /**
              * Store Output
-             * @description Where this request's output media is hosted, and for how long. `provider` (default) returns a Relay CDN link that live-proxies the provider for 1 hour — the same hour the task record itself lives. `relay1d` / `relay7d` / `relay30d` copy the output into Relay's own storage and keep BOTH the link and the task record for 1, 7 or 30 days, for a flat per-file fee (see `media_storage` in GET /v2/pricing). Not available on routes that return media inline (base64), and not available to the guest tier.
+             * @description Where this request's output media is hosted, and for how long. `provider` (default) returns a Relay CDN link that live-proxies the provider for 1 hour — the same hour the task record itself lives. `relay1d` / `relay7d` / `relay30d` copy the output into Relay's own storage and keep BOTH the link and the task record for 1, 7 or 30 days, for a flat per-file fee (see `media_storage` in GET /v2/pricing). On routes that return images inline (base64) the images are also hosted, as `urls`, for the same lifetime. `relay*` is not available to the guest tier, nor on a model whose `store_output_supported` is false in GET /v2/models.
              * @default provider
              */
             store_output?: ("provider" | "relay1d" | "relay7d" | "relay30d") | null;
@@ -6527,6 +7536,11 @@ export type components = {
              * @description Task identifier (direct:{uuid} or opengpu:{uuid})
              */
             task_id?: string | null;
+            /**
+             * Urls
+             * @description Relay-hosted links to the same images, in the same order as `images` (`https://cdn.relaygpu.com/content/...`). They live 1 hour, or for the `store_output` lifetime you chose; pass one straight into another request's image field. Absent when hosting was not possible — `images` is always there.
+             */
+            urls?: string[] | null;
         } & {
             [key: string]: unknown;
         };
@@ -6584,7 +7598,7 @@ export type components = {
             size?: ("1024x1024" | "1024x1536" | "1536x1024") | null;
             /**
              * Store Output
-             * @description Where this request's output media is hosted, and for how long. `provider` (default) returns a Relay CDN link that live-proxies the provider for 1 hour — the same hour the task record itself lives. `relay1d` / `relay7d` / `relay30d` copy the output into Relay's own storage and keep BOTH the link and the task record for 1, 7 or 30 days, for a flat per-file fee (see `media_storage` in GET /v2/pricing). Not available on routes that return media inline (base64), and not available to the guest tier.
+             * @description Where this request's output media is hosted, and for how long. `provider` (default) returns a Relay CDN link that live-proxies the provider for 1 hour — the same hour the task record itself lives. `relay1d` / `relay7d` / `relay30d` copy the output into Relay's own storage and keep BOTH the link and the task record for 1, 7 or 30 days, for a flat per-file fee (see `media_storage` in GET /v2/pricing). On routes that return images inline (base64) the images are also hosted, as `urls`, for the same lifetime. `relay*` is not available to the guest tier, nor on a model whose `store_output_supported` is false in GET /v2/models.
              * @default provider
              */
             store_output?: ("provider" | "relay1d" | "relay7d" | "relay30d") | null;
@@ -6630,6 +7644,11 @@ export type components = {
              * @description Task identifier (direct:{uuid} or opengpu:{uuid})
              */
             task_id?: string | null;
+            /**
+             * Urls
+             * @description Relay-hosted links to the same images, in the same order as `images` (`https://cdn.relaygpu.com/content/...`). They live 1 hour, or for the `store_output` lifetime you chose; pass one straight into another request's image field. Absent when hosting was not possible — `images` is always there.
+             */
+            urls?: string[] | null;
         } & {
             [key: string]: unknown;
         };
@@ -6698,7 +7717,7 @@ export type components = {
             seed?: number | null;
             /**
              * Store Output
-             * @description Where this request's output media is hosted, and for how long. `provider` (default) returns a Relay CDN link that live-proxies the provider for 1 hour — the same hour the task record itself lives. `relay1d` / `relay7d` / `relay30d` copy the output into Relay's own storage and keep BOTH the link and the task record for 1, 7 or 30 days, for a flat per-file fee (see `media_storage` in GET /v2/pricing). Not available on routes that return media inline (base64), and not available to the guest tier.
+             * @description Where this request's output media is hosted, and for how long. `provider` (default) returns a Relay CDN link that live-proxies the provider for 1 hour — the same hour the task record itself lives. `relay1d` / `relay7d` / `relay30d` copy the output into Relay's own storage and keep BOTH the link and the task record for 1, 7 or 30 days, for a flat per-file fee (see `media_storage` in GET /v2/pricing). On routes that return images inline (base64) the images are also hosted, as `urls`, for the same lifetime. `relay*` is not available to the guest tier, nor on a model whose `store_output_supported` is false in GET /v2/models.
              * @default provider
              */
             store_output?: ("provider" | "relay1d" | "relay7d" | "relay30d") | null;
@@ -6762,7 +7781,7 @@ export type components = {
             seed?: number | null;
             /**
              * Store Output
-             * @description Where this request's output media is hosted, and for how long. `provider` (default) returns a Relay CDN link that live-proxies the provider for 1 hour — the same hour the task record itself lives. `relay1d` / `relay7d` / `relay30d` copy the output into Relay's own storage and keep BOTH the link and the task record for 1, 7 or 30 days, for a flat per-file fee (see `media_storage` in GET /v2/pricing). Not available on routes that return media inline (base64), and not available to the guest tier.
+             * @description Where this request's output media is hosted, and for how long. `provider` (default) returns a Relay CDN link that live-proxies the provider for 1 hour — the same hour the task record itself lives. `relay1d` / `relay7d` / `relay30d` copy the output into Relay's own storage and keep BOTH the link and the task record for 1, 7 or 30 days, for a flat per-file fee (see `media_storage` in GET /v2/pricing). On routes that return images inline (base64) the images are also hosted, as `urls`, for the same lifetime. `relay*` is not available to the guest tier, nor on a model whose `store_output_supported` is false in GET /v2/models.
              * @default provider
              */
             store_output?: ("provider" | "relay1d" | "relay7d" | "relay30d") | null;
@@ -6833,7 +7852,7 @@ export type components = {
             seed?: number | null;
             /**
              * Store Output
-             * @description Where this request's output media is hosted, and for how long. `provider` (default) returns a Relay CDN link that live-proxies the provider for 1 hour — the same hour the task record itself lives. `relay1d` / `relay7d` / `relay30d` copy the output into Relay's own storage and keep BOTH the link and the task record for 1, 7 or 30 days, for a flat per-file fee (see `media_storage` in GET /v2/pricing). Not available on routes that return media inline (base64), and not available to the guest tier.
+             * @description Where this request's output media is hosted, and for how long. `provider` (default) returns a Relay CDN link that live-proxies the provider for 1 hour — the same hour the task record itself lives. `relay1d` / `relay7d` / `relay30d` copy the output into Relay's own storage and keep BOTH the link and the task record for 1, 7 or 30 days, for a flat per-file fee (see `media_storage` in GET /v2/pricing). On routes that return images inline (base64) the images are also hosted, as `urls`, for the same lifetime. `relay*` is not available to the guest tier, nor on a model whose `store_output_supported` is false in GET /v2/models.
              * @default provider
              */
             store_output?: ("provider" | "relay1d" | "relay7d" | "relay30d") | null;
@@ -6896,7 +7915,7 @@ export type components = {
             seed?: number | null;
             /**
              * Store Output
-             * @description Where this request's output media is hosted, and for how long. `provider` (default) returns a Relay CDN link that live-proxies the provider for 1 hour — the same hour the task record itself lives. `relay1d` / `relay7d` / `relay30d` copy the output into Relay's own storage and keep BOTH the link and the task record for 1, 7 or 30 days, for a flat per-file fee (see `media_storage` in GET /v2/pricing). Not available on routes that return media inline (base64), and not available to the guest tier.
+             * @description Where this request's output media is hosted, and for how long. `provider` (default) returns a Relay CDN link that live-proxies the provider for 1 hour — the same hour the task record itself lives. `relay1d` / `relay7d` / `relay30d` copy the output into Relay's own storage and keep BOTH the link and the task record for 1, 7 or 30 days, for a flat per-file fee (see `media_storage` in GET /v2/pricing). On routes that return images inline (base64) the images are also hosted, as `urls`, for the same lifetime. `relay*` is not available to the guest tier, nor on a model whose `store_output_supported` is false in GET /v2/models.
              * @default provider
              */
             store_output?: ("provider" | "relay1d" | "relay7d" | "relay30d") | null;
@@ -6962,7 +7981,7 @@ export type components = {
             seed?: number | null;
             /**
              * Store Output
-             * @description Where this request's output media is hosted, and for how long. `provider` (default) returns a Relay CDN link that live-proxies the provider for 1 hour — the same hour the task record itself lives. `relay1d` / `relay7d` / `relay30d` copy the output into Relay's own storage and keep BOTH the link and the task record for 1, 7 or 30 days, for a flat per-file fee (see `media_storage` in GET /v2/pricing). Not available on routes that return media inline (base64), and not available to the guest tier.
+             * @description Where this request's output media is hosted, and for how long. `provider` (default) returns a Relay CDN link that live-proxies the provider for 1 hour — the same hour the task record itself lives. `relay1d` / `relay7d` / `relay30d` copy the output into Relay's own storage and keep BOTH the link and the task record for 1, 7 or 30 days, for a flat per-file fee (see `media_storage` in GET /v2/pricing). On routes that return images inline (base64) the images are also hosted, as `urls`, for the same lifetime. `relay*` is not available to the guest tier, nor on a model whose `store_output_supported` is false in GET /v2/models.
              * @default provider
              */
             store_output?: ("provider" | "relay1d" | "relay7d" | "relay30d") | null;
@@ -7182,7 +8201,7 @@ export type components = {
             spk_audio_url?: string | null;
             /**
              * Store Output
-             * @description Where this request's output media is hosted, and for how long. `provider` (default) returns a Relay CDN link that live-proxies the provider for 1 hour — the same hour the task record itself lives. `relay1d` / `relay7d` / `relay30d` copy the output into Relay's own storage and keep BOTH the link and the task record for 1, 7 or 30 days, for a flat per-file fee (see `media_storage` in GET /v2/pricing). Not available on routes that return media inline (base64), and not available to the guest tier.
+             * @description Where this request's output media is hosted, and for how long. `provider` (default) returns a Relay CDN link that live-proxies the provider for 1 hour — the same hour the task record itself lives. `relay1d` / `relay7d` / `relay30d` copy the output into Relay's own storage and keep BOTH the link and the task record for 1, 7 or 30 days, for a flat per-file fee (see `media_storage` in GET /v2/pricing). On routes that return images inline (base64) the images are also hosted, as `urls`, for the same lifetime. `relay*` is not available to the guest tier, nor on a model whose `store_output_supported` is false in GET /v2/models.
              * @default provider
              */
             store_output?: ("provider" | "relay1d" | "relay7d" | "relay30d") | null;
@@ -7375,6 +8394,11 @@ export type components = {
             /** Image */
             image: string;
             /**
+             * Key Id
+             * @description The key that rented it (`key_id`); for a rental from the dashboard, the dashboard login's key id; null on instances requested before Relay recorded it
+             */
+            key_id?: string | null;
+            /**
              * Kind
              * @description `gpu` | `npu` | `cpu` — the row's hardware class when you rented it; null on instances requested before Relay recorded it
              */
@@ -7493,14 +8517,14 @@ export type components = {
         KeyAnalytics: {
             /**
              * By Date
-             * @description Daily breakdown (only when date filter applied): {date: {mode: {source: {model: stats}}}}
+             * @description Daily breakdown (only when date filter applied): {date: {mode: {source: {model: stats}}}}. `requests` counts completed, billed requests, as in `lifetime`.
              */
             by_date?: {
                 [key: string]: unknown;
             } | null;
             /**
              * Lifetime
-             * @description Lifetime analytics (only when NO date filter): {mode: {source: {model: stats}}}
+             * @description Lifetime analytics (only when NO date filter): {mode: {source: {model: stats}}}. `requests` counts completed, billed requests; failures are not counted here, see `GET /v2/customer/metrics`.
              */
             lifetime?: {
                 [key: string]: unknown;
@@ -7591,6 +8615,12 @@ export type components = {
             /** Created At */
             created_at: string;
             /**
+             * Instances Allowed
+             * @description Whether this key may rent Instances (`POST /v2/instances`). Custom tiers only. New keys default to `false` unless minted with it set; keys that predate the switch read `true`. The account superkey and the dashboard login are always allowed, whatever this says. Set it with `PATCH /v2/customer/keys/{key_id}`.
+             * @default true
+             */
+            instances_allowed?: boolean;
+            /**
              * Is Superkey
              * @description Management key for custom-tier customers. At most one per customer (DB-enforced).
              * @default false
@@ -7647,6 +8677,12 @@ export type components = {
             analytics: components["schemas"]["KeyAnalytics"];
             /** Created At */
             created_at: string;
+            /**
+             * Instances Allowed
+             * @description Whether this key may rent Instances (`POST /v2/instances`). Custom tiers only. New keys default to `false` unless minted with it set; keys that predate the switch read `true`. The account superkey and the dashboard login are always allowed, whatever this says. Set it with `PATCH /v2/customer/keys/{key_id}`.
+             * @default true
+             */
+            instances_allowed?: boolean;
             /**
              * Is Superkey
              * @description True for the designated management key.
@@ -7732,7 +8768,7 @@ export type components = {
             prompt: string;
             /**
              * Store Output
-             * @description Where this request's output media is hosted, and for how long. `provider` (default) returns a Relay CDN link that live-proxies the provider for 1 hour — the same hour the task record itself lives. `relay1d` / `relay7d` / `relay30d` copy the output into Relay's own storage and keep BOTH the link and the task record for 1, 7 or 30 days, for a flat per-file fee (see `media_storage` in GET /v2/pricing). Not available on routes that return media inline (base64), and not available to the guest tier.
+             * @description Where this request's output media is hosted, and for how long. `provider` (default) returns a Relay CDN link that live-proxies the provider for 1 hour — the same hour the task record itself lives. `relay1d` / `relay7d` / `relay30d` copy the output into Relay's own storage and keep BOTH the link and the task record for 1, 7 or 30 days, for a flat per-file fee (see `media_storage` in GET /v2/pricing). On routes that return images inline (base64) the images are also hosted, as `urls`, for the same lifetime. `relay*` is not available to the guest tier, nor on a model whose `store_output_supported` is false in GET /v2/models.
              * @default provider
              */
             store_output?: ("provider" | "relay1d" | "relay7d" | "relay30d") | null;
@@ -7811,12 +8847,12 @@ export type components = {
             base_video_keep_audio?: boolean | null;
             /**
              * Base Video Url
-             * @description Base video URL to extend/restyle.
+             * @description Base video URL to extend/restyle. The output is as long as the input video and is billed by that length; duration is ignored.
              */
             base_video_url?: string | null;
             /**
              * Duration
-             * @description Video duration in seconds: 5 or 10
+             * @description Video duration in seconds: 5 or 10. Billed per second of the delivered video. Ignored when base_video_url is set: the output is as long as the input video and is billed by that length.
              * @default 5
              */
             duration?: (5 | 10) | null;
@@ -7859,7 +8895,7 @@ export type components = {
             reference_video_url?: string | null;
             /**
              * Store Output
-             * @description Where this request's output media is hosted, and for how long. `provider` (default) returns a Relay CDN link that live-proxies the provider for 1 hour — the same hour the task record itself lives. `relay1d` / `relay7d` / `relay30d` copy the output into Relay's own storage and keep BOTH the link and the task record for 1, 7 or 30 days, for a flat per-file fee (see `media_storage` in GET /v2/pricing). Not available on routes that return media inline (base64), and not available to the guest tier.
+             * @description Where this request's output media is hosted, and for how long. `provider` (default) returns a Relay CDN link that live-proxies the provider for 1 hour — the same hour the task record itself lives. `relay1d` / `relay7d` / `relay30d` copy the output into Relay's own storage and keep BOTH the link and the task record for 1, 7 or 30 days, for a flat per-file fee (see `media_storage` in GET /v2/pricing). On routes that return images inline (base64) the images are also hosted, as `urls`, for the same lifetime. `relay*` is not available to the guest tier, nor on a model whose `store_output_supported` is false in GET /v2/models.
              * @default provider
              */
             store_output?: ("provider" | "relay1d" | "relay7d" | "relay30d") | null;
@@ -7881,7 +8917,7 @@ export type components = {
             aspect_ratio?: string | null;
             /**
              * Duration
-             * @description Video duration in seconds
+             * @description Billed video length in seconds (an edit's follows its input video)
              */
             duration: number;
             /**
@@ -7954,7 +8990,7 @@ export type components = {
             prompt: string;
             /**
              * Store Output
-             * @description Where this request's output media is hosted, and for how long. `provider` (default) returns a Relay CDN link that live-proxies the provider for 1 hour — the same hour the task record itself lives. `relay1d` / `relay7d` / `relay30d` copy the output into Relay's own storage and keep BOTH the link and the task record for 1, 7 or 30 days, for a flat per-file fee (see `media_storage` in GET /v2/pricing). Not available on routes that return media inline (base64), and not available to the guest tier.
+             * @description Where this request's output media is hosted, and for how long. `provider` (default) returns a Relay CDN link that live-proxies the provider for 1 hour — the same hour the task record itself lives. `relay1d` / `relay7d` / `relay30d` copy the output into Relay's own storage and keep BOTH the link and the task record for 1, 7 or 30 days, for a flat per-file fee (see `media_storage` in GET /v2/pricing). On routes that return images inline (base64) the images are also hosted, as `urls`, for the same lifetime. `relay*` is not available to the guest tier, nor on a model whose `store_output_supported` is false in GET /v2/models.
              * @default provider
              */
             store_output?: ("provider" | "relay1d" | "relay7d" | "relay30d") | null;
@@ -8048,21 +9084,37 @@ export type components = {
              */
             mode?: ("auto" | "direct") | null;
             /**
+             * Multi Prompt
+             * @description The shots, 1-6 items {index, prompt, duration}: indexes run 1..n and the shot durations add up to duration exactly. Only with multi_shot true.
+             */
+            multi_prompt?: components["schemas"]["KlingV3Shot"][] | null;
+            /**
+             * Multi Shot
+             * @description Multi-shot mode (default false): the video is built from the multi_prompt shots (omit prompt). Same per-second price as a single shot.
+             */
+            multi_shot?: boolean | null;
+            /**
              * Negative Prompt
-             * @description Things to avoid in the video
+             * @deprecated
+             * @description Accepted for compatibility and ignored: the current Kling v3 API has no negative prompt. Omit it.
              */
             negative_prompt?: string | null;
             /**
              * Prompt
-             * @description Text description to guide video generation
+             * @description Text description of the video. Required unless multi_shot is true; omit it in multi-shot mode (each shot carries its own prompt).
              */
-            prompt: string;
+            prompt?: string | null;
             /**
              * Quality Mode
              * @description Generation quality: 'std' (720P) or 'pro' (1080P).
              * @default std
              */
             quality_mode?: ("std" | "pro") | null;
+            /**
+             * Shot Type
+             * @description Multi-shot storyboard type: 'customize' (the only value, and the default); used when multi_shot is true.
+             */
+            shot_type?: "customize" | null;
             /**
              * Sound
              * @description Generate native audio (synchronized sound/dialogue from the prompt).
@@ -8071,7 +9123,7 @@ export type components = {
             sound?: boolean | null;
             /**
              * Store Output
-             * @description Where this request's output media is hosted, and for how long. `provider` (default) returns a Relay CDN link that live-proxies the provider for 1 hour — the same hour the task record itself lives. `relay1d` / `relay7d` / `relay30d` copy the output into Relay's own storage and keep BOTH the link and the task record for 1, 7 or 30 days, for a flat per-file fee (see `media_storage` in GET /v2/pricing). Not available on routes that return media inline (base64), and not available to the guest tier.
+             * @description Where this request's output media is hosted, and for how long. `provider` (default) returns a Relay CDN link that live-proxies the provider for 1 hour — the same hour the task record itself lives. `relay1d` / `relay7d` / `relay30d` copy the output into Relay's own storage and keep BOTH the link and the task record for 1, 7 or 30 days, for a flat per-file fee (see `media_storage` in GET /v2/pricing). On routes that return images inline (base64) the images are also hosted, as `urls`, for the same lifetime. `relay*` is not available to the guest tier, nor on a model whose `store_output_supported` is false in GET /v2/models.
              * @default provider
              */
             store_output?: ("provider" | "relay1d" | "relay7d" | "relay30d") | null;
@@ -8133,8 +9185,8 @@ export type components = {
         KlingV3MotionControlRequest: {
             /**
              * Aspect Ratio
-             * @description Video aspect ratio
-             * @default 16:9
+             * @deprecated
+             * @description Accepted for compatibility and ignored: motion control keeps the reference video's aspect ratio. Omit it.
              */
             aspect_ratio?: ("16:9" | "9:16" | "1:1") | null;
             /**
@@ -8151,7 +9203,7 @@ export type components = {
             character_orientation: "image" | "video";
             /**
              * Duration
-             * @description Video duration in seconds (5 or 10). Billed per second.
+             * @description Requested length in seconds (5 or 10). The output is as long as the reference video (3-30 s) and is billed by that length; the response's duration is the billed length.
              * @default 5
              */
             duration?: (5 | 10) | null;
@@ -8185,7 +9237,7 @@ export type components = {
             quality_mode?: ("std" | "pro") | null;
             /**
              * Store Output
-             * @description Where this request's output media is hosted, and for how long. `provider` (default) returns a Relay CDN link that live-proxies the provider for 1 hour — the same hour the task record itself lives. `relay1d` / `relay7d` / `relay30d` copy the output into Relay's own storage and keep BOTH the link and the task record for 1, 7 or 30 days, for a flat per-file fee (see `media_storage` in GET /v2/pricing). Not available on routes that return media inline (base64), and not available to the guest tier.
+             * @description Where this request's output media is hosted, and for how long. `provider` (default) returns a Relay CDN link that live-proxies the provider for 1 hour — the same hour the task record itself lives. `relay1d` / `relay7d` / `relay30d` copy the output into Relay's own storage and keep BOTH the link and the task record for 1, 7 or 30 days, for a flat per-file fee (see `media_storage` in GET /v2/pricing). On routes that return images inline (base64) the images are also hosted, as `urls`, for the same lifetime. `relay*` is not available to the guest tier, nor on a model whose `store_output_supported` is false in GET /v2/models.
              * @default provider
              */
             store_output?: ("provider" | "relay1d" | "relay7d" | "relay30d") | null;
@@ -8206,13 +9258,8 @@ export type components = {
          */
         KlingV3MotionControlResponse: {
             /**
-             * Aspect Ratio
-             * @description Video aspect ratio
-             */
-            aspect_ratio?: string | null;
-            /**
              * Duration
-             * @description Video duration in seconds
+             * @description Billed video length in seconds (as long as the reference clip)
              */
             duration: number;
             /**
@@ -8245,6 +9292,191 @@ export type components = {
             [key: string]: unknown;
         };
         /**
+         * KlingV3OmniRequest
+         * @description Request schema for Kling v3 Omni: one route for text-to-video,
+         *     reference images, first/end frames, a feature-reference video, and editing
+         *     an existing video. `sound` is accepted only as false until it is priced.
+         */
+        KlingV3OmniRequest: {
+            /**
+             * Aspect Ratio
+             * @description Video aspect ratio. Ignored when base_video_url is set (the output matches the input).
+             * @default 16:9
+             */
+            aspect_ratio?: ("16:9" | "9:16" | "1:1") | null;
+            /**
+             * Async
+             * @description Return task_id immediately, poll /v2/tasks/{task_id} for result. Async is the DEFAULT for video (long runtime); set false to block for the result.
+             * @default true
+             */
+            async?: boolean | null;
+            /**
+             * Base Video Keep Audio
+             * @description Keep the base video's own sound.
+             * @default false
+             */
+            base_video_keep_audio?: boolean | null;
+            /**
+             * Base Video Url
+             * @description Video to edit (MP4/MOV, 3-15.5 s, 720-2160 px, 24-60 fps). The output is as long as the input video and is billed by that length; duration is ignored.
+             */
+            base_video_url?: string | null;
+            /**
+             * Duration
+             * @description Video duration in seconds (3-15; 3-10 with reference_video_url). Billed per second of the delivered video. Ignored when base_video_url is set: the output is as long as the input video and is billed by that length.
+             * @default 5
+             */
+            duration?: number | null;
+            /**
+             * End Frame Url
+             * @description End frame image (URL or base64 data URI). Requires first_frame_url; not allowed with more than 2 images in total.
+             */
+            end_frame_url?: string | null;
+            /**
+             * First Frame Url
+             * @description First frame image (URL or base64 data URI).
+             */
+            first_frame_url?: string | null;
+            /**
+             * Mode
+             * @description Routing mode: 'auto' or 'direct' (video is direct-only)
+             * @default auto
+             */
+            mode?: ("auto" | "direct") | null;
+            /**
+             * Multi Prompt
+             * @description The shots, 1-6 items {index, prompt, duration}: indexes run 1..n and the shot durations add up to duration exactly. Only with multi_shot true.
+             */
+            multi_prompt?: components["schemas"]["KlingV3Shot"][] | null;
+            /**
+             * Multi Shot
+             * @description Multi-shot mode (default false): the video is built from the multi_prompt shots (omit prompt). Same per-second price as a single shot.
+             */
+            multi_shot?: boolean | null;
+            /**
+             * Negative Prompt
+             * @deprecated
+             * @description Accepted for compatibility and ignored: the current Kling v3 API has no negative prompt. Omit it.
+             */
+            negative_prompt?: string | null;
+            /**
+             * Prompt
+             * @description Prompt. Refer to inputs as <<<image_N>>> (the Nth entry of reference_image_urls) and <<<video_1>>>. Required unless multi_shot is true; omit it in multi-shot mode.
+             */
+            prompt?: string | null;
+            /**
+             * Quality Mode
+             * @description Generation quality: 'std' (720p) or 'pro' (1080p). Priced per tier — see /v2/pricing.
+             * @default pro
+             */
+            quality_mode?: ("std" | "pro") | null;
+            /**
+             * Reference Image Urls
+             * @description Reference images (URLs or base64 data URIs), referred to in the prompt as <<<image_1>>>, <<<image_2>>> ... At most 7 images in total, frames included.
+             */
+            reference_image_urls?: string[] | null;
+            /**
+             * Reference Video Keep Audio
+             * @description Keep the reference video's own sound.
+             * @default false
+             */
+            reference_video_keep_audio?: boolean | null;
+            /**
+             * Reference Video Url
+             * @description Feature-reference video URL (output 3-10 s).
+             */
+            reference_video_url?: string | null;
+            /**
+             * Shot Type
+             * @description Multi-shot storyboard type: 'customize' (the only value, and the default); used when multi_shot is true.
+             */
+            shot_type?: "customize" | null;
+            /**
+             * Sound
+             * @description Native audio. Not offered yet: true is refused with 422 until it is priced.
+             * @default false
+             */
+            sound?: boolean | null;
+            /**
+             * Store Output
+             * @description Where this request's output media is hosted, and for how long. `provider` (default) returns a Relay CDN link that live-proxies the provider for 1 hour — the same hour the task record itself lives. `relay1d` / `relay7d` / `relay30d` copy the output into Relay's own storage and keep BOTH the link and the task record for 1, 7 or 30 days, for a flat per-file fee (see `media_storage` in GET /v2/pricing). On routes that return images inline (base64) the images are also hosted, as `urls`, for the same lifetime. `relay*` is not available to the guest tier, nor on a model whose `store_output_supported` is false in GET /v2/models.
+             * @default provider
+             */
+            store_output?: ("provider" | "relay1d" | "relay7d" | "relay30d") | null;
+            /**
+             * Webhook Url
+             * @description HTTPS URL to receive a signed completion webhook when the async task reaches a terminal state (requires an API key, "async": true and direct mode; otherwise 422). See the Webhooks section for the delivery payload and events, and GET /v2/customer/webhook-secret for the signing secret + verification.
+             */
+            webhook_url?: string | null;
+        };
+        /**
+         * KlingV3OmniResponse
+         * @description Response schema for Kling v3 Omni video generation. `duration` is the
+         *     billed length: on an edit it follows the input video and is measured from
+         *     the delivered file.
+         */
+        KlingV3OmniResponse: {
+            /**
+             * Aspect Ratio
+             * @description Video aspect ratio
+             */
+            aspect_ratio?: string | null;
+            /**
+             * Duration
+             * @description Billed video length in seconds (an edit's follows its input video)
+             */
+            duration?: number | null;
+            /**
+             * Mode
+             * @description Actual mode used
+             */
+            mode?: string | null;
+            /**
+             * Model
+             * @description Model used
+             * @default KlingTeam/v3-Omni
+             */
+            model?: string;
+            /**
+             * Task Address
+             * @description Blockchain task address (opengpu mode only, null for direct)
+             */
+            task_address?: string | null;
+            /**
+             * Task Id
+             * @description Task identifier (direct:{uuid} or opengpu:{uuid})
+             */
+            task_id?: string | null;
+            /**
+             * Urls
+             * @description List of generated video URLs
+             */
+            urls: string[];
+        } & {
+            [key: string]: unknown;
+        };
+        /**
+         * KlingV3Shot
+         * @description One shot of a Kling v3 multi-shot video.
+         */
+        KlingV3Shot: {
+            /**
+             * Duration
+             * @description Shot length in seconds (at least 1). The shots add up to the video's duration.
+             */
+            duration: number;
+            /**
+             * Index
+             * @description Shot number, starting at 1. The shots' indexes run 1..n with no gaps or repeats.
+             */
+            index: number;
+            /**
+             * Prompt
+             * @description What happens in this shot (max 512 characters).
+             */
+            prompt: string;
+        };
+        /**
          * KlingV3T2VRequest
          * @description Request schema for Kling v3 text-to-video generation.
          */
@@ -8274,21 +9506,37 @@ export type components = {
              */
             mode?: ("auto" | "direct") | null;
             /**
+             * Multi Prompt
+             * @description The shots, 1-6 items {index, prompt, duration}: indexes run 1..n and the shot durations add up to duration exactly. Only with multi_shot true.
+             */
+            multi_prompt?: components["schemas"]["KlingV3Shot"][] | null;
+            /**
+             * Multi Shot
+             * @description Multi-shot mode (default false): the video is built from the multi_prompt shots (omit prompt). Same per-second price as a single shot.
+             */
+            multi_shot?: boolean | null;
+            /**
              * Negative Prompt
-             * @description Things to avoid in the video
+             * @deprecated
+             * @description Accepted for compatibility and ignored: the current Kling v3 API has no negative prompt. Omit it.
              */
             negative_prompt?: string | null;
             /**
              * Prompt
-             * @description Text description of the video to generate
+             * @description Text description of the video. Required unless multi_shot is true; omit it in multi-shot mode (each shot carries its own prompt).
              */
-            prompt: string;
+            prompt?: string | null;
             /**
              * Quality Mode
              * @description Generation quality: 'std' (720P) or 'pro' (1080P).
              * @default std
              */
             quality_mode?: ("std" | "pro") | null;
+            /**
+             * Shot Type
+             * @description Multi-shot storyboard type: 'customize' (the only value, and the default); used when multi_shot is true.
+             */
+            shot_type?: "customize" | null;
             /**
              * Sound
              * @description Generate native audio (synchronized sound/dialogue from the prompt).
@@ -8297,7 +9545,7 @@ export type components = {
             sound?: boolean | null;
             /**
              * Store Output
-             * @description Where this request's output media is hosted, and for how long. `provider` (default) returns a Relay CDN link that live-proxies the provider for 1 hour — the same hour the task record itself lives. `relay1d` / `relay7d` / `relay30d` copy the output into Relay's own storage and keep BOTH the link and the task record for 1, 7 or 30 days, for a flat per-file fee (see `media_storage` in GET /v2/pricing). Not available on routes that return media inline (base64), and not available to the guest tier.
+             * @description Where this request's output media is hosted, and for how long. `provider` (default) returns a Relay CDN link that live-proxies the provider for 1 hour — the same hour the task record itself lives. `relay1d` / `relay7d` / `relay30d` copy the output into Relay's own storage and keep BOTH the link and the task record for 1, 7 or 30 days, for a flat per-file fee (see `media_storage` in GET /v2/pricing). On routes that return images inline (base64) the images are also hosted, as `urls`, for the same lifetime. `relay*` is not available to the guest tier, nor on a model whose `store_output_supported` is false in GET /v2/models.
              * @default provider
              */
             store_output?: ("provider" | "relay1d" | "relay7d" | "relay30d") | null;
@@ -8444,7 +9692,7 @@ export type components = {
             self_anchor?: boolean | null;
             /**
              * Store Output
-             * @description Where this request's output media is hosted, and for how long. `provider` (default) returns a Relay CDN link that live-proxies the provider for 1 hour — the same hour the task record itself lives. `relay1d` / `relay7d` / `relay30d` copy the output into Relay's own storage and keep BOTH the link and the task record for 1, 7 or 30 days, for a flat per-file fee (see `media_storage` in GET /v2/pricing). Not available on routes that return media inline (base64), and not available to the guest tier.
+             * @description Where this request's output media is hosted, and for how long. `provider` (default) returns a Relay CDN link that live-proxies the provider for 1 hour — the same hour the task record itself lives. `relay1d` / `relay7d` / `relay30d` copy the output into Relay's own storage and keep BOTH the link and the task record for 1, 7 or 30 days, for a flat per-file fee (see `media_storage` in GET /v2/pricing). On routes that return images inline (base64) the images are also hosted, as `urls`, for the same lifetime. `relay*` is not available to the guest tier, nor on a model whose `store_output_supported` is false in GET /v2/models.
              * @default provider
              */
             store_output?: ("provider" | "relay1d" | "relay7d" | "relay30d") | null;
@@ -8551,7 +9799,7 @@ export type components = {
             seed?: number | null;
             /**
              * Store Output
-             * @description Where this request's output media is hosted, and for how long. `provider` (default) returns a Relay CDN link that live-proxies the provider for 1 hour — the same hour the task record itself lives. `relay1d` / `relay7d` / `relay30d` copy the output into Relay's own storage and keep BOTH the link and the task record for 1, 7 or 30 days, for a flat per-file fee (see `media_storage` in GET /v2/pricing). Not available on routes that return media inline (base64), and not available to the guest tier.
+             * @description Where this request's output media is hosted, and for how long. `provider` (default) returns a Relay CDN link that live-proxies the provider for 1 hour — the same hour the task record itself lives. `relay1d` / `relay7d` / `relay30d` copy the output into Relay's own storage and keep BOTH the link and the task record for 1, 7 or 30 days, for a flat per-file fee (see `media_storage` in GET /v2/pricing). On routes that return images inline (base64) the images are also hosted, as `urls`, for the same lifetime. `relay*` is not available to the guest tier, nor on a model whose `store_output_supported` is false in GET /v2/models.
              * @default provider
              */
             store_output?: ("provider" | "relay1d" | "relay7d" | "relay30d") | null;
@@ -8715,6 +9963,119 @@ export type components = {
             start_time: number;
         };
         /**
+         * MiniMaxH3Request
+         * @description Request schema for MiniMax H3 video generation (T2V / I2V / R2V).
+         */
+        MiniMaxH3Request: {
+            /**
+             * Async
+             * @description Async mode (DEFAULT true for video — long runtime). Returns task_id immediately; poll /v2/tasks/{task_id}. Set false to block for the result.
+             * @default true
+             */
+            async?: boolean | null;
+            /**
+             * Duration
+             * @description Video duration in seconds (4-15)
+             * @default 5
+             */
+            duration?: number;
+            /**
+             * First Frame Url
+             * @description URL or base64 data URI of the first frame image (image-to-video; JPG/PNG/WEBP/HEIC/HEIF, each side 256-5760 px, width/height 0.4-2.5, max 30MB). Cannot be combined with reference inputs.
+             */
+            first_frame_url?: string | null;
+            /**
+             * Last Frame Url
+             * @description URL or base64 data URI of the last frame image (image-to-video; may be used alone or together with first_frame_url). Cannot be combined with reference inputs.
+             */
+            last_frame_url?: string | null;
+            /**
+             * Mode
+             * @description Routing mode: 'auto' or 'direct' (video is direct-only).
+             * @default auto
+             */
+            mode?: ("auto" | "direct") | null;
+            /**
+             * Prompt
+             * @description Text description of the video (required, max 7000 characters). In reference mode, refer to inputs as 'reference image 1', 'reference audio 1', ...
+             */
+            prompt: string;
+            /**
+             * Ratio
+             * @description Aspect ratio. Text-to-video needs a concrete ratio (adaptive is rejected); image-to-video always follows the input image (ratio ignored); reference-to-video may use adaptive.
+             * @default 16:9
+             * @enum {string}
+             */
+            ratio?: "16:9" | "21:9" | "4:3" | "1:1" | "3:4" | "9:16" | "adaptive";
+            /**
+             * Reference Audio Urls
+             * @description Reference audio URLs or base64 data URIs (1-3 clips, WAV/MP3, each 2-15 s, 15 s in total, max 15MB each; reference-to-video, e.g. a voice or soundscape to follow). Cannot be combined with first_frame_url/last_frame_url.
+             */
+            reference_audio_urls?: string[] | null;
+            /**
+             * Reference Image Urls
+             * @description Reference image URLs or base64 data URIs (1-5; reference-to-video, e.g. a character, object or scene to keep). Cannot be combined with first_frame_url/last_frame_url.
+             */
+            reference_image_urls?: string[] | null;
+            /**
+             * Resolution
+             * @description Output resolution: 768P or 2K. Priced per second by resolution.
+             * @default 768P
+             * @enum {string}
+             */
+            resolution?: "768P" | "2K";
+            /**
+             * Store Output
+             * @description Where this request's output media is hosted, and for how long. `provider` (default) returns a Relay CDN link that live-proxies the provider for 1 hour — the same hour the task record itself lives. `relay1d` / `relay7d` / `relay30d` copy the output into Relay's own storage and keep BOTH the link and the task record for 1, 7 or 30 days, for a flat per-file fee (see `media_storage` in GET /v2/pricing). On routes that return images inline (base64) the images are also hosted, as `urls`, for the same lifetime. `relay*` is not available to the guest tier, nor on a model whose `store_output_supported` is false in GET /v2/models.
+             * @default provider
+             */
+            store_output?: ("provider" | "relay1d" | "relay7d" | "relay30d") | null;
+            /**
+             * Webhook Url
+             * @description HTTPS URL to receive a signed completion webhook when the async task reaches a terminal state (requires an API key, "async": true and direct mode; otherwise 422). See the Webhooks section for the delivery payload and events, and GET /v2/customer/webhook-secret for the signing secret + verification.
+             */
+            webhook_url?: string | null;
+        };
+        /**
+         * MiniMaxH3Response
+         * @description Response schema for MiniMax H3. `duration` is the billed length: the
+         *     provider's reported duration (the requested one).
+         */
+        MiniMaxH3Response: {
+            /**
+             * Duration
+             * @description Output video duration in seconds as reported by the upstream task (the requested duration)
+             */
+            duration?: number | null;
+            /**
+             * Mode
+             * @description Execution mode used.
+             */
+            mode?: string | null;
+            /**
+             * Model
+             * @description Model used.
+             */
+            model: string;
+            /**
+             * Task Address
+             * @description Blockchain task address (opengpu only, null for direct).
+             */
+            task_address?: string | null;
+            /**
+             * Task Id
+             * @description Task identifier (direct:{uuid}).
+             */
+            task_id?: string | null;
+            /**
+             * Urls
+             * @description List of generated video URLs
+             */
+            urls: string[];
+        } & {
+            [key: string]: unknown;
+        };
+        /**
          * MinimaxSpeech28HdRequest
          * @description MiniMax speech-2.8-hd text-to-speech request (audio source, direct mode only).
          */
@@ -8778,7 +10139,7 @@ export type components = {
             speed?: number | null;
             /**
              * Store Output
-             * @description Where this request's output media is hosted, and for how long. `provider` (default) returns a Relay CDN link that live-proxies the provider for 1 hour — the same hour the task record itself lives. `relay1d` / `relay7d` / `relay30d` copy the output into Relay's own storage and keep BOTH the link and the task record for 1, 7 or 30 days, for a flat per-file fee (see `media_storage` in GET /v2/pricing). Not available on routes that return media inline (base64), and not available to the guest tier.
+             * @description Where this request's output media is hosted, and for how long. `provider` (default) returns a Relay CDN link that live-proxies the provider for 1 hour — the same hour the task record itself lives. `relay1d` / `relay7d` / `relay30d` copy the output into Relay's own storage and keep BOTH the link and the task record for 1, 7 or 30 days, for a flat per-file fee (see `media_storage` in GET /v2/pricing). On routes that return images inline (base64) the images are also hosted, as `urls`, for the same lifetime. `relay*` is not available to the guest tier, nor on a model whose `store_output_supported` is false in GET /v2/models.
              * @default provider
              */
             store_output?: ("provider" | "relay1d" | "relay7d" | "relay30d") | null;
@@ -8894,6 +10255,8 @@ export type components = {
              * @description Whether the model can be called now
              */
             available: boolean;
+            /** @description Present on `relay/conductor` only: per use case, its ladders for every named list, the models it can route to and the ones it cannot (with why). Absent on every other model */
+            conductor?: components["schemas"]["ConductorDetail"] | null;
             /**
              * Display Name
              * @description Human-readable name for UIs — render verbatim, fall back to `name`. Null when the model has none. Carries no stability contract: never key, join or cache on it
@@ -9037,6 +10400,15 @@ export type components = {
          */
         ModelRow: {
             /**
+             * Conductable
+             * @description The use cases in which RelayConductor (`relay/conductor`) can route to this model — the ones you may name it for in `routing.models`. Always present; empty for a model it does not route to (every non-chat model, and every model while RelayConductor is not offered)
+             * @example [
+             *       "code",
+             *       "general"
+             *     ]
+             */
+            conductable: ("code" | "general" | "design")[];
+            /**
              * Display Name
              * @description Human-readable name for UIs — render verbatim, fall back to `name`. ABSENT (not null) when the model has none. Carries no stability contract: never key, join or cache on it
              * @example GPT-5.4
@@ -9100,6 +10472,186 @@ export type components = {
         } & {
             [key: string]: unknown;
         };
+        /**
+         * MusicChunk
+         * @description One section of a relay/music-1 composition plan.
+         */
+        MusicChunk: {
+            /**
+             * Context Adherence
+             * @description How closely the section follows its neighbours.
+             * @default high
+             * @enum {string}
+             */
+            context_adherence?: "low" | "medium" | "high";
+            /**
+             * Duration Ms
+             * @description Section length in milliseconds (3–120 s).
+             */
+            duration_ms: number;
+            /**
+             * Negative Styles
+             * @description Styles to avoid.
+             */
+            negative_styles?: string[] | null;
+            /**
+             * Positive Styles
+             * @description Styles and musical directions to include; the first section sets the genre.
+             */
+            positive_styles: string[];
+            /**
+             * Text
+             * @description Optional [Section name], then lyric lines (at most 30, 200 characters each) and {inline directions}. Empty for an instrumental section.
+             */
+            text: string;
+        };
+        /**
+         * MusicCompositionPlan
+         * @description A section-by-section plan for relay/music-1.
+         */
+        MusicCompositionPlan: {
+            /**
+             * Chunks
+             * @description 1–30 sections, played in order. The song's length is the sum of their durations.
+             */
+            chunks: components["schemas"]["MusicChunk"][];
+        };
+        /**
+         * MusicGenerateRequest
+         * @description relay/music-1 music generation request (audio source, direct mode only).
+         *
+         *     Exactly one of `prompt` / `composition_plan`; `music_length_ms` and
+         *     `force_instrumental` go with a prompt, `seed` with a plan.
+         */
+        MusicGenerateRequest: {
+            /**
+             * Async
+             * @description Async mode: returns task_id immediately, poll /v2/tasks/{task_id} for result.
+             * @default false
+             */
+            async?: boolean | null;
+            /** @description A section-by-section plan instead of a prompt; billed on the sum of the sections' durations. */
+            composition_plan?: components["schemas"]["MusicCompositionPlan"] | null;
+            /**
+             * Force Instrumental
+             * @description Guarantee no vocals (prompt only). Default false.
+             */
+            force_instrumental?: boolean | null;
+            /**
+             * Mode
+             * @description Routing mode: 'auto' or 'direct' (music is direct-only).
+             * @default auto
+             */
+            mode?: ("auto" | "direct") | null;
+            /**
+             * Music Length Ms
+             * @description Length in milliseconds, 3,000–600,000 (prompt only). Billed on this length; when omitted the model picks it and the delivered length is billed.
+             */
+            music_length_ms?: number | null;
+            /**
+             * Output Format
+             * @description codec_samplerate[_bitrate], stereo where the codec allows. The response's content_type follows it.
+             * @default mp3_48000_192
+             * @enum {string}
+             */
+            output_format?: "mp3_48000_128" | "mp3_48000_192" | "mp3_48000_240" | "mp3_48000_320" | "mp3_22050_32" | "mp3_24000_48" | "mp3_44100_32" | "mp3_44100_64" | "mp3_44100_96" | "mp3_44100_128" | "mp3_44100_192" | "pcm_8000" | "pcm_16000" | "pcm_22050" | "pcm_24000" | "pcm_32000" | "pcm_44100" | "pcm_48000" | "ulaw_8000" | "alaw_8000" | "opus_48000_32" | "opus_48000_64" | "opus_48000_96" | "opus_48000_128" | "opus_48000_192";
+            /**
+             * Prompt
+             * @description What to make: genre, mood, instruments, structure, lyrics (max 4,100 characters). Names of real artists, songs, albums or labels and quoted lyrics are refused, with a suggested prompt in the error.
+             * @example An upbeat indie pop song about a road trip at sunset, warm female vocals, jangly guitars, handclaps and a catchy sing-along chorus
+             */
+            prompt?: string | null;
+            /**
+             * Seed
+             * @description Best-effort determinism (composition_plan only).
+             */
+            seed?: number | null;
+            /**
+             * Store Output
+             * @description Where this request's output media is hosted, and for how long. `provider` (default) returns a Relay CDN link that live-proxies the provider for 1 hour — the same hour the task record itself lives. `relay1d` / `relay7d` / `relay30d` copy the output into Relay's own storage and keep BOTH the link and the task record for 1, 7 or 30 days, for a flat per-file fee (see `media_storage` in GET /v2/pricing). On routes that return images inline (base64) the images are also hosted, as `urls`, for the same lifetime. `relay*` is not available to the guest tier, nor on a model whose `store_output_supported` is false in GET /v2/models.
+             * @default provider
+             */
+            store_output?: ("provider" | "relay1d" | "relay7d" | "relay30d") | null;
+            /**
+             * Webhook Url
+             * @description HTTPS URL to receive a signed completion webhook when the async task reaches a terminal state (requires an API key, "async": true and direct mode; otherwise 422). See the Webhooks section for the delivery payload and events, and GET /v2/customer/webhook-secret for the signing secret + verification.
+             */
+            webhook_url?: string | null;
+            /**
+             * With Timestamps
+             * @description Also return `words_timestamps` for the lyrics. Default false.
+             */
+            with_timestamps?: boolean | null;
+            /**
+             * With Waveform Visual
+             * @description Also return `waveform_visual` for display. Default false.
+             */
+            with_waveform_visual?: boolean | null;
+        };
+        /**
+         * MusicGenerateResponse
+         * @description Response schema for relay/music-1: inline base64 audio plus the song's facts.
+         */
+        MusicGenerateResponse: {
+            /**
+             * Audio Base64
+             * @description Base64-encoded audio; decode and write the bytes to a file
+             */
+            audio_base64: string;
+            /**
+             * Billable Seconds
+             * @description Seconds billed: the requested length (music_length_ms, or the sum of the plan's sections), else the delivered length
+             */
+            billable_seconds?: number | null;
+            /**
+             * Composition Plan
+             * @description The plan the song was generated from (sections with styles, lyrics and durations); send it back to regenerate or edit
+             */
+            composition_plan?: {
+                [key: string]: unknown;
+            } | null;
+            /**
+             * Content Type
+             * @description Media type of the audio (e.g. audio/wav)
+             */
+            content_type?: string | null;
+            /**
+             * Duration
+             * @description Delivered length in seconds (may run slightly past the requested length)
+             */
+            duration?: number | null;
+            /**
+             * Mode
+             * @description Execution mode used (direct)
+             */
+            mode?: string | null;
+            /**
+             * Song Metadata
+             * @description title, description, genres, languages, is_explicit
+             */
+            song_metadata?: {
+                [key: string]: unknown;
+            } | null;
+            /**
+             * Task Id
+             * @description Task identifier (direct:{uuid})
+             */
+            task_id?: string | null;
+            /**
+             * Waveform Visual
+             * @description Waveform values for display (with_waveform_visual)
+             */
+            waveform_visual?: unknown[] | null;
+            /**
+             * Words Timestamps
+             * @description Lyric words with start_ms / end_ms (with_timestamps)
+             */
+            words_timestamps?: {
+                [key: string]: unknown;
+            }[] | null;
+        } & {
+            [key: string]: unknown;
+        };
         /** NetworkSpec */
         NetworkSpec: {
             /** Download Mbps */
@@ -9131,6 +10683,10 @@ export type components = {
             id?: string;
             /** @example chat.completion.chunk */
             object?: string;
+            /** @description On the first frame of a `relay/conductor` stream only: the routing receipt. */
+            routing?: components["schemas"]["RoutingReceipt"];
+            /** @description When present (a `relay/conductor` stream served by a model of another API format): what the translation changed. */
+            translation?: components["schemas"]["TranslationInfo"];
             usage?: Record<string, never> | null;
         } & {
             [key: string]: unknown;
@@ -9177,12 +10733,12 @@ export type components = {
             logprobs?: boolean | null;
             /**
              * Max Completion Tokens
-             * @description Maximum tokens to generate including reasoning
+             * @description Maximum tokens to generate including reasoning. At most the model's output limit; a larger value is refused with 422 naming the limit.
              */
             max_completion_tokens?: number | null;
             /**
              * Max Tokens
-             * @description Maximum tokens to generate (deprecated, use max_completion_tokens)
+             * @description Maximum tokens to generate (deprecated, use max_completion_tokens). At most the model's output limit; a larger value is refused with 422 naming the limit.
              */
             max_tokens?: number | null;
             /**
@@ -9205,7 +10761,7 @@ export type components = {
             mode?: ("auto" | "opengpu" | "direct") | null;
             /**
              * Model
-             * @description Model name, case-sensitive, e.g. `openai/gpt-5.4` or `deepseek-ai/DeepSeek-V4-Flash`. Any `text-to-text` model listed under the `openai` source in `GET /v2/models` works here; Claude models use `/v2/anthropic/v1/messages`.
+             * @description Model name, case-sensitive, e.g. `openai/gpt-5.4` or `deepseek-ai/DeepSeek-V4-Flash`. Any `text-to-text` model listed under the `openai` source in `GET /v2/models` works here; Claude models use `/v2/anthropic/v1/messages`. `relay/conductor` routes each request to a model chosen for it (see `routing`).
              */
             model: string;
             /**
@@ -9242,6 +10798,8 @@ export type components = {
             response_format?: {
                 [key: string]: unknown;
             } | null;
+            /** @description RelayConductor's options, only with `model: "relay/conductor"` (422 `ROUTING_ON_FIXED_MODEL` on any other model). Omitted = engine `default`, models `relay-picked`, usecase `auto`, objective `balanced`, sticky `true`. The response carries a `routing` receipt naming the model served and why. */
+            routing?: components["schemas"]["RoutingRequest"] | null;
             /**
              * Seed
              * @description Random seed for deterministic output
@@ -9277,7 +10835,7 @@ export type components = {
             structured_outputs?: boolean | null;
             /**
              * Temperature
-             * @description Sampling temperature (0.0-2.0). Not supported on Claude 4.7+ models (claude-opus-4-8, claude-opus-5, claude-opus-5-5, claude-sonnet-5, claude-fable-5, claude-fable-5-1); such requests are rejected with 422.
+             * @description Sampling temperature (0.0-2.0). Not supported on Claude 4.8+ models (claude-opus-4-8, claude-opus-5, claude-opus-5-5, claude-sonnet-5, claude-sonnet-5-5, claude-haiku-5-5, claude-fable-5, claude-fable-5-1); such requests are rejected with 422.
              */
             temperature?: number | null;
             /**
@@ -9296,7 +10854,7 @@ export type components = {
             }[] | null;
             /**
              * Top K
-             * @description Top-K sampling: keep only the top K tokens. Not supported on Claude 4.7+ models (claude-opus-4-8, claude-opus-5, claude-opus-5-5, claude-sonnet-5, claude-fable-5, claude-fable-5-1); such requests are rejected with 422.
+             * @description Top-K sampling: keep only the top K tokens. Not supported on Claude 4.8+ models (claude-opus-4-8, claude-opus-5, claude-opus-5-5, claude-sonnet-5, claude-sonnet-5-5, claude-haiku-5-5, claude-fable-5, claude-fable-5-1); such requests are rejected with 422.
              */
             top_k?: number | null;
             /**
@@ -9306,7 +10864,7 @@ export type components = {
             top_logprobs?: number | null;
             /**
              * Top P
-             * @description Nucleus sampling parameter. Not supported on Claude 4.7+ models (claude-opus-4-8, claude-opus-5, claude-opus-5-5, claude-sonnet-5, claude-fable-5, claude-fable-5-1); such requests are rejected with 422.
+             * @description Nucleus sampling parameter. Not supported on Claude 4.8+ models (claude-opus-4-8, claude-opus-5, claude-opus-5-5, claude-sonnet-5, claude-sonnet-5-5, claude-haiku-5-5, claude-fable-5, claude-fable-5-1); such requests are rejected with 422.
              */
             top_p?: number | null;
             /**
@@ -9358,6 +10916,8 @@ export type components = {
              * @default chat.completion
              */
             object?: string;
+            /** @description RelayConductor's receipt: present only when the request named `model: "relay/conductor"`, absent otherwise */
+            routing?: components["schemas"]["RoutingReceipt"] | null;
             /**
              * System Fingerprint
              * @description System fingerprint
@@ -9373,6 +10933,8 @@ export type components = {
              * @description Task identifier (direct:{uuid} or opengpu:{uuid})
              */
             task_id?: string | null;
+            /** @description Present only when RelayConductor served a model of another API format and the translation changed something; absent otherwise */
+            translation?: components["schemas"]["TranslationInfo"] | null;
             /**
              * Usage
              * @description Token usage statistics
@@ -9645,7 +11207,7 @@ export type components = {
             mode?: ("auto" | "direct") | null;
             /**
              * Store Output
-             * @description Where this request's output media is hosted, and for how long. `provider` (default) returns a Relay CDN link that live-proxies the provider for 1 hour — the same hour the task record itself lives. `relay1d` / `relay7d` / `relay30d` copy the output into Relay's own storage and keep BOTH the link and the task record for 1, 7 or 30 days, for a flat per-file fee (see `media_storage` in GET /v2/pricing). Not available on routes that return media inline (base64), and not available to the guest tier.
+             * @description Where this request's output media is hosted, and for how long. `provider` (default) returns a Relay CDN link that live-proxies the provider for 1 hour — the same hour the task record itself lives. `relay1d` / `relay7d` / `relay30d` copy the output into Relay's own storage and keep BOTH the link and the task record for 1, 7 or 30 days, for a flat per-file fee (see `media_storage` in GET /v2/pricing). On routes that return images inline (base64) the images are also hosted, as `urls`, for the same lifetime. `relay*` is not available to the guest tier, nor on a model whose `store_output_supported` is false in GET /v2/models.
              * @default provider
              */
             store_output?: ("provider" | "relay1d" | "relay7d" | "relay30d") | null;
@@ -9744,7 +11306,7 @@ export type components = {
             size?: string | null;
             /**
              * Store Output
-             * @description Where this request's output media is hosted, and for how long. `provider` (default) returns a Relay CDN link that live-proxies the provider for 1 hour — the same hour the task record itself lives. `relay1d` / `relay7d` / `relay30d` copy the output into Relay's own storage and keep BOTH the link and the task record for 1, 7 or 30 days, for a flat per-file fee (see `media_storage` in GET /v2/pricing). Not available on routes that return media inline (base64), and not available to the guest tier.
+             * @description Where this request's output media is hosted, and for how long. `provider` (default) returns a Relay CDN link that live-proxies the provider for 1 hour — the same hour the task record itself lives. `relay1d` / `relay7d` / `relay30d` copy the output into Relay's own storage and keep BOTH the link and the task record for 1, 7 or 30 days, for a flat per-file fee (see `media_storage` in GET /v2/pricing). On routes that return images inline (base64) the images are also hosted, as `urls`, for the same lifetime. `relay*` is not available to the guest tier, nor on a model whose `store_output_supported` is false in GET /v2/models.
              * @default provider
              */
             store_output?: ("provider" | "relay1d" | "relay7d" | "relay30d") | null;
@@ -9836,7 +11398,7 @@ export type components = {
             size?: string | null;
             /**
              * Store Output
-             * @description Where this request's output media is hosted, and for how long. `provider` (default) returns a Relay CDN link that live-proxies the provider for 1 hour — the same hour the task record itself lives. `relay1d` / `relay7d` / `relay30d` copy the output into Relay's own storage and keep BOTH the link and the task record for 1, 7 or 30 days, for a flat per-file fee (see `media_storage` in GET /v2/pricing). Not available on routes that return media inline (base64), and not available to the guest tier.
+             * @description Where this request's output media is hosted, and for how long. `provider` (default) returns a Relay CDN link that live-proxies the provider for 1 hour — the same hour the task record itself lives. `relay1d` / `relay7d` / `relay30d` copy the output into Relay's own storage and keep BOTH the link and the task record for 1, 7 or 30 days, for a flat per-file fee (see `media_storage` in GET /v2/pricing). On routes that return images inline (base64) the images are also hosted, as `urls`, for the same lifetime. `relay*` is not available to the guest tier, nor on a model whose `store_output_supported` is false in GET /v2/models.
              * @default provider
              */
             store_output?: ("provider" | "relay1d" | "relay7d" | "relay30d") | null;
@@ -9927,7 +11489,7 @@ export type components = {
             output_format?: ("png" | "jpeg" | "jpg" | "webp") | null;
             /**
              * Store Output
-             * @description Where this request's output media is hosted, and for how long. `provider` (default) returns a Relay CDN link that live-proxies the provider for 1 hour — the same hour the task record itself lives. `relay1d` / `relay7d` / `relay30d` copy the output into Relay's own storage and keep BOTH the link and the task record for 1, 7 or 30 days, for a flat per-file fee (see `media_storage` in GET /v2/pricing). Not available on routes that return media inline (base64), and not available to the guest tier.
+             * @description Where this request's output media is hosted, and for how long. `provider` (default) returns a Relay CDN link that live-proxies the provider for 1 hour — the same hour the task record itself lives. `relay1d` / `relay7d` / `relay30d` copy the output into Relay's own storage and keep BOTH the link and the task record for 1, 7 or 30 days, for a flat per-file fee (see `media_storage` in GET /v2/pricing). On routes that return images inline (base64) the images are also hosted, as `urls`, for the same lifetime. `relay*` is not available to the guest tier, nor on a model whose `store_output_supported` is false in GET /v2/models.
              * @default provider
              */
             store_output?: ("provider" | "relay1d" | "relay7d" | "relay30d") | null;
@@ -10007,10 +11569,348 @@ export type components = {
             error: components["schemas"]["RelayError"];
         };
         /**
+         * RelayTtsRequest
+         * @description relay/tts-1 and relay/tts-1-turbo text-to-speech request (audio source,
+         *     direct mode only). One class for both: the two models take the same
+         *     request body, field for field.
+         */
+        RelayTtsRequest: {
+            /**
+             * Apply Text Normalization
+             * @description Spell out numbers, dates and units. Default 'auto'.
+             */
+            apply_text_normalization?: ("auto" | "on" | "off") | null;
+            /**
+             * Async
+             * @description Async mode: returns task_id immediately, poll /v2/tasks/{task_id} for result.
+             * @default false
+             */
+            async?: boolean | null;
+            /**
+             * Audio Effects Background Noise Id
+             * @description Background noise looped under the voice.
+             */
+            audio_effects_background_noise_id?: ("call_center" | "cafe" | "city" | "keyboard") | null;
+            /**
+             * Audio Effects Distance
+             * @description How far the speaker sounds (0 close, 1 far).
+             */
+            audio_effects_distance?: number | null;
+            /**
+             * Audio Effects Environment Id
+             * @description Reverb environment. Stereo: not with pcm, ulaw or alaw formats (422).
+             */
+            audio_effects_environment_id?: ("small_room" | "big_room" | "hall" | "tunnel" | "street" | "valley" | "forest") | null;
+            /**
+             * Audio Effects Filter Preset Id
+             * @description Filter that colors the voice.
+             */
+            audio_effects_filter_preset_id?: ("old_radio" | "robot" | "cheap_microphone" | "phone" | "low_quality_phone" | "bright_phone") | null;
+            /**
+             * Audio Effects Pan
+             * @description Stereo position, -1 left to 1 right. Stereo: not with pcm, ulaw or alaw formats (422).
+             */
+            audio_effects_pan?: number | null;
+            /**
+             * Audio Effects Send Level
+             * @description How much of the voice feeds the reverb (with environment_id).
+             */
+            audio_effects_send_level?: number | null;
+            /**
+             * Language Code
+             * @description ISO 639-1 language to enforce (e.g. 'en', 'tr'); detected from the text when omitted.
+             */
+            language_code?: string | null;
+            /**
+             * Mode
+             * @description Routing mode: 'auto' or 'direct' (TTS is direct-only).
+             * @default auto
+             */
+            mode?: ("auto" | "direct") | null;
+            /**
+             * Next Text
+             * @description Text that comes after this request (continuity).
+             */
+            next_text?: string | null;
+            /**
+             * Output Format
+             * @description codec_samplerate[_bitrate]. The response's content_type follows it (pcm = raw 16-bit little-endian mono). Default 'mp3_44100_128'.
+             */
+            output_format?: ("alaw_8000" | "m4a_aac_44100_128" | "mp3_22050_32" | "mp3_24000_48" | "mp3_44100_128" | "mp3_44100_192" | "mp3_44100_32" | "mp3_44100_64" | "mp3_44100_96" | "opus_48000_128" | "opus_48000_192" | "opus_48000_32" | "opus_48000_64" | "opus_48000_96" | "pcm_16000" | "pcm_22050" | "pcm_24000" | "pcm_32000" | "pcm_44100" | "pcm_48000" | "pcm_8000" | "ulaw_8000" | "wav_16000" | "wav_22050" | "wav_24000" | "wav_32000" | "wav_44100" | "wav_48000" | "wav_8000") | null;
+            /**
+             * Previous Text
+             * @description Text that came before this request (continuity when splitting long texts).
+             */
+            previous_text?: string | null;
+            /**
+             * Seed
+             * @description Best-effort deterministic sampling.
+             */
+            seed?: number | null;
+            /**
+             * Similarity Boost
+             * @description How closely the output follows the voice.
+             */
+            similarity_boost?: number | null;
+            /**
+             * Stability
+             * @description Lower = more expressive and varied, higher = steadier delivery.
+             */
+            stability?: number | null;
+            /**
+             * Store Output
+             * @description Where this request's output media is hosted, and for how long. `provider` (default) returns a Relay CDN link that live-proxies the provider for 1 hour — the same hour the task record itself lives. `relay1d` / `relay7d` / `relay30d` copy the output into Relay's own storage and keep BOTH the link and the task record for 1, 7 or 30 days, for a flat per-file fee (see `media_storage` in GET /v2/pricing). On routes that return images inline (base64) the images are also hosted, as `urls`, for the same lifetime. `relay*` is not available to the guest tier, nor on a model whose `store_output_supported` is false in GET /v2/models.
+             * @default provider
+             */
+            store_output?: ("provider" | "relay1d" | "relay7d" | "relay30d") | null;
+            /**
+             * Text
+             * @description Text to speak (max 10,000 characters). Audio tags in square brackets steer the delivery, e.g. [whispers], [laughs], [excited].
+             * @example [warmly] Welcome aboard. [whispers] Listen closely and you can hear the bell.
+             */
+            text: string;
+            /**
+             * Voice
+             * @description Voice name. Every voice can speak every supported language; native: atlas/sage (British English), nova/orion/lyra/cole (American English), kai/wren (Australian English), river/mira (Indian English), deniz/ege (Turkish), felix (German), celine (French), sol/leon (Spanish), noor (Arabic), hana (Japanese).
+             * @default atlas
+             * @enum {string}
+             */
+            voice?: "atlas" | "nova" | "orion" | "lyra" | "sage" | "kai" | "wren" | "river" | "mira" | "cole" | "deniz" | "ege" | "felix" | "celine" | "sol" | "leon" | "noor" | "hana";
+            /**
+             * Webhook Url
+             * @description HTTPS URL to receive a signed completion webhook when the async task reaches a terminal state (requires an API key, "async": true and direct mode; otherwise 422). See the Webhooks section for the delivery payload and events, and GET /v2/customer/webhook-secret for the signing secret + verification.
+             */
+            webhook_url?: string | null;
+            /**
+             * With Timestamps
+             * @description Also return per-character timing (alignment, normalized_alignment). Default false.
+             */
+            with_timestamps?: boolean | null;
+        };
+        /**
+         * RelayTtsResponse
+         * @description Response schema for relay/tts-1 and relay/tts-1-turbo: inline base64 audio.
+         */
+        RelayTtsResponse: {
+            /**
+             * Alignment
+             * @description Per-character timing (with_timestamps): characters, character_start_times_seconds, character_end_times_seconds
+             */
+            alignment?: {
+                [key: string]: unknown;
+            } | null;
+            /**
+             * Audio Base64
+             * @description Base64-encoded audio; decode and write the bytes to a file
+             */
+            audio_base64: string;
+            /**
+             * Characters
+             * @description Characters of input text synthesized (billed)
+             */
+            characters?: number | null;
+            /**
+             * Content Type
+             * @description Media type of the audio (e.g. audio/wav)
+             */
+            content_type?: string | null;
+            /**
+             * Mode
+             * @description Execution mode used (direct)
+             */
+            mode?: string | null;
+            /**
+             * Normalized Alignment
+             * @description Per-character timing of the normalized text (with_timestamps)
+             */
+            normalized_alignment?: {
+                [key: string]: unknown;
+            } | null;
+            /**
+             * Task Id
+             * @description Task identifier (direct:{uuid})
+             */
+            task_id?: string | null;
+        } & {
+            [key: string]: unknown;
+        };
+        /**
+         * RoutingPair
+         * @description The model and reasoning effort RelayConductor served.
+         */
+        RoutingPair: {
+            /**
+             * Effort
+             * @description The reasoning effort it ran at; `default` = no effort was sent
+             * @example none
+             */
+            effort?: string | null;
+            /**
+             * Model
+             * @description The catalogue model that answered (also the response's `model`)
+             * @example deepseek-ai/DeepSeek-V4.1-Flash
+             */
+            model?: string | null;
+        } & {
+            [key: string]: unknown;
+        };
+        /**
+         * RoutingReceipt
+         * @description Why RelayConductor served this model: the decision behind a `relay/conductor` request.
+         *
+         *     Present only when the request named `model: "relay/conductor"`: on the body of a non-streaming answer, on the
+         *     first chunk of a stream, and on the task result of an async request.
+         */
+        RoutingReceipt: {
+            /**
+             * Effort Pinned
+             * @description Set when you sent `reasoning_effort`: `pinned` when it was served as sent, else why the rung's own effort was served. Null otherwise
+             */
+            effort_pinned?: string | null;
+            /**
+             * Engine
+             * @description The decision engine that classified the request
+             * @example jev
+             */
+            engine?: string | null;
+            /**
+             * Engine Model
+             * @description The engine's model version; null when no engine was asked (a list with one possible pick)
+             */
+            engine_model?: string | null;
+            /**
+             * Engine Ms
+             * @description Time the engine took, in milliseconds (0 when no engine was asked)
+             */
+            engine_ms?: number | null;
+            /**
+             * Expert
+             * @description A reviewer's mark on the served model, when one shaped the ladder; null otherwise
+             */
+            expert?: string | null;
+            /**
+             * Fallback
+             * @description Set when the engine could not decide (timeout, error, low confidence): the reason, and the pick is the list's rung 2. Null on a normal decision
+             */
+            fallback?: string | null;
+            /**
+             * Floor
+             * @description The output tokens the served model typically needs at this difficulty level (90th percentile, measured); a `max_tokens` below it moves the pick to a rung whose model needs fewer. Null when not measured
+             */
+            floor?: number | null;
+            /**
+             * Level
+             * @description The difficulty level the engine read, 1 (easy) to 4 (hardest); null when the engine gave none (see `fallback`)
+             * @example 2
+             */
+            level?: number | null;
+            /**
+             * Level Probs
+             * @description The engine's probability for each difficulty level 1–4; null when no engine answer was used
+             */
+            level_probs?: number[] | null;
+            /**
+             * List
+             * @description The candidate list routed over: a named list, or the model names you sent
+             * @example relay-picked
+             */
+            list?: string | string[] | null;
+            /**
+             * Objective
+             * @description The objective applied
+             */
+            objective?: ("cost" | "balanced" | "performance" | "benchmaxxing") | null;
+            /** @description The model and effort served */
+            pair?: components["schemas"]["RoutingPair"] | null;
+            /**
+             * Precision
+             * @description The engine's confidence (0–1) that the request needs an exact answer; at or above the threshold the pick moves one rung up. Null when no engine answer was used
+             */
+            precision?: number | null;
+            /**
+             * Reason
+             * @description One readable line on why this rung and this model were served
+             */
+            reason?: string | null;
+            /**
+             * Rung
+             * @description The ladder rung served, 1 (cheapest) to 4 (strongest), or 5 = `peak`: the top-scoring model of the list, price ignored (one pair per ladder; reached only by `performance` or `benchmaxxing`)
+             * @example 2
+             */
+            rung?: number | null;
+            /**
+             * Rung Requested
+             * @description The rung the decision asked for, before an empty rung or a tight `max_tokens` moved the pick (equal to `rung` when nothing moved it)
+             * @example 2
+             */
+            rung_requested?: number | null;
+            /**
+             * Sticky Hit
+             * @description True when an earlier turn of the same conversation set the model kept here
+             */
+            sticky_hit?: boolean | null;
+            /**
+             * Table
+             * @description The ladder table used: `stream` for streaming and async requests, `sync` for non-streaming ones (their models are also chosen for the response-time limit)
+             */
+            table?: ("stream" | "sync") | null;
+            /**
+             * Translated
+             * @description True when the served model speaks another API format and the request and answer were translated to and from the OpenAI format (see `translation`)
+             */
+            translated?: boolean | null;
+            /**
+             * Usecase
+             * @description The use case routed on: `code`, `general` or `design`
+             * @example code
+             */
+            usecase?: string | null;
+        } & {
+            [key: string]: unknown;
+        };
+        /**
+         * RoutingRequest
+         * @description The `routing` object on a `relay/conductor` request. Every field is optional.
+         */
+        RoutingRequest: {
+            /**
+             * Engine
+             * @description Decision engine: `default` (= jev) or `jev`.
+             * @default default
+             */
+            engine?: string;
+            /**
+             * Models
+             * @description A named list (`relay-picked`, `openai-only`, `open-source-only`, `claude-only`) or an array of 1–5 catalogue model names to route between.
+             * @default relay-picked
+             */
+            models?: string | string[];
+            /**
+             * Objective
+             * @description `cost` serves one rung lower, `performance` one rung higher, `benchmaxxing` three higher (clamped at rung 1 and at peak: rung 5, the top-scoring model of the list, price ignored). Only `performance` and `benchmaxxing` reach peak.
+             * @default balanced
+             * @enum {string}
+             */
+            objective?: "cost" | "balanced" | "performance" | "benchmaxxing";
+            /**
+             * Sticky
+             * @description Keep the model of an earlier turn of the same conversation (same first user message, within 1 h) unless the new rung is two or more higher.
+             * @default true
+             */
+            sticky?: boolean;
+            /**
+             * Usecase
+             * @description The ladder to route on; `auto` lets the engine classify the request.
+             * @default auto
+             * @enum {string}
+             */
+            usecase?: "auto" | "code" | "general" | "design";
+        };
+        /**
          * SeedreamRequest
          * @description Request schema for Seedream image generation and reference-image editing.
          *
-         *     Pass `images` (1-14 references) to edit or compose from existing pictures;
+         *     Pass `images` (1-10 references) to edit or compose from existing pictures;
          *     omit it for pure text-to-image.
          */
         SeedreamRequest: {
@@ -10022,7 +11922,7 @@ export type components = {
             async?: boolean | null;
             /**
              * Images
-             * @description Optional reference images (1-14) for image-to-image and composition. Each item is an https URL or a data URI (data:image/png;base64,...). Omit for pure text-to-image.
+             * @description Optional reference images (1-10) for image-to-image and composition. Each item is an https URL or a data URI (data:image/png;base64,...). Omit for pure text-to-image.
              */
             images?: string[] | null;
             /**
@@ -10058,7 +11958,7 @@ export type components = {
             size?: string;
             /**
              * Store Output
-             * @description Where this request's output media is hosted, and for how long. `provider` (default) returns a Relay CDN link that live-proxies the provider for 1 hour — the same hour the task record itself lives. `relay1d` / `relay7d` / `relay30d` copy the output into Relay's own storage and keep BOTH the link and the task record for 1, 7 or 30 days, for a flat per-file fee (see `media_storage` in GET /v2/pricing). Not available on routes that return media inline (base64), and not available to the guest tier.
+             * @description Where this request's output media is hosted, and for how long. `provider` (default) returns a Relay CDN link that live-proxies the provider for 1 hour — the same hour the task record itself lives. `relay1d` / `relay7d` / `relay30d` copy the output into Relay's own storage and keep BOTH the link and the task record for 1, 7 or 30 days, for a flat per-file fee (see `media_storage` in GET /v2/pricing). On routes that return images inline (base64) the images are also hosted, as `urls`, for the same lifetime. `relay*` is not available to the guest tier, nor on a model whose `store_output_supported` is false in GET /v2/models.
              * @default provider
              */
             store_output?: ("provider" | "relay1d" | "relay7d" | "relay30d") | null;
@@ -10112,6 +12012,68 @@ export type components = {
             [key: string]: unknown;
         };
         /**
+         * SlotMint
+         * @description The (optional) body of `POST /v2/files/slots`.
+         */
+        SlotMint: {
+            /** Filename */
+            filename?: string | null;
+            /**
+             * Retention
+             * @default relay1h
+             * @enum {string}
+             */
+            retention?: "relay1h" | "relay1d" | "relay7d" | "relay30d";
+        };
+        /**
+         * SlotResponse
+         * @description A minted upload slot. Whoever holds `put_url` can upload ONE file to
+         *     your account, with the retention fixed here, until `expires_at`.
+         */
+        SlotResponse: {
+            /**
+             * Curl
+             * @description A ready `curl -T <file> <put_url>` line.
+             */
+            curl: string;
+            /**
+             * Expires At
+             * @description RFC 3339, UTC (`Z`). 10 minutes after the mint.
+             */
+            expires_at: string;
+            /**
+             * Put Url
+             * @description Single-use upload URL. The token in its path is the credential: treat the URL as a secret until used.
+             */
+            put_url: string;
+            /**
+             * Retention
+             * @enum {string}
+             */
+            retention: "relay1h" | "relay1d" | "relay7d" | "relay30d";
+            /**
+             * Slot Id
+             * @description Non-secret handle for this slot (`slot_…`), for your own logs.
+             */
+            slot_id: string;
+        };
+        /**
+         * SlotView
+         * @description A live slot, as `GET /v2/files/slots/{token}` shows it to a non-browser.
+         */
+        SlotView: {
+            /**
+             * Expires At
+             * @description RFC 3339, UTC (`Z`).
+             */
+            expires_at: string;
+            /**
+             * Retention
+             * @enum {string}
+             */
+            retention: "relay1h" | "relay1d" | "relay7d" | "relay30d";
+        };
+        /**
          * SoraI2VRequest
          * @description Request schema for Sora image-to-video generation.
          *
@@ -10150,7 +12112,7 @@ export type components = {
             prompt?: string | null;
             /**
              * Store Output
-             * @description Where this request's output media is hosted, and for how long. `provider` (default) returns a Relay CDN link that live-proxies the provider for 1 hour — the same hour the task record itself lives. `relay1d` / `relay7d` / `relay30d` copy the output into Relay's own storage and keep BOTH the link and the task record for 1, 7 or 30 days, for a flat per-file fee (see `media_storage` in GET /v2/pricing). Not available on routes that return media inline (base64), and not available to the guest tier.
+             * @description Where this request's output media is hosted, and for how long. `provider` (default) returns a Relay CDN link that live-proxies the provider for 1 hour — the same hour the task record itself lives. `relay1d` / `relay7d` / `relay30d` copy the output into Relay's own storage and keep BOTH the link and the task record for 1, 7 or 30 days, for a flat per-file fee (see `media_storage` in GET /v2/pricing). On routes that return images inline (base64) the images are also hosted, as `urls`, for the same lifetime. `relay*` is not available to the guest tier, nor on a model whose `store_output_supported` is false in GET /v2/models.
              * @default provider
              */
             store_output?: ("provider" | "relay1d" | "relay7d" | "relay30d") | null;
@@ -10240,7 +12202,7 @@ export type components = {
             resolution?: ("720p" | "1080p") | null;
             /**
              * Store Output
-             * @description Where this request's output media is hosted, and for how long. `provider` (default) returns a Relay CDN link that live-proxies the provider for 1 hour — the same hour the task record itself lives. `relay1d` / `relay7d` / `relay30d` copy the output into Relay's own storage and keep BOTH the link and the task record for 1, 7 or 30 days, for a flat per-file fee (see `media_storage` in GET /v2/pricing). Not available on routes that return media inline (base64), and not available to the guest tier.
+             * @description Where this request's output media is hosted, and for how long. `provider` (default) returns a Relay CDN link that live-proxies the provider for 1 hour — the same hour the task record itself lives. `relay1d` / `relay7d` / `relay30d` copy the output into Relay's own storage and keep BOTH the link and the task record for 1, 7 or 30 days, for a flat per-file fee (see `media_storage` in GET /v2/pricing). On routes that return images inline (base64) the images are also hosted, as `urls`, for the same lifetime. `relay*` is not available to the guest tier, nor on a model whose `store_output_supported` is false in GET /v2/models.
              * @default provider
              */
             store_output?: ("provider" | "relay1d" | "relay7d" | "relay30d") | null;
@@ -10330,7 +12292,7 @@ export type components = {
             size?: ("720x1280" | "1280x720" | "1024x1792" | "1792x1024") | null;
             /**
              * Store Output
-             * @description Where this request's output media is hosted, and for how long. `provider` (default) returns a Relay CDN link that live-proxies the provider for 1 hour — the same hour the task record itself lives. `relay1d` / `relay7d` / `relay30d` copy the output into Relay's own storage and keep BOTH the link and the task record for 1, 7 or 30 days, for a flat per-file fee (see `media_storage` in GET /v2/pricing). Not available on routes that return media inline (base64), and not available to the guest tier.
+             * @description Where this request's output media is hosted, and for how long. `provider` (default) returns a Relay CDN link that live-proxies the provider for 1 hour — the same hour the task record itself lives. `relay1d` / `relay7d` / `relay30d` copy the output into Relay's own storage and keep BOTH the link and the task record for 1, 7 or 30 days, for a flat per-file fee (see `media_storage` in GET /v2/pricing). On routes that return images inline (base64) the images are also hosted, as `urls`, for the same lifetime. `relay*` is not available to the guest tier, nor on a model whose `store_output_supported` is false in GET /v2/models.
              * @default provider
              */
             store_output?: ("provider" | "relay1d" | "relay7d" | "relay30d") | null;
@@ -10420,7 +12382,7 @@ export type components = {
             size?: ("720x1280" | "1280x720") | null;
             /**
              * Store Output
-             * @description Where this request's output media is hosted, and for how long. `provider` (default) returns a Relay CDN link that live-proxies the provider for 1 hour — the same hour the task record itself lives. `relay1d` / `relay7d` / `relay30d` copy the output into Relay's own storage and keep BOTH the link and the task record for 1, 7 or 30 days, for a flat per-file fee (see `media_storage` in GET /v2/pricing). Not available on routes that return media inline (base64), and not available to the guest tier.
+             * @description Where this request's output media is hosted, and for how long. `provider` (default) returns a Relay CDN link that live-proxies the provider for 1 hour — the same hour the task record itself lives. `relay1d` / `relay7d` / `relay30d` copy the output into Relay's own storage and keep BOTH the link and the task record for 1, 7 or 30 days, for a flat per-file fee (see `media_storage` in GET /v2/pricing). On routes that return images inline (base64) the images are also hosted, as `urls`, for the same lifetime. `relay*` is not available to the guest tier, nor on a model whose `store_output_supported` is false in GET /v2/models.
              * @default provider
              */
             store_output?: ("provider" | "relay1d" | "relay7d" | "relay30d") | null;
@@ -10489,6 +12451,32 @@ export type components = {
                  */
                 type: string;
             };
+        };
+        /**
+         * Stt1AdditionalFormat
+         * @description One extra export of a relay/stt-1 transcript (`additional_formats`).
+         */
+        Stt1AdditionalFormat: {
+            /**
+             * Format
+             * @enum {string}
+             */
+            format: "segmented_json" | "docx" | "pdf" | "txt" | "html" | "srt";
+            /** Include Speakers */
+            include_speakers?: boolean | null;
+            /** Include Timestamps */
+            include_timestamps?: boolean | null;
+            /**
+             * Max Characters Per Line
+             * @description txt and srt only
+             */
+            max_characters_per_line?: number | null;
+            /** Max Segment Chars */
+            max_segment_chars?: number | null;
+            /** Max Segment Duration S */
+            max_segment_duration_s?: number | null;
+            /** Segment On Silence Longer Than S */
+            segment_on_silence_longer_than_s?: number | null;
         };
         /**
          * TaskStatusResponse
@@ -10629,8 +12617,70 @@ export type components = {
              */
             tiers: components["schemas"]["TierInfo"][];
         };
+        /**
+         * TranslationInfo
+         * @description What the format translation changed, when RelayConductor served a model of another API format.
+         */
+        TranslationInfo: {
+            /**
+             * Notes
+             * @description Every lossy step, in order; empty when none
+             */
+            notes: components["schemas"]["TranslationNote"][];
+        } & {
+            [key: string]: unknown;
+        };
+        /**
+         * TranslationNote
+         * @description One step the format translation could not carry over exactly.
+         */
+        TranslationNote: {
+            /**
+             * Action
+             * @description `omitted` (a request field not sent), `dropped` (content not carried over) or `mapped` (approximated)
+             * @example omitted
+             */
+            action: string;
+            /**
+             * Field
+             * @description The request or response field concerned
+             * @example logit_bias
+             */
+            field: string;
+            /**
+             * Reason
+             * @description Why
+             */
+            reason: string;
+        } & {
+            [key: string]: unknown;
+        };
+        /** UnavailableStep */
+        UnavailableStep: {
+            /**
+             * Model
+             * @description The model the step runs
+             */
+            model: string;
+            /**
+             * Reason
+             * @description `retired`: the model is no longer offered (as `GET /v2/models/{model}` answers `status: retired`); `unknown`: no such model
+             * @enum {string}
+             */
+            reason: "retired" | "unknown";
+            /**
+             * Step
+             * @description The step's `step_id`
+             */
+            step: string;
+        };
         /** UpdateKeyRequest */
         UpdateKeyRequest: {
+            /**
+             * Instances Allowed
+             * @description Allow (`true`) or refuse (`false`) Instances rentals for this key. Custom-tier only (403 otherwise).
+             */
+            instances_allowed?: boolean;
             /**
              * Key Budget
              * @description Absolute set of per-key budget. Null removes the cap. Custom-tier only.
@@ -10934,7 +12984,7 @@ export type components = {
             seed?: number | null;
             /**
              * Store Output
-             * @description Where this request's output media is hosted, and for how long. `provider` (default) returns a Relay CDN link that live-proxies the provider for 1 hour — the same hour the task record itself lives. `relay1d` / `relay7d` / `relay30d` copy the output into Relay's own storage and keep BOTH the link and the task record for 1, 7 or 30 days, for a flat per-file fee (see `media_storage` in GET /v2/pricing). Not available on routes that return media inline (base64), and not available to the guest tier.
+             * @description Where this request's output media is hosted, and for how long. `provider` (default) returns a Relay CDN link that live-proxies the provider for 1 hour — the same hour the task record itself lives. `relay1d` / `relay7d` / `relay30d` copy the output into Relay's own storage and keep BOTH the link and the task record for 1, 7 or 30 days, for a flat per-file fee (see `media_storage` in GET /v2/pricing). On routes that return images inline (base64) the images are also hosted, as `urls`, for the same lifetime. `relay*` is not available to the guest tier, nor on a model whose `store_output_supported` is false in GET /v2/models.
              * @default provider
              */
             store_output?: ("provider" | "relay1d" | "relay7d" | "relay30d") | null;
@@ -11087,7 +13137,7 @@ export type components = {
             shot_type?: ("single" | "multi") | null;
             /**
              * Store Output
-             * @description Where this request's output media is hosted, and for how long. `provider` (default) returns a Relay CDN link that live-proxies the provider for 1 hour — the same hour the task record itself lives. `relay1d` / `relay7d` / `relay30d` copy the output into Relay's own storage and keep BOTH the link and the task record for 1, 7 or 30 days, for a flat per-file fee (see `media_storage` in GET /v2/pricing). Not available on routes that return media inline (base64), and not available to the guest tier.
+             * @description Where this request's output media is hosted, and for how long. `provider` (default) returns a Relay CDN link that live-proxies the provider for 1 hour — the same hour the task record itself lives. `relay1d` / `relay7d` / `relay30d` copy the output into Relay's own storage and keep BOTH the link and the task record for 1, 7 or 30 days, for a flat per-file fee (see `media_storage` in GET /v2/pricing). On routes that return images inline (base64) the images are also hosted, as `urls`, for the same lifetime. `relay*` is not available to the guest tier, nor on a model whose `store_output_supported` is false in GET /v2/models.
              * @default provider
              */
             store_output?: ("provider" | "relay1d" | "relay7d" | "relay30d") | null;
@@ -11203,7 +13253,7 @@ export type components = {
             size?: ("1280x720" | "720x1280" | "1920x1080" | "1080x1920") | null;
             /**
              * Store Output
-             * @description Where this request's output media is hosted, and for how long. `provider` (default) returns a Relay CDN link that live-proxies the provider for 1 hour — the same hour the task record itself lives. `relay1d` / `relay7d` / `relay30d` copy the output into Relay's own storage and keep BOTH the link and the task record for 1, 7 or 30 days, for a flat per-file fee (see `media_storage` in GET /v2/pricing). Not available on routes that return media inline (base64), and not available to the guest tier.
+             * @description Where this request's output media is hosted, and for how long. `provider` (default) returns a Relay CDN link that live-proxies the provider for 1 hour — the same hour the task record itself lives. `relay1d` / `relay7d` / `relay30d` copy the output into Relay's own storage and keep BOTH the link and the task record for 1, 7 or 30 days, for a flat per-file fee (see `media_storage` in GET /v2/pricing). On routes that return images inline (base64) the images are also hosted, as `urls`, for the same lifetime. `relay*` is not available to the guest tier, nor on a model whose `store_output_supported` is false in GET /v2/models.
              * @default provider
              */
             store_output?: ("provider" | "relay1d" | "relay7d" | "relay30d") | null;
@@ -11325,7 +13375,7 @@ export type components = {
             seed?: number | null;
             /**
              * Store Output
-             * @description Where this request's output media is hosted, and for how long. `provider` (default) returns a Relay CDN link that live-proxies the provider for 1 hour — the same hour the task record itself lives. `relay1d` / `relay7d` / `relay30d` copy the output into Relay's own storage and keep BOTH the link and the task record for 1, 7 or 30 days, for a flat per-file fee (see `media_storage` in GET /v2/pricing). Not available on routes that return media inline (base64), and not available to the guest tier.
+             * @description Where this request's output media is hosted, and for how long. `provider` (default) returns a Relay CDN link that live-proxies the provider for 1 hour — the same hour the task record itself lives. `relay1d` / `relay7d` / `relay30d` copy the output into Relay's own storage and keep BOTH the link and the task record for 1, 7 or 30 days, for a flat per-file fee (see `media_storage` in GET /v2/pricing). On routes that return images inline (base64) the images are also hosted, as `urls`, for the same lifetime. `relay*` is not available to the guest tier, nor on a model whose `store_output_supported` is false in GET /v2/models.
              * @default provider
              */
             store_output?: ("provider" | "relay1d" | "relay7d" | "relay30d") | null;
@@ -11444,7 +13494,7 @@ export type components = {
             size?: string | null;
             /**
              * Store Output
-             * @description Where this request's output media is hosted, and for how long. `provider` (default) returns a Relay CDN link that live-proxies the provider for 1 hour — the same hour the task record itself lives. `relay1d` / `relay7d` / `relay30d` copy the output into Relay's own storage and keep BOTH the link and the task record for 1, 7 or 30 days, for a flat per-file fee (see `media_storage` in GET /v2/pricing). Not available on routes that return media inline (base64), and not available to the guest tier.
+             * @description Where this request's output media is hosted, and for how long. `provider` (default) returns a Relay CDN link that live-proxies the provider for 1 hour — the same hour the task record itself lives. `relay1d` / `relay7d` / `relay30d` copy the output into Relay's own storage and keep BOTH the link and the task record for 1, 7 or 30 days, for a flat per-file fee (see `media_storage` in GET /v2/pricing). On routes that return images inline (base64) the images are also hosted, as `urls`, for the same lifetime. `relay*` is not available to the guest tier, nor on a model whose `store_output_supported` is false in GET /v2/models.
              * @default provider
              */
             store_output?: ("provider" | "relay1d" | "relay7d" | "relay30d") | null;
@@ -11571,7 +13621,7 @@ export type components = {
             size?: ("832x480" | "480x832" | "1280x720" | "720x1280") | null;
             /**
              * Store Output
-             * @description Where this request's output media is hosted, and for how long. `provider` (default) returns a Relay CDN link that live-proxies the provider for 1 hour — the same hour the task record itself lives. `relay1d` / `relay7d` / `relay30d` copy the output into Relay's own storage and keep BOTH the link and the task record for 1, 7 or 30 days, for a flat per-file fee (see `media_storage` in GET /v2/pricing). Not available on routes that return media inline (base64), and not available to the guest tier.
+             * @description Where this request's output media is hosted, and for how long. `provider` (default) returns a Relay CDN link that live-proxies the provider for 1 hour — the same hour the task record itself lives. `relay1d` / `relay7d` / `relay30d` copy the output into Relay's own storage and keep BOTH the link and the task record for 1, 7 or 30 days, for a flat per-file fee (see `media_storage` in GET /v2/pricing). On routes that return images inline (base64) the images are also hosted, as `urls`, for the same lifetime. `relay*` is not available to the guest tier, nor on a model whose `store_output_supported` is false in GET /v2/models.
              * @default provider
              */
             store_output?: ("provider" | "relay1d" | "relay7d" | "relay30d") | null;
@@ -11823,7 +13873,7 @@ export type components = {
             model?: string | null;
             /**
              * Result
-             * @description Present on `task.completed` unless omitted for size. Shape depends on the model family (e.g. image: `{images: [<base64>]}`; video: `{videos: [<url>]}`; chat: an OpenAI/Anthropic response body). The key is absent (not null) on `task.failed`.
+             * @description Present on `task.completed` unless omitted for size. Shape depends on the model family (e.g. image: `{images: [<base64>]}`; video: `{urls: [<url>]}` for Kling, Seedance, veo and HappyHorse, `{videos: [<url>]}` for Wan 2.5 and Sora; chat: an OpenAI/Anthropic response body). The key is absent (not null) on `task.failed`.
              */
             result?: {
                 [key: string]: unknown;
@@ -11902,7 +13952,7 @@ export type components = {
             };
             /**
              * Store Output
-             * @description Where this request's output media is hosted, and for how long. `provider` (default) returns a Relay CDN link that live-proxies the provider for 1 hour — the same hour the task record itself lives. `relay1d` / `relay7d` / `relay30d` copy the output into Relay's own storage and keep BOTH the link and the task record for 1, 7 or 30 days, for a flat per-file fee (see `media_storage` in GET /v2/pricing). Not available on routes that return media inline (base64), and not available to the guest tier. On a workflow run this is RUN-LEVEL: it applies to every step that produces a file (image, video, audio), each billed per file exactly as the same request would be on its own, and steps that produce text are untouched. Each step's own task record stays pollable at /v2/tasks/{task_id} for as long as its stored output; the RUN record keeps its ordinary lifetime. A run naming a store option is refused up front if any media step's model does not offer it, rather than storing some steps and quietly skipping others.
+             * @description Where this request's output media is hosted, and for how long. `provider` (default) returns a Relay CDN link that live-proxies the provider for 1 hour — the same hour the task record itself lives. `relay1d` / `relay7d` / `relay30d` copy the output into Relay's own storage and keep BOTH the link and the task record for 1, 7 or 30 days, for a flat per-file fee (see `media_storage` in GET /v2/pricing). On routes that return images inline (base64) the images are also hosted, as `urls`, for the same lifetime. `relay*` is not available to the guest tier, nor on a model whose `store_output_supported` is false in GET /v2/models. On a workflow run this is RUN-LEVEL: it applies to every step that produces a file (image, video, audio), each billed per file exactly as the same request would be on its own, and steps that produce text are untouched. Each step's own task record stays pollable at /v2/tasks/{task_id} for as long as its stored output; the RUN record keeps its ordinary lifetime. A run naming a store option is refused up front if any media step's model does not offer it, rather than storing some steps and quietly skipping others.
              * @default provider
              */
             store_output?: ("provider" | "relay1d" | "relay7d" | "relay30d") | null;
@@ -12076,6 +14126,12 @@ export type components = {
         };
         /** WorkflowTemplateItem */
         WorkflowTemplateItem: {
+            /**
+             * Available
+             * @description Whether every step's model is offered now. A run of an unavailable template is refused (403 `MODEL_NOT_AVAILABLE`) before any step runs.
+             * @default true
+             */
+            available?: boolean;
             /** Description */
             description?: string | null;
             /**
@@ -12094,6 +14150,11 @@ export type components = {
             restricted_tiers?: string[];
             /** Steps */
             steps: components["schemas"]["WorkflowStepSummary"][];
+            /**
+             * Unavailable Steps
+             * @description The steps whose model is retired or unknown; empty when `available`
+             */
+            unavailable_steps?: components["schemas"]["UnavailableStep"][];
             /** Version */
             version: number;
             /** Workflow Id */
@@ -12118,6 +14179,7 @@ export type components = {
 };
 export type $defs = Record<string, never>;
 export interface operations {
+    /** @deprecated No live model serves this operation. */
     anthropic_messages: {
         parameters: {
             query?: never;
@@ -12191,7 +14253,7 @@ export interface operations {
                 };
             };
             /**
-             * @description Out of credits, or a sub-key's `key_budget` is exhausted.
+             * @description Out of credits, or a sub-key's `key_budget` is exhausted (or a priced request would cross it).
              *
              *     `error.code`: `INSUFFICIENT_CREDITS`, `KEY_BUDGET_EXHAUSTED`
              */
@@ -12207,7 +14269,7 @@ export interface operations {
             /**
              * @description Valid credential, access denied — the message names the blocking layer.
              *
-             *     `error.code`: `SCOPE_DENIED`, `MODEL_RETIRED`, `ACCOUNT_INACTIVE`, `CREDENTIAL_NOT_PERMITTED`, `MODEL_NOT_AVAILABLE`, `KEY_NOT_OWNED`, `KEY_LIMIT_REACHED`, `TIER_FEATURE_UNAVAILABLE`, `BANK_TRANSFER_NOT_AVAILABLE`
+             *     `error.code`: `SCOPE_DENIED`, `MODEL_RETIRED`, `ACCOUNT_INACTIVE`, `CREDENTIAL_NOT_PERMITTED`, `MODEL_NOT_AVAILABLE`, `KEY_NOT_OWNED`, `KEY_LIMIT_REACHED`, `TIER_FEATURE_UNAVAILABLE`, `BANK_TRANSFER_NOT_AVAILABLE`, `ROUTING_MODEL_RESTRICTED`
              */
             403: {
                 headers: {
@@ -12389,7 +14451,7 @@ export interface operations {
                 };
             };
             /**
-             * @description Out of credits, or a sub-key's `key_budget` is exhausted.
+             * @description Out of credits, or a sub-key's `key_budget` is exhausted (or a priced request would cross it).
              *
              *     `error.code`: `INSUFFICIENT_CREDITS`, `KEY_BUDGET_EXHAUSTED`
              */
@@ -12405,7 +14467,7 @@ export interface operations {
             /**
              * @description Valid credential, access denied — the message names the blocking layer.
              *
-             *     `error.code`: `SCOPE_DENIED`, `MODEL_RETIRED`, `ACCOUNT_INACTIVE`, `CREDENTIAL_NOT_PERMITTED`, `MODEL_NOT_AVAILABLE`, `KEY_NOT_OWNED`, `KEY_LIMIT_REACHED`, `TIER_FEATURE_UNAVAILABLE`, `BANK_TRANSFER_NOT_AVAILABLE`
+             *     `error.code`: `SCOPE_DENIED`, `MODEL_RETIRED`, `ACCOUNT_INACTIVE`, `CREDENTIAL_NOT_PERMITTED`, `MODEL_NOT_AVAILABLE`, `KEY_NOT_OWNED`, `KEY_LIMIT_REACHED`, `TIER_FEATURE_UNAVAILABLE`, `BANK_TRANSFER_NOT_AVAILABLE`, `ROUTING_MODEL_RESTRICTED`
              */
             403: {
                 headers: {
@@ -12587,7 +14649,7 @@ export interface operations {
                 };
             };
             /**
-             * @description Out of credits, or a sub-key's `key_budget` is exhausted.
+             * @description Out of credits, or a sub-key's `key_budget` is exhausted (or a priced request would cross it).
              *
              *     `error.code`: `INSUFFICIENT_CREDITS`, `KEY_BUDGET_EXHAUSTED`
              */
@@ -12603,7 +14665,7 @@ export interface operations {
             /**
              * @description Valid credential, access denied — the message names the blocking layer.
              *
-             *     `error.code`: `SCOPE_DENIED`, `MODEL_RETIRED`, `ACCOUNT_INACTIVE`, `CREDENTIAL_NOT_PERMITTED`, `MODEL_NOT_AVAILABLE`, `KEY_NOT_OWNED`, `KEY_LIMIT_REACHED`, `TIER_FEATURE_UNAVAILABLE`, `BANK_TRANSFER_NOT_AVAILABLE`
+             *     `error.code`: `SCOPE_DENIED`, `MODEL_RETIRED`, `ACCOUNT_INACTIVE`, `CREDENTIAL_NOT_PERMITTED`, `MODEL_NOT_AVAILABLE`, `KEY_NOT_OWNED`, `KEY_LIMIT_REACHED`, `TIER_FEATURE_UNAVAILABLE`, `BANK_TRANSFER_NOT_AVAILABLE`, `ROUTING_MODEL_RESTRICTED`
              */
             403: {
                 headers: {
@@ -12785,7 +14847,7 @@ export interface operations {
                 };
             };
             /**
-             * @description Out of credits, or a sub-key's `key_budget` is exhausted.
+             * @description Out of credits, or a sub-key's `key_budget` is exhausted (or a priced request would cross it).
              *
              *     `error.code`: `INSUFFICIENT_CREDITS`, `KEY_BUDGET_EXHAUSTED`
              */
@@ -12801,7 +14863,205 @@ export interface operations {
             /**
              * @description Valid credential, access denied — the message names the blocking layer.
              *
-             *     `error.code`: `SCOPE_DENIED`, `MODEL_RETIRED`, `ACCOUNT_INACTIVE`, `CREDENTIAL_NOT_PERMITTED`, `MODEL_NOT_AVAILABLE`, `KEY_NOT_OWNED`, `KEY_LIMIT_REACHED`, `TIER_FEATURE_UNAVAILABLE`, `BANK_TRANSFER_NOT_AVAILABLE`
+             *     `error.code`: `SCOPE_DENIED`, `MODEL_RETIRED`, `ACCOUNT_INACTIVE`, `CREDENTIAL_NOT_PERMITTED`, `MODEL_NOT_AVAILABLE`, `KEY_NOT_OWNED`, `KEY_LIMIT_REACHED`, `TIER_FEATURE_UNAVAILABLE`, `BANK_TRANSFER_NOT_AVAILABLE`, `ROUTING_MODEL_RESTRICTED`
+             */
+            403: {
+                headers: {
+                    "X-Request-ID": components["headers"]["X-Request-ID"];
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["RelayErrorResponse"];
+                };
+            };
+            /**
+             * @description A request with the same `Idempotency-Key` is still being accepted — retry after `Retry-After` seconds.
+             *
+             *     `error.code`: `IDEMPOTENCY_IN_PROGRESS`
+             */
+            409: {
+                headers: {
+                    "Retry-After": components["headers"]["Retry-After"];
+                    "X-Request-ID": components["headers"]["X-Request-ID"];
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["RelayErrorResponse"];
+                };
+            };
+            /**
+             * @description The prompt or its inputs were refused, upstream rejected them as unprocessable, or the request body failed our own validation (`detail` then lists the fields). `error.detail.upstream_code` carries the provider's own verdict where it sent one.
+             *
+             *     `error.code`: `CONTENT_POLICY_DECLINED`, `UPSTREAM_INVALID_REQUEST`, `VALIDATION_ERROR`, `IDEMPOTENCY_KEY_REUSED`
+             */
+            422: {
+                headers: {
+                    "X-Request-ID": components["headers"]["X-Request-ID"];
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["RelayErrorResponse"];
+                };
+            };
+            /**
+             * @description Rate limit — `Retry-After` header set.
+             *
+             *     `error.code`: `RATE_LIMITED`, `WORKFLOW_RUN_LIMIT_REACHED`, `INSTANCE_LIMIT`, `FILE_QUOTA_EXCEEDED`
+             */
+            429: {
+                headers: {
+                    "Retry-After": components["headers"]["Retry-After"];
+                    "X-Request-ID": components["headers"]["X-Request-ID"];
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["RelayErrorResponse"];
+                };
+            };
+            /**
+             * @description The failure could not be attributed to the provider or the request.
+             *
+             *     `error.code`: `INTERNAL_ERROR`
+             */
+            500: {
+                headers: {
+                    "X-Request-ID": components["headers"]["X-Request-ID"];
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["RelayErrorResponse"];
+                };
+            };
+            /**
+             * @description A provider accepted the request and failed while serving it (`UPSTREAM_ERROR`), no provider could take it (`PROVIDER_UNAVAILABLE`), or its response did not match the model's schema.
+             *
+             *     `error.code`: `UPSTREAM_ERROR`, `PROVIDER_UNAVAILABLE`, `PROVIDER_SCHEMA_MISMATCH`
+             */
+            502: {
+                headers: {
+                    "X-Request-ID": components["headers"]["X-Request-ID"];
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["RelayErrorResponse"];
+                };
+            };
+            /**
+             * @description Model temporarily at capacity. `Retry-After` is set.
+             *
+             *     `error.code`: `CAPACITY_EXHAUSTED`
+             */
+            503: {
+                headers: {
+                    "Retry-After": components["headers"]["Retry-After"];
+                    "X-Request-ID": components["headers"]["X-Request-ID"];
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["RelayErrorResponse"];
+                };
+            };
+            /**
+             * @description The request did not complete within the route's inline budget. Use `async: true` for long generations.
+             *
+             *     `error.code`: `UPSTREAM_TIMEOUT`
+             */
+            504: {
+                headers: {
+                    "X-Request-ID": components["headers"]["X-Request-ID"];
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["RelayErrorResponse"];
+                };
+            };
+        };
+    };
+    audio_music_1_generate: {
+        parameters: {
+            query?: never;
+            header?: {
+                authorization?: string | null;
+                /** @description Makes an async submit safe to retry: the same key with the same body inside 24 h answers the original `202` (header `Idempotency-Replayed: true`) and creates, enqueues and bills nothing. Keys are per customer. Honoured when the request runs async; a sync or streaming call is processed as usual. */
+                "Idempotency-Key"?: components["parameters"]["IdempotencyKey"];
+                "x-api-key"?: string | null;
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["MusicGenerateRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    "X-Request-ID": components["headers"]["X-Request-ID"];
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["MusicGenerateResponse"];
+                };
+            };
+            /** @description Task accepted (async mode). Poll the poll_url for status. */
+            202: {
+                headers: {
+                    "Idempotency-Replayed": components["headers"]["Idempotency-Replayed"];
+                    "X-Request-ID": components["headers"]["X-Request-ID"];
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AsyncTaskAccepted"];
+                };
+            };
+            /**
+             * @description Upstream rejected the request parameters. `detail` carries the provider's own message.
+             *
+             *     `error.code`: `UPSTREAM_INVALID_REQUEST`
+             */
+            400: {
+                headers: {
+                    "X-Request-ID": components["headers"]["X-Request-ID"];
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["RelayErrorResponse"];
+                };
+            };
+            /**
+             * @description Credential missing, invalid or revoked.
+             *
+             *     `error.code`: `INVALID_API_KEY`, `KEY_REVOKED`, `MISSING_CREDENTIALS`, `INVALID_TOKEN`
+             */
+            401: {
+                headers: {
+                    "X-Request-ID": components["headers"]["X-Request-ID"];
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["RelayErrorResponse"];
+                };
+            };
+            /**
+             * @description Out of credits, or a sub-key's `key_budget` is exhausted (or a priced request would cross it).
+             *
+             *     `error.code`: `INSUFFICIENT_CREDITS`, `KEY_BUDGET_EXHAUSTED`
+             */
+            402: {
+                headers: {
+                    "X-Request-ID": components["headers"]["X-Request-ID"];
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["RelayErrorResponse"];
+                };
+            };
+            /**
+             * @description Valid credential, access denied — the message names the blocking layer.
+             *
+             *     `error.code`: `SCOPE_DENIED`, `MODEL_RETIRED`, `ACCOUNT_INACTIVE`, `CREDENTIAL_NOT_PERMITTED`, `MODEL_NOT_AVAILABLE`, `KEY_NOT_OWNED`, `KEY_LIMIT_REACHED`, `TIER_FEATURE_UNAVAILABLE`, `BANK_TRANSFER_NOT_AVAILABLE`, `ROUTING_MODEL_RESTRICTED`
              */
             403: {
                 headers: {
@@ -12983,7 +15243,7 @@ export interface operations {
                 };
             };
             /**
-             * @description Out of credits, or a sub-key's `key_budget` is exhausted.
+             * @description Out of credits, or a sub-key's `key_budget` is exhausted (or a priced request would cross it).
              *
              *     `error.code`: `INSUFFICIENT_CREDITS`, `KEY_BUDGET_EXHAUSTED`
              */
@@ -12999,7 +15259,403 @@ export interface operations {
             /**
              * @description Valid credential, access denied — the message names the blocking layer.
              *
-             *     `error.code`: `SCOPE_DENIED`, `MODEL_RETIRED`, `ACCOUNT_INACTIVE`, `CREDENTIAL_NOT_PERMITTED`, `MODEL_NOT_AVAILABLE`, `KEY_NOT_OWNED`, `KEY_LIMIT_REACHED`, `TIER_FEATURE_UNAVAILABLE`, `BANK_TRANSFER_NOT_AVAILABLE`
+             *     `error.code`: `SCOPE_DENIED`, `MODEL_RETIRED`, `ACCOUNT_INACTIVE`, `CREDENTIAL_NOT_PERMITTED`, `MODEL_NOT_AVAILABLE`, `KEY_NOT_OWNED`, `KEY_LIMIT_REACHED`, `TIER_FEATURE_UNAVAILABLE`, `BANK_TRANSFER_NOT_AVAILABLE`, `ROUTING_MODEL_RESTRICTED`
+             */
+            403: {
+                headers: {
+                    "X-Request-ID": components["headers"]["X-Request-ID"];
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["RelayErrorResponse"];
+                };
+            };
+            /**
+             * @description A request with the same `Idempotency-Key` is still being accepted — retry after `Retry-After` seconds.
+             *
+             *     `error.code`: `IDEMPOTENCY_IN_PROGRESS`
+             */
+            409: {
+                headers: {
+                    "Retry-After": components["headers"]["Retry-After"];
+                    "X-Request-ID": components["headers"]["X-Request-ID"];
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["RelayErrorResponse"];
+                };
+            };
+            /**
+             * @description The prompt or its inputs were refused, upstream rejected them as unprocessable, or the request body failed our own validation (`detail` then lists the fields). `error.detail.upstream_code` carries the provider's own verdict where it sent one.
+             *
+             *     `error.code`: `CONTENT_POLICY_DECLINED`, `UPSTREAM_INVALID_REQUEST`, `VALIDATION_ERROR`, `IDEMPOTENCY_KEY_REUSED`
+             */
+            422: {
+                headers: {
+                    "X-Request-ID": components["headers"]["X-Request-ID"];
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["RelayErrorResponse"];
+                };
+            };
+            /**
+             * @description Rate limit — `Retry-After` header set.
+             *
+             *     `error.code`: `RATE_LIMITED`, `WORKFLOW_RUN_LIMIT_REACHED`, `INSTANCE_LIMIT`, `FILE_QUOTA_EXCEEDED`
+             */
+            429: {
+                headers: {
+                    "Retry-After": components["headers"]["Retry-After"];
+                    "X-Request-ID": components["headers"]["X-Request-ID"];
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["RelayErrorResponse"];
+                };
+            };
+            /**
+             * @description The failure could not be attributed to the provider or the request.
+             *
+             *     `error.code`: `INTERNAL_ERROR`
+             */
+            500: {
+                headers: {
+                    "X-Request-ID": components["headers"]["X-Request-ID"];
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["RelayErrorResponse"];
+                };
+            };
+            /**
+             * @description A provider accepted the request and failed while serving it (`UPSTREAM_ERROR`), no provider could take it (`PROVIDER_UNAVAILABLE`), or its response did not match the model's schema.
+             *
+             *     `error.code`: `UPSTREAM_ERROR`, `PROVIDER_UNAVAILABLE`, `PROVIDER_SCHEMA_MISMATCH`
+             */
+            502: {
+                headers: {
+                    "X-Request-ID": components["headers"]["X-Request-ID"];
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["RelayErrorResponse"];
+                };
+            };
+            /**
+             * @description Model temporarily at capacity. `Retry-After` is set.
+             *
+             *     `error.code`: `CAPACITY_EXHAUSTED`
+             */
+            503: {
+                headers: {
+                    "Retry-After": components["headers"]["Retry-After"];
+                    "X-Request-ID": components["headers"]["X-Request-ID"];
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["RelayErrorResponse"];
+                };
+            };
+            /**
+             * @description The request did not complete within the route's inline budget. Use `async: true` for long generations.
+             *
+             *     `error.code`: `UPSTREAM_TIMEOUT`
+             */
+            504: {
+                headers: {
+                    "X-Request-ID": components["headers"]["X-Request-ID"];
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["RelayErrorResponse"];
+                };
+            };
+        };
+    };
+    audio_tts_1_turbo_generate: {
+        parameters: {
+            query?: never;
+            header?: {
+                authorization?: string | null;
+                /** @description Makes an async submit safe to retry: the same key with the same body inside 24 h answers the original `202` (header `Idempotency-Replayed: true`) and creates, enqueues and bills nothing. Keys are per customer. Honoured when the request runs async; a sync or streaming call is processed as usual. */
+                "Idempotency-Key"?: components["parameters"]["IdempotencyKey"];
+                "x-api-key"?: string | null;
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["RelayTtsRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    "X-Request-ID": components["headers"]["X-Request-ID"];
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["RelayTtsResponse"];
+                };
+            };
+            /** @description Task accepted (async mode). Poll the poll_url for status. */
+            202: {
+                headers: {
+                    "Idempotency-Replayed": components["headers"]["Idempotency-Replayed"];
+                    "X-Request-ID": components["headers"]["X-Request-ID"];
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AsyncTaskAccepted"];
+                };
+            };
+            /**
+             * @description Upstream rejected the request parameters. `detail` carries the provider's own message.
+             *
+             *     `error.code`: `UPSTREAM_INVALID_REQUEST`
+             */
+            400: {
+                headers: {
+                    "X-Request-ID": components["headers"]["X-Request-ID"];
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["RelayErrorResponse"];
+                };
+            };
+            /**
+             * @description Credential missing, invalid or revoked.
+             *
+             *     `error.code`: `INVALID_API_KEY`, `KEY_REVOKED`, `MISSING_CREDENTIALS`, `INVALID_TOKEN`
+             */
+            401: {
+                headers: {
+                    "X-Request-ID": components["headers"]["X-Request-ID"];
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["RelayErrorResponse"];
+                };
+            };
+            /**
+             * @description Out of credits, or a sub-key's `key_budget` is exhausted (or a priced request would cross it).
+             *
+             *     `error.code`: `INSUFFICIENT_CREDITS`, `KEY_BUDGET_EXHAUSTED`
+             */
+            402: {
+                headers: {
+                    "X-Request-ID": components["headers"]["X-Request-ID"];
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["RelayErrorResponse"];
+                };
+            };
+            /**
+             * @description Valid credential, access denied — the message names the blocking layer.
+             *
+             *     `error.code`: `SCOPE_DENIED`, `MODEL_RETIRED`, `ACCOUNT_INACTIVE`, `CREDENTIAL_NOT_PERMITTED`, `MODEL_NOT_AVAILABLE`, `KEY_NOT_OWNED`, `KEY_LIMIT_REACHED`, `TIER_FEATURE_UNAVAILABLE`, `BANK_TRANSFER_NOT_AVAILABLE`, `ROUTING_MODEL_RESTRICTED`
+             */
+            403: {
+                headers: {
+                    "X-Request-ID": components["headers"]["X-Request-ID"];
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["RelayErrorResponse"];
+                };
+            };
+            /**
+             * @description A request with the same `Idempotency-Key` is still being accepted — retry after `Retry-After` seconds.
+             *
+             *     `error.code`: `IDEMPOTENCY_IN_PROGRESS`
+             */
+            409: {
+                headers: {
+                    "Retry-After": components["headers"]["Retry-After"];
+                    "X-Request-ID": components["headers"]["X-Request-ID"];
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["RelayErrorResponse"];
+                };
+            };
+            /**
+             * @description The prompt or its inputs were refused, upstream rejected them as unprocessable, or the request body failed our own validation (`detail` then lists the fields). `error.detail.upstream_code` carries the provider's own verdict where it sent one.
+             *
+             *     `error.code`: `CONTENT_POLICY_DECLINED`, `UPSTREAM_INVALID_REQUEST`, `VALIDATION_ERROR`, `IDEMPOTENCY_KEY_REUSED`
+             */
+            422: {
+                headers: {
+                    "X-Request-ID": components["headers"]["X-Request-ID"];
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["RelayErrorResponse"];
+                };
+            };
+            /**
+             * @description Rate limit — `Retry-After` header set.
+             *
+             *     `error.code`: `RATE_LIMITED`, `WORKFLOW_RUN_LIMIT_REACHED`, `INSTANCE_LIMIT`, `FILE_QUOTA_EXCEEDED`
+             */
+            429: {
+                headers: {
+                    "Retry-After": components["headers"]["Retry-After"];
+                    "X-Request-ID": components["headers"]["X-Request-ID"];
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["RelayErrorResponse"];
+                };
+            };
+            /**
+             * @description The failure could not be attributed to the provider or the request.
+             *
+             *     `error.code`: `INTERNAL_ERROR`
+             */
+            500: {
+                headers: {
+                    "X-Request-ID": components["headers"]["X-Request-ID"];
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["RelayErrorResponse"];
+                };
+            };
+            /**
+             * @description A provider accepted the request and failed while serving it (`UPSTREAM_ERROR`), no provider could take it (`PROVIDER_UNAVAILABLE`), or its response did not match the model's schema.
+             *
+             *     `error.code`: `UPSTREAM_ERROR`, `PROVIDER_UNAVAILABLE`, `PROVIDER_SCHEMA_MISMATCH`
+             */
+            502: {
+                headers: {
+                    "X-Request-ID": components["headers"]["X-Request-ID"];
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["RelayErrorResponse"];
+                };
+            };
+            /**
+             * @description Model temporarily at capacity. `Retry-After` is set.
+             *
+             *     `error.code`: `CAPACITY_EXHAUSTED`
+             */
+            503: {
+                headers: {
+                    "Retry-After": components["headers"]["Retry-After"];
+                    "X-Request-ID": components["headers"]["X-Request-ID"];
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["RelayErrorResponse"];
+                };
+            };
+            /**
+             * @description The request did not complete within the route's inline budget. Use `async: true` for long generations.
+             *
+             *     `error.code`: `UPSTREAM_TIMEOUT`
+             */
+            504: {
+                headers: {
+                    "X-Request-ID": components["headers"]["X-Request-ID"];
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["RelayErrorResponse"];
+                };
+            };
+        };
+    };
+    audio_tts_1_generate: {
+        parameters: {
+            query?: never;
+            header?: {
+                authorization?: string | null;
+                /** @description Makes an async submit safe to retry: the same key with the same body inside 24 h answers the original `202` (header `Idempotency-Replayed: true`) and creates, enqueues and bills nothing. Keys are per customer. Honoured when the request runs async; a sync or streaming call is processed as usual. */
+                "Idempotency-Key"?: components["parameters"]["IdempotencyKey"];
+                "x-api-key"?: string | null;
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["RelayTtsRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    "X-Request-ID": components["headers"]["X-Request-ID"];
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["RelayTtsResponse"];
+                };
+            };
+            /** @description Task accepted (async mode). Poll the poll_url for status. */
+            202: {
+                headers: {
+                    "Idempotency-Replayed": components["headers"]["Idempotency-Replayed"];
+                    "X-Request-ID": components["headers"]["X-Request-ID"];
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AsyncTaskAccepted"];
+                };
+            };
+            /**
+             * @description Upstream rejected the request parameters. `detail` carries the provider's own message.
+             *
+             *     `error.code`: `UPSTREAM_INVALID_REQUEST`
+             */
+            400: {
+                headers: {
+                    "X-Request-ID": components["headers"]["X-Request-ID"];
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["RelayErrorResponse"];
+                };
+            };
+            /**
+             * @description Credential missing, invalid or revoked.
+             *
+             *     `error.code`: `INVALID_API_KEY`, `KEY_REVOKED`, `MISSING_CREDENTIALS`, `INVALID_TOKEN`
+             */
+            401: {
+                headers: {
+                    "X-Request-ID": components["headers"]["X-Request-ID"];
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["RelayErrorResponse"];
+                };
+            };
+            /**
+             * @description Out of credits, or a sub-key's `key_budget` is exhausted (or a priced request would cross it).
+             *
+             *     `error.code`: `INSUFFICIENT_CREDITS`, `KEY_BUDGET_EXHAUSTED`
+             */
+            402: {
+                headers: {
+                    "X-Request-ID": components["headers"]["X-Request-ID"];
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["RelayErrorResponse"];
+                };
+            };
+            /**
+             * @description Valid credential, access denied — the message names the blocking layer.
+             *
+             *     `error.code`: `SCOPE_DENIED`, `MODEL_RETIRED`, `ACCOUNT_INACTIVE`, `CREDENTIAL_NOT_PERMITTED`, `MODEL_NOT_AVAILABLE`, `KEY_NOT_OWNED`, `KEY_LIMIT_REACHED`, `TIER_FEATURE_UNAVAILABLE`, `BANK_TRANSFER_NOT_AVAILABLE`, `ROUTING_MODEL_RESTRICTED`
              */
             403: {
                 headers: {
@@ -13150,7 +15806,7 @@ export interface operations {
     customer_credits_history_get: {
         parameters: {
             query?: {
-                /** @description Filter by action: 'credit_topup' or 'credit_deduct' */
+                /** @description Filter by action: credit_topup, credit_deduct, promo_granted, promo_expired, key_budget_set, key_budget_topup, key_budget_cleared */
                 action?: string | null;
                 /** @description Number of transactions to return */
                 limit?: number;
@@ -13747,6 +16403,47 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["CustomerSettingsResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    "X-Request-ID": components["headers"]["X-Request-ID"];
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["RelayErrorResponse"];
+                };
+            };
+        };
+    };
+    customer_tasks_list: {
+        parameters: {
+            query?: {
+                /** @description The key whose tasks to list; default: your dashboard key. */
+                key_id?: string | null;
+                limit?: number;
+                /** @description Opaque cursor from a previous response's next_page. */
+                page?: string | null;
+                /** @description Only tasks in this state. */
+                status?: ("running" | "completed" | "failed" | "unknown") | null;
+            };
+            header?: {
+                authorization?: string;
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    "X-Request-ID": components["headers"]["X-Request-ID"];
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["CustomerTaskPage"];
                 };
             };
             /** @description Validation Error */
@@ -14498,6 +17195,342 @@ export interface operations {
             };
         };
     };
+    files_slots_create: {
+        parameters: {
+            query?: never;
+            header?: {
+                authorization?: string | null;
+                "Idempotency-Key"?: string | null;
+                "x-api-key"?: string | null;
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: {
+            content: {
+                "application/json": components["schemas"]["SlotMint"] | null;
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            201: {
+                headers: {
+                    "X-Request-ID": components["headers"]["X-Request-ID"];
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SlotResponse"];
+                };
+            };
+            /**
+             * @description Credential invalid or revoked.
+             *
+             *     `error.code`: `INVALID_API_KEY`, `KEY_REVOKED`, `INVALID_TOKEN`
+             */
+            401: {
+                headers: {
+                    "X-Request-ID": components["headers"]["X-Request-ID"];
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["RelayErrorResponse"];
+                };
+            };
+            /**
+             * @description This sub-key's `key_budget` is exhausted.
+             *
+             *     `error.code`: `KEY_BUDGET_EXHAUSTED`
+             */
+            402: {
+                headers: {
+                    "X-Request-ID": components["headers"]["X-Request-ID"];
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["RelayErrorResponse"];
+                };
+            };
+            /**
+             * @description No credential (guests cannot host files), or the account is not active.
+             *
+             *     `error.code`: `TIER_FEATURE_UNAVAILABLE`, `ACCOUNT_INACTIVE`
+             */
+            403: {
+                headers: {
+                    "X-Request-ID": components["headers"]["X-Request-ID"];
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["RelayErrorResponse"];
+                };
+            };
+            /**
+             * @description A mint with this `Idempotency-Key` is still being answered. Retry shortly.
+             *
+             *     `error.code`: `IDEMPOTENCY_IN_PROGRESS`
+             */
+            409: {
+                headers: {
+                    "X-Request-ID": components["headers"]["X-Request-ID"];
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["RelayErrorResponse"];
+                };
+            };
+            /**
+             * @description Bad `retention` or `filename`, a paid retention this environment does not offer, or an `Idempotency-Key` reused with a different body.
+             *
+             *     `error.code`: `VALIDATION_ERROR`, `IDEMPOTENCY_KEY_REUSED`
+             */
+            422: {
+                headers: {
+                    "X-Request-ID": components["headers"]["X-Request-ID"];
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["RelayErrorResponse"];
+                };
+            };
+            /**
+             * @description The per-minute rate limit.
+             *
+             *     `error.code`: `RATE_LIMITED`
+             */
+            429: {
+                headers: {
+                    "Retry-After": components["headers"]["Retry-After"];
+                    "X-Request-ID": components["headers"]["X-Request-ID"];
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["RelayErrorResponse"];
+                };
+            };
+            /**
+             * @description Slots cannot be issued right now. Retry after `Retry-After` seconds.
+             *
+             *     `error.code`: `SERVICE_UNAVAILABLE`
+             */
+            503: {
+                headers: {
+                    "Retry-After": components["headers"]["Retry-After"];
+                    "X-Request-ID": components["headers"]["X-Request-ID"];
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["RelayErrorResponse"];
+                };
+            };
+        };
+    };
+    files_slots_page: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                token: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description The upload page (`text/html`), or the slot as JSON. */
+            200: {
+                headers: {
+                    "X-Request-ID": components["headers"]["X-Request-ID"];
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SlotView"];
+                    "text/html": string;
+                };
+            };
+            /**
+             * @description No such slot: already used, expired, or never minted. Mint a new one.
+             *
+             *     `error.code`: `FILE_NOT_FOUND`
+             */
+            404: {
+                headers: {
+                    "X-Request-ID": components["headers"]["X-Request-ID"];
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["RelayErrorResponse"];
+                };
+            };
+            /**
+             * @description A malformed request parameter.
+             *
+             *     `error.code`: `VALIDATION_ERROR`
+             */
+            422: {
+                headers: {
+                    "X-Request-ID": components["headers"]["X-Request-ID"];
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["RelayErrorResponse"];
+                };
+            };
+        };
+    };
+    files_slots_upload: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                token: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                /** @description The file's raw bytes (`curl -T <file> <put_url>`). Any `Content-Type` is ignored: the type is read from the bytes. */
+                "application/octet-stream": string;
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            201: {
+                headers: {
+                    "X-Request-ID": components["headers"]["X-Request-ID"];
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["FileResponse"];
+                };
+            };
+            /**
+             * @description The key that minted this slot has since been revoked.
+             *
+             *     `error.code`: `INVALID_API_KEY`, `KEY_REVOKED`
+             */
+            401: {
+                headers: {
+                    "X-Request-ID": components["headers"]["X-Request-ID"];
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["RelayErrorResponse"];
+                };
+            };
+            /**
+             * @description A paid retention and the balance is below the credit floor, or this sub-key's `key_budget` is exhausted.
+             *
+             *     `error.code`: `INSUFFICIENT_CREDITS`, `KEY_BUDGET_EXHAUSTED`
+             */
+            402: {
+                headers: {
+                    "X-Request-ID": components["headers"]["X-Request-ID"];
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["RelayErrorResponse"];
+                };
+            };
+            /**
+             * @description The minting account is not active, or no longer on a tier that hosts files.
+             *
+             *     `error.code`: `ACCOUNT_INACTIVE`, `TIER_FEATURE_UNAVAILABLE`
+             */
+            403: {
+                headers: {
+                    "X-Request-ID": components["headers"]["X-Request-ID"];
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["RelayErrorResponse"];
+                };
+            };
+            /**
+             * @description No such slot: already used, expired, or never minted. Mint a new one.
+             *
+             *     `error.code`: `FILE_NOT_FOUND`
+             */
+            404: {
+                headers: {
+                    "X-Request-ID": components["headers"]["X-Request-ID"];
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["RelayErrorResponse"];
+                };
+            };
+            /**
+             * @description The file is larger than the upload limit (100 MB at most).
+             *
+             *     `error.code`: `FILE_TOO_LARGE`
+             */
+            413: {
+                headers: {
+                    "X-Request-ID": components["headers"]["X-Request-ID"];
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["RelayErrorResponse"];
+                };
+            };
+            /**
+             * @description Not an image, video or audio file (JSON form: the fetched object's type).
+             *
+             *     `error.code`: `FILE_TYPE_UNSUPPORTED`
+             */
+            415: {
+                headers: {
+                    "X-Request-ID": components["headers"]["X-Request-ID"];
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["RelayErrorResponse"];
+                };
+            };
+            /**
+             * @description An empty body, or the slot's paid retention is no longer offered.
+             *
+             *     `error.code`: `VALIDATION_ERROR`
+             */
+            422: {
+                headers: {
+                    "X-Request-ID": components["headers"]["X-Request-ID"];
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["RelayErrorResponse"];
+                };
+            };
+            /**
+             * @description The daily free (`relay1h`) upload quota is used up — `Retry-After` counts to 00:00 UTC.
+             *
+             *     `error.code`: `FILE_QUOTA_EXCEEDED`
+             */
+            429: {
+                headers: {
+                    "Retry-After": components["headers"]["Retry-After"];
+                    "X-Request-ID": components["headers"]["X-Request-ID"];
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["RelayErrorResponse"];
+                };
+            };
+            /**
+             * @description The file could not be stored, or the source URL could not be fetched.
+             *
+             *     `error.code`: `UPSTREAM_ERROR`
+             */
+            502: {
+                headers: {
+                    "X-Request-ID": components["headers"]["X-Request-ID"];
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["RelayErrorResponse"];
+                };
+            };
+        };
+    };
     health_get: {
         parameters: {
             query?: never;
@@ -14622,7 +17655,7 @@ export interface operations {
                 };
             };
             /**
-             * @description Out of credits, or a sub-key's `key_budget` is exhausted.
+             * @description Out of credits, or a sub-key's `key_budget` is exhausted (or a priced request would cross it).
              *
              *     `error.code`: `INSUFFICIENT_CREDITS`, `KEY_BUDGET_EXHAUSTED`
              */
@@ -14638,7 +17671,7 @@ export interface operations {
             /**
              * @description Valid credential, access denied — the message names the blocking layer.
              *
-             *     `error.code`: `SCOPE_DENIED`, `MODEL_RETIRED`, `ACCOUNT_INACTIVE`, `CREDENTIAL_NOT_PERMITTED`, `MODEL_NOT_AVAILABLE`, `KEY_NOT_OWNED`, `KEY_LIMIT_REACHED`, `TIER_FEATURE_UNAVAILABLE`, `BANK_TRANSFER_NOT_AVAILABLE`
+             *     `error.code`: `SCOPE_DENIED`, `MODEL_RETIRED`, `ACCOUNT_INACTIVE`, `CREDENTIAL_NOT_PERMITTED`, `MODEL_NOT_AVAILABLE`, `KEY_NOT_OWNED`, `KEY_LIMIT_REACHED`, `TIER_FEATURE_UNAVAILABLE`, `BANK_TRANSFER_NOT_AVAILABLE`, `ROUTING_MODEL_RESTRICTED`
              */
             403: {
                 headers: {
@@ -14820,7 +17853,7 @@ export interface operations {
                 };
             };
             /**
-             * @description Out of credits, or a sub-key's `key_budget` is exhausted.
+             * @description Out of credits, or a sub-key's `key_budget` is exhausted (or a priced request would cross it).
              *
              *     `error.code`: `INSUFFICIENT_CREDITS`, `KEY_BUDGET_EXHAUSTED`
              */
@@ -14836,7 +17869,7 @@ export interface operations {
             /**
              * @description Valid credential, access denied — the message names the blocking layer.
              *
-             *     `error.code`: `SCOPE_DENIED`, `MODEL_RETIRED`, `ACCOUNT_INACTIVE`, `CREDENTIAL_NOT_PERMITTED`, `MODEL_NOT_AVAILABLE`, `KEY_NOT_OWNED`, `KEY_LIMIT_REACHED`, `TIER_FEATURE_UNAVAILABLE`, `BANK_TRANSFER_NOT_AVAILABLE`
+             *     `error.code`: `SCOPE_DENIED`, `MODEL_RETIRED`, `ACCOUNT_INACTIVE`, `CREDENTIAL_NOT_PERMITTED`, `MODEL_NOT_AVAILABLE`, `KEY_NOT_OWNED`, `KEY_LIMIT_REACHED`, `TIER_FEATURE_UNAVAILABLE`, `BANK_TRANSFER_NOT_AVAILABLE`, `ROUTING_MODEL_RESTRICTED`
              */
             403: {
                 headers: {
@@ -15018,7 +18051,7 @@ export interface operations {
                 };
             };
             /**
-             * @description Out of credits, or a sub-key's `key_budget` is exhausted.
+             * @description Out of credits, or a sub-key's `key_budget` is exhausted (or a priced request would cross it).
              *
              *     `error.code`: `INSUFFICIENT_CREDITS`, `KEY_BUDGET_EXHAUSTED`
              */
@@ -15034,7 +18067,7 @@ export interface operations {
             /**
              * @description Valid credential, access denied — the message names the blocking layer.
              *
-             *     `error.code`: `SCOPE_DENIED`, `MODEL_RETIRED`, `ACCOUNT_INACTIVE`, `CREDENTIAL_NOT_PERMITTED`, `MODEL_NOT_AVAILABLE`, `KEY_NOT_OWNED`, `KEY_LIMIT_REACHED`, `TIER_FEATURE_UNAVAILABLE`, `BANK_TRANSFER_NOT_AVAILABLE`
+             *     `error.code`: `SCOPE_DENIED`, `MODEL_RETIRED`, `ACCOUNT_INACTIVE`, `CREDENTIAL_NOT_PERMITTED`, `MODEL_NOT_AVAILABLE`, `KEY_NOT_OWNED`, `KEY_LIMIT_REACHED`, `TIER_FEATURE_UNAVAILABLE`, `BANK_TRANSFER_NOT_AVAILABLE`, `ROUTING_MODEL_RESTRICTED`
              */
             403: {
                 headers: {
@@ -15216,7 +18249,7 @@ export interface operations {
                 };
             };
             /**
-             * @description Out of credits, or a sub-key's `key_budget` is exhausted.
+             * @description Out of credits, or a sub-key's `key_budget` is exhausted (or a priced request would cross it).
              *
              *     `error.code`: `INSUFFICIENT_CREDITS`, `KEY_BUDGET_EXHAUSTED`
              */
@@ -15232,7 +18265,7 @@ export interface operations {
             /**
              * @description Valid credential, access denied — the message names the blocking layer.
              *
-             *     `error.code`: `SCOPE_DENIED`, `MODEL_RETIRED`, `ACCOUNT_INACTIVE`, `CREDENTIAL_NOT_PERMITTED`, `MODEL_NOT_AVAILABLE`, `KEY_NOT_OWNED`, `KEY_LIMIT_REACHED`, `TIER_FEATURE_UNAVAILABLE`, `BANK_TRANSFER_NOT_AVAILABLE`
+             *     `error.code`: `SCOPE_DENIED`, `MODEL_RETIRED`, `ACCOUNT_INACTIVE`, `CREDENTIAL_NOT_PERMITTED`, `MODEL_NOT_AVAILABLE`, `KEY_NOT_OWNED`, `KEY_LIMIT_REACHED`, `TIER_FEATURE_UNAVAILABLE`, `BANK_TRANSFER_NOT_AVAILABLE`, `ROUTING_MODEL_RESTRICTED`
              */
             403: {
                 headers: {
@@ -15414,7 +18447,7 @@ export interface operations {
                 };
             };
             /**
-             * @description Out of credits, or a sub-key's `key_budget` is exhausted.
+             * @description Out of credits, or a sub-key's `key_budget` is exhausted (or a priced request would cross it).
              *
              *     `error.code`: `INSUFFICIENT_CREDITS`, `KEY_BUDGET_EXHAUSTED`
              */
@@ -15430,7 +18463,7 @@ export interface operations {
             /**
              * @description Valid credential, access denied — the message names the blocking layer.
              *
-             *     `error.code`: `SCOPE_DENIED`, `MODEL_RETIRED`, `ACCOUNT_INACTIVE`, `CREDENTIAL_NOT_PERMITTED`, `MODEL_NOT_AVAILABLE`, `KEY_NOT_OWNED`, `KEY_LIMIT_REACHED`, `TIER_FEATURE_UNAVAILABLE`, `BANK_TRANSFER_NOT_AVAILABLE`
+             *     `error.code`: `SCOPE_DENIED`, `MODEL_RETIRED`, `ACCOUNT_INACTIVE`, `CREDENTIAL_NOT_PERMITTED`, `MODEL_NOT_AVAILABLE`, `KEY_NOT_OWNED`, `KEY_LIMIT_REACHED`, `TIER_FEATURE_UNAVAILABLE`, `BANK_TRANSFER_NOT_AVAILABLE`, `ROUTING_MODEL_RESTRICTED`
              */
             403: {
                 headers: {
@@ -15612,7 +18645,7 @@ export interface operations {
                 };
             };
             /**
-             * @description Out of credits, or a sub-key's `key_budget` is exhausted.
+             * @description Out of credits, or a sub-key's `key_budget` is exhausted (or a priced request would cross it).
              *
              *     `error.code`: `INSUFFICIENT_CREDITS`, `KEY_BUDGET_EXHAUSTED`
              */
@@ -15628,7 +18661,7 @@ export interface operations {
             /**
              * @description Valid credential, access denied — the message names the blocking layer.
              *
-             *     `error.code`: `SCOPE_DENIED`, `MODEL_RETIRED`, `ACCOUNT_INACTIVE`, `CREDENTIAL_NOT_PERMITTED`, `MODEL_NOT_AVAILABLE`, `KEY_NOT_OWNED`, `KEY_LIMIT_REACHED`, `TIER_FEATURE_UNAVAILABLE`, `BANK_TRANSFER_NOT_AVAILABLE`
+             *     `error.code`: `SCOPE_DENIED`, `MODEL_RETIRED`, `ACCOUNT_INACTIVE`, `CREDENTIAL_NOT_PERMITTED`, `MODEL_NOT_AVAILABLE`, `KEY_NOT_OWNED`, `KEY_LIMIT_REACHED`, `TIER_FEATURE_UNAVAILABLE`, `BANK_TRANSFER_NOT_AVAILABLE`, `ROUTING_MODEL_RESTRICTED`
              */
             403: {
                 headers: {
@@ -15742,6 +18775,7 @@ export interface operations {
             };
         };
     };
+    /** @deprecated No live model serves this operation. */
     image_qwen_edit: {
         parameters: {
             query?: never;
@@ -15810,7 +18844,7 @@ export interface operations {
                 };
             };
             /**
-             * @description Out of credits, or a sub-key's `key_budget` is exhausted.
+             * @description Out of credits, or a sub-key's `key_budget` is exhausted (or a priced request would cross it).
              *
              *     `error.code`: `INSUFFICIENT_CREDITS`, `KEY_BUDGET_EXHAUSTED`
              */
@@ -15826,7 +18860,7 @@ export interface operations {
             /**
              * @description Valid credential, access denied — the message names the blocking layer.
              *
-             *     `error.code`: `SCOPE_DENIED`, `MODEL_RETIRED`, `ACCOUNT_INACTIVE`, `CREDENTIAL_NOT_PERMITTED`, `MODEL_NOT_AVAILABLE`, `KEY_NOT_OWNED`, `KEY_LIMIT_REACHED`, `TIER_FEATURE_UNAVAILABLE`, `BANK_TRANSFER_NOT_AVAILABLE`
+             *     `error.code`: `SCOPE_DENIED`, `MODEL_RETIRED`, `ACCOUNT_INACTIVE`, `CREDENTIAL_NOT_PERMITTED`, `MODEL_NOT_AVAILABLE`, `KEY_NOT_OWNED`, `KEY_LIMIT_REACHED`, `TIER_FEATURE_UNAVAILABLE`, `BANK_TRANSFER_NOT_AVAILABLE`, `ROUTING_MODEL_RESTRICTED`
              */
             403: {
                 headers: {
@@ -15940,6 +18974,7 @@ export interface operations {
             };
         };
     };
+    /** @deprecated No live model serves this operation. */
     image_qwen_generate: {
         parameters: {
             query?: never;
@@ -16008,7 +19043,7 @@ export interface operations {
                 };
             };
             /**
-             * @description Out of credits, or a sub-key's `key_budget` is exhausted.
+             * @description Out of credits, or a sub-key's `key_budget` is exhausted (or a priced request would cross it).
              *
              *     `error.code`: `INSUFFICIENT_CREDITS`, `KEY_BUDGET_EXHAUSTED`
              */
@@ -16024,7 +19059,7 @@ export interface operations {
             /**
              * @description Valid credential, access denied — the message names the blocking layer.
              *
-             *     `error.code`: `SCOPE_DENIED`, `MODEL_RETIRED`, `ACCOUNT_INACTIVE`, `CREDENTIAL_NOT_PERMITTED`, `MODEL_NOT_AVAILABLE`, `KEY_NOT_OWNED`, `KEY_LIMIT_REACHED`, `TIER_FEATURE_UNAVAILABLE`, `BANK_TRANSFER_NOT_AVAILABLE`
+             *     `error.code`: `SCOPE_DENIED`, `MODEL_RETIRED`, `ACCOUNT_INACTIVE`, `CREDENTIAL_NOT_PERMITTED`, `MODEL_NOT_AVAILABLE`, `KEY_NOT_OWNED`, `KEY_LIMIT_REACHED`, `TIER_FEATURE_UNAVAILABLE`, `BANK_TRANSFER_NOT_AVAILABLE`, `ROUTING_MODEL_RESTRICTED`
              */
             403: {
                 headers: {
@@ -16207,7 +19242,7 @@ export interface operations {
                 };
             };
             /**
-             * @description Out of credits, or a sub-key's `key_budget` is exhausted.
+             * @description Out of credits, or a sub-key's `key_budget` is exhausted (or a priced request would cross it).
              *
              *     `error.code`: `INSUFFICIENT_CREDITS`, `KEY_BUDGET_EXHAUSTED`
              */
@@ -16223,7 +19258,7 @@ export interface operations {
             /**
              * @description Valid credential, access denied — the message names the blocking layer.
              *
-             *     `error.code`: `SCOPE_DENIED`, `MODEL_RETIRED`, `ACCOUNT_INACTIVE`, `CREDENTIAL_NOT_PERMITTED`, `MODEL_NOT_AVAILABLE`, `KEY_NOT_OWNED`, `KEY_LIMIT_REACHED`, `TIER_FEATURE_UNAVAILABLE`, `BANK_TRANSFER_NOT_AVAILABLE`
+             *     `error.code`: `SCOPE_DENIED`, `MODEL_RETIRED`, `ACCOUNT_INACTIVE`, `CREDENTIAL_NOT_PERMITTED`, `MODEL_NOT_AVAILABLE`, `KEY_NOT_OWNED`, `KEY_LIMIT_REACHED`, `TIER_FEATURE_UNAVAILABLE`, `BANK_TRANSFER_NOT_AVAILABLE`, `ROUTING_MODEL_RESTRICTED`
              */
             403: {
                 headers: {
@@ -16405,7 +19440,7 @@ export interface operations {
                 };
             };
             /**
-             * @description Out of credits, or a sub-key's `key_budget` is exhausted.
+             * @description Out of credits, or a sub-key's `key_budget` is exhausted (or a priced request would cross it).
              *
              *     `error.code`: `INSUFFICIENT_CREDITS`, `KEY_BUDGET_EXHAUSTED`
              */
@@ -16421,7 +19456,7 @@ export interface operations {
             /**
              * @description Valid credential, access denied — the message names the blocking layer.
              *
-             *     `error.code`: `SCOPE_DENIED`, `MODEL_RETIRED`, `ACCOUNT_INACTIVE`, `CREDENTIAL_NOT_PERMITTED`, `MODEL_NOT_AVAILABLE`, `KEY_NOT_OWNED`, `KEY_LIMIT_REACHED`, `TIER_FEATURE_UNAVAILABLE`, `BANK_TRANSFER_NOT_AVAILABLE`
+             *     `error.code`: `SCOPE_DENIED`, `MODEL_RETIRED`, `ACCOUNT_INACTIVE`, `CREDENTIAL_NOT_PERMITTED`, `MODEL_NOT_AVAILABLE`, `KEY_NOT_OWNED`, `KEY_LIMIT_REACHED`, `TIER_FEATURE_UNAVAILABLE`, `BANK_TRANSFER_NOT_AVAILABLE`, `ROUTING_MODEL_RESTRICTED`
              */
             403: {
                 headers: {
@@ -16603,7 +19638,7 @@ export interface operations {
                 };
             };
             /**
-             * @description Out of credits, or a sub-key's `key_budget` is exhausted.
+             * @description Out of credits, or a sub-key's `key_budget` is exhausted (or a priced request would cross it).
              *
              *     `error.code`: `INSUFFICIENT_CREDITS`, `KEY_BUDGET_EXHAUSTED`
              */
@@ -16619,7 +19654,7 @@ export interface operations {
             /**
              * @description Valid credential, access denied — the message names the blocking layer.
              *
-             *     `error.code`: `SCOPE_DENIED`, `MODEL_RETIRED`, `ACCOUNT_INACTIVE`, `CREDENTIAL_NOT_PERMITTED`, `MODEL_NOT_AVAILABLE`, `KEY_NOT_OWNED`, `KEY_LIMIT_REACHED`, `TIER_FEATURE_UNAVAILABLE`, `BANK_TRANSFER_NOT_AVAILABLE`
+             *     `error.code`: `SCOPE_DENIED`, `MODEL_RETIRED`, `ACCOUNT_INACTIVE`, `CREDENTIAL_NOT_PERMITTED`, `MODEL_NOT_AVAILABLE`, `KEY_NOT_OWNED`, `KEY_LIMIT_REACHED`, `TIER_FEATURE_UNAVAILABLE`, `BANK_TRANSFER_NOT_AVAILABLE`, `ROUTING_MODEL_RESTRICTED`
              */
             403: {
                 headers: {
@@ -16858,7 +19893,7 @@ export interface operations {
                     "application/json": components["schemas"]["RelayErrorResponse"];
                 };
             };
-            /** @description `TIER_FEATURE_UNAVAILABLE` — the key's tier is not allowed to rent instances. */
+            /** @description `TIER_FEATURE_UNAVAILABLE` — the key's tier is not allowed to rent instances. Or `CREDENTIAL_NOT_PERMITTED` — this API key has a `key_budget` (instance billing does not read key budgets), or is not allowed to rent Instances (its `instances_allowed` switch is off; the account's superkey or the dashboard can enable it). */
             403: {
                 headers: {
                     "X-Request-ID": components["headers"]["X-Request-ID"];
@@ -17393,7 +20428,7 @@ export interface operations {
                 };
             };
             /**
-             * @description Out of credits, or a sub-key's `key_budget` is exhausted.
+             * @description Out of credits, or a sub-key's `key_budget` is exhausted (or a priced request would cross it).
              *
              *     `error.code`: `INSUFFICIENT_CREDITS`, `KEY_BUDGET_EXHAUSTED`
              */
@@ -17409,9 +20444,23 @@ export interface operations {
             /**
              * @description Valid credential, access denied — the message names the blocking layer.
              *
-             *     `error.code`: `SCOPE_DENIED`, `MODEL_RETIRED`, `ACCOUNT_INACTIVE`, `CREDENTIAL_NOT_PERMITTED`, `MODEL_NOT_AVAILABLE`, `KEY_NOT_OWNED`, `KEY_LIMIT_REACHED`, `TIER_FEATURE_UNAVAILABLE`, `BANK_TRANSFER_NOT_AVAILABLE`
+             *     `error.code`: `SCOPE_DENIED`, `MODEL_RETIRED`, `ACCOUNT_INACTIVE`, `CREDENTIAL_NOT_PERMITTED`, `MODEL_NOT_AVAILABLE`, `KEY_NOT_OWNED`, `KEY_LIMIT_REACHED`, `TIER_FEATURE_UNAVAILABLE`, `BANK_TRANSFER_NOT_AVAILABLE`, `ROUTING_MODEL_RESTRICTED`
              */
             403: {
+                headers: {
+                    "X-Request-ID": components["headers"]["X-Request-ID"];
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["RelayErrorResponse"] | components["schemas"]["StreamErrorResponse"];
+                };
+            };
+            /**
+             * @description `relay/conductor` is not offered in this environment.
+             *
+             *     `error.code`: `MODEL_NOT_FOUND`
+             */
+            404: {
                 headers: {
                     "X-Request-ID": components["headers"]["X-Request-ID"];
                     [name: string]: unknown;
@@ -17436,9 +20485,9 @@ export interface operations {
                 };
             };
             /**
-             * @description The prompt or its inputs were refused, upstream rejected them as unprocessable, or the request body failed our own validation (`detail` then lists the fields). `error.detail.upstream_code` carries the provider's own verdict where it sent one.
+             * @description The prompt or its inputs were refused, upstream rejected them as unprocessable, or the request body failed our own validation (`detail` then lists the fields). `error.detail.upstream_code` carries the provider's own verdict where it sent one. With `model: "relay/conductor"`: a `routing` object that cannot be served (an unknown list or engine, more models than the cap, a model that is unknown, excluded or not routable for the use case, no candidate left) or `routing` sent with another model.
              *
-             *     `error.code`: `CONTENT_POLICY_DECLINED`, `UPSTREAM_INVALID_REQUEST`, `VALIDATION_ERROR`, `IDEMPOTENCY_KEY_REUSED`
+             *     `error.code`: `CONTENT_POLICY_DECLINED`, `UPSTREAM_INVALID_REQUEST`, `VALIDATION_ERROR`, `ROUTING_ON_FIXED_MODEL`, `ROUTING_ENGINE_UNKNOWN`, `ROUTING_LIST_TOO_LONG`, `ROUTING_LIST_UNKNOWN`, `ROUTING_MODEL_UNKNOWN`, `ROUTING_MODEL_UNSCORED`, `ROUTING_MODEL_VETOED`, `ROUTING_NO_CANDIDATES`, `IDEMPOTENCY_KEY_REUSED`
              */
             422: {
                 headers: {
@@ -17578,7 +20627,7 @@ export interface operations {
                 };
             };
             /**
-             * @description Out of credits, or a sub-key's `key_budget` is exhausted.
+             * @description Out of credits, or a sub-key's `key_budget` is exhausted (or a priced request would cross it).
              *
              *     `error.code`: `INSUFFICIENT_CREDITS`, `KEY_BUDGET_EXHAUSTED`
              */
@@ -17594,7 +20643,7 @@ export interface operations {
             /**
              * @description Valid credential, access denied — the message names the blocking layer.
              *
-             *     `error.code`: `SCOPE_DENIED`, `MODEL_RETIRED`, `ACCOUNT_INACTIVE`, `CREDENTIAL_NOT_PERMITTED`, `MODEL_NOT_AVAILABLE`, `KEY_NOT_OWNED`, `KEY_LIMIT_REACHED`, `TIER_FEATURE_UNAVAILABLE`, `BANK_TRANSFER_NOT_AVAILABLE`
+             *     `error.code`: `SCOPE_DENIED`, `MODEL_RETIRED`, `ACCOUNT_INACTIVE`, `CREDENTIAL_NOT_PERMITTED`, `MODEL_NOT_AVAILABLE`, `KEY_NOT_OWNED`, `KEY_LIMIT_REACHED`, `TIER_FEATURE_UNAVAILABLE`, `BANK_TRANSFER_NOT_AVAILABLE`, `ROUTING_MODEL_RESTRICTED`
              */
             403: {
                 headers: {
@@ -17874,7 +20923,7 @@ export interface operations {
                 };
             };
             /**
-             * @description Out of credits, or a sub-key's `key_budget` is exhausted.
+             * @description Out of credits, or a sub-key's `key_budget` is exhausted (or a priced request would cross it).
              *
              *     `error.code`: `INSUFFICIENT_CREDITS`, `KEY_BUDGET_EXHAUSTED`
              */
@@ -17890,7 +20939,7 @@ export interface operations {
             /**
              * @description Valid credential, access denied — the message names the blocking layer.
              *
-             *     `error.code`: `SCOPE_DENIED`, `MODEL_RETIRED`, `ACCOUNT_INACTIVE`, `CREDENTIAL_NOT_PERMITTED`, `MODEL_NOT_AVAILABLE`, `KEY_NOT_OWNED`, `KEY_LIMIT_REACHED`, `TIER_FEATURE_UNAVAILABLE`, `BANK_TRANSFER_NOT_AVAILABLE`
+             *     `error.code`: `SCOPE_DENIED`, `MODEL_RETIRED`, `ACCOUNT_INACTIVE`, `CREDENTIAL_NOT_PERMITTED`, `MODEL_NOT_AVAILABLE`, `KEY_NOT_OWNED`, `KEY_LIMIT_REACHED`, `TIER_FEATURE_UNAVAILABLE`, `BANK_TRANSFER_NOT_AVAILABLE`, `ROUTING_MODEL_RESTRICTED`
              */
             403: {
                 headers: {
@@ -18073,7 +21122,7 @@ export interface operations {
                 };
             };
             /**
-             * @description Out of credits, or a sub-key's `key_budget` is exhausted.
+             * @description Out of credits, or a sub-key's `key_budget` is exhausted (or a priced request would cross it).
              *
              *     `error.code`: `INSUFFICIENT_CREDITS`, `KEY_BUDGET_EXHAUSTED`
              */
@@ -18089,7 +21138,7 @@ export interface operations {
             /**
              * @description Valid credential, access denied — the message names the blocking layer.
              *
-             *     `error.code`: `SCOPE_DENIED`, `MODEL_RETIRED`, `ACCOUNT_INACTIVE`, `CREDENTIAL_NOT_PERMITTED`, `MODEL_NOT_AVAILABLE`, `KEY_NOT_OWNED`, `KEY_LIMIT_REACHED`, `TIER_FEATURE_UNAVAILABLE`, `BANK_TRANSFER_NOT_AVAILABLE`
+             *     `error.code`: `SCOPE_DENIED`, `MODEL_RETIRED`, `ACCOUNT_INACTIVE`, `CREDENTIAL_NOT_PERMITTED`, `MODEL_NOT_AVAILABLE`, `KEY_NOT_OWNED`, `KEY_LIMIT_REACHED`, `TIER_FEATURE_UNAVAILABLE`, `BANK_TRANSFER_NOT_AVAILABLE`, `ROUTING_MODEL_RESTRICTED`
              */
             403: {
                 headers: {
@@ -18218,7 +21267,7 @@ export interface operations {
         };
         requestBody: {
             content: {
-                "application/json": components["schemas"]["DoubaoSeedanceV2VRequest"];
+                "application/json": components["schemas"]["DoubaoSeedance20Up720pV2VRequest"];
             };
         };
         responses: {
@@ -18272,7 +21321,7 @@ export interface operations {
                 };
             };
             /**
-             * @description Out of credits, or a sub-key's `key_budget` is exhausted.
+             * @description Out of credits, or a sub-key's `key_budget` is exhausted (or a priced request would cross it).
              *
              *     `error.code`: `INSUFFICIENT_CREDITS`, `KEY_BUDGET_EXHAUSTED`
              */
@@ -18288,7 +21337,7 @@ export interface operations {
             /**
              * @description Valid credential, access denied — the message names the blocking layer.
              *
-             *     `error.code`: `SCOPE_DENIED`, `MODEL_RETIRED`, `ACCOUNT_INACTIVE`, `CREDENTIAL_NOT_PERMITTED`, `MODEL_NOT_AVAILABLE`, `KEY_NOT_OWNED`, `KEY_LIMIT_REACHED`, `TIER_FEATURE_UNAVAILABLE`, `BANK_TRANSFER_NOT_AVAILABLE`
+             *     `error.code`: `SCOPE_DENIED`, `MODEL_RETIRED`, `ACCOUNT_INACTIVE`, `CREDENTIAL_NOT_PERMITTED`, `MODEL_NOT_AVAILABLE`, `KEY_NOT_OWNED`, `KEY_LIMIT_REACHED`, `TIER_FEATURE_UNAVAILABLE`, `BANK_TRANSFER_NOT_AVAILABLE`, `ROUTING_MODEL_RESTRICTED`
              */
             403: {
                 headers: {
@@ -18417,7 +21466,7 @@ export interface operations {
         };
         requestBody: {
             content: {
-                "application/json": components["schemas"]["DoubaoSeedance20Request"];
+                "application/json": components["schemas"]["DoubaoSeedance20Up720pRequest"];
             };
         };
         responses: {
@@ -18471,7 +21520,7 @@ export interface operations {
                 };
             };
             /**
-             * @description Out of credits, or a sub-key's `key_budget` is exhausted.
+             * @description Out of credits, or a sub-key's `key_budget` is exhausted (or a priced request would cross it).
              *
              *     `error.code`: `INSUFFICIENT_CREDITS`, `KEY_BUDGET_EXHAUSTED`
              */
@@ -18487,7 +21536,7 @@ export interface operations {
             /**
              * @description Valid credential, access denied — the message names the blocking layer.
              *
-             *     `error.code`: `SCOPE_DENIED`, `MODEL_RETIRED`, `ACCOUNT_INACTIVE`, `CREDENTIAL_NOT_PERMITTED`, `MODEL_NOT_AVAILABLE`, `KEY_NOT_OWNED`, `KEY_LIMIT_REACHED`, `TIER_FEATURE_UNAVAILABLE`, `BANK_TRANSFER_NOT_AVAILABLE`
+             *     `error.code`: `SCOPE_DENIED`, `MODEL_RETIRED`, `ACCOUNT_INACTIVE`, `CREDENTIAL_NOT_PERMITTED`, `MODEL_NOT_AVAILABLE`, `KEY_NOT_OWNED`, `KEY_LIMIT_REACHED`, `TIER_FEATURE_UNAVAILABLE`, `BANK_TRANSFER_NOT_AVAILABLE`, `ROUTING_MODEL_RESTRICTED`
              */
             403: {
                 headers: {
@@ -18615,7 +21664,7 @@ export interface operations {
         };
         requestBody: {
             content: {
-                "application/json": components["schemas"]["DoubaoSeedanceV2VRequest"];
+                "application/json": components["schemas"]["DoubaoSeedance20Up720pV2VRequest"];
             };
         };
         responses: {
@@ -18669,7 +21718,7 @@ export interface operations {
                 };
             };
             /**
-             * @description Out of credits, or a sub-key's `key_budget` is exhausted.
+             * @description Out of credits, or a sub-key's `key_budget` is exhausted (or a priced request would cross it).
              *
              *     `error.code`: `INSUFFICIENT_CREDITS`, `KEY_BUDGET_EXHAUSTED`
              */
@@ -18685,7 +21734,7 @@ export interface operations {
             /**
              * @description Valid credential, access denied — the message names the blocking layer.
              *
-             *     `error.code`: `SCOPE_DENIED`, `MODEL_RETIRED`, `ACCOUNT_INACTIVE`, `CREDENTIAL_NOT_PERMITTED`, `MODEL_NOT_AVAILABLE`, `KEY_NOT_OWNED`, `KEY_LIMIT_REACHED`, `TIER_FEATURE_UNAVAILABLE`, `BANK_TRANSFER_NOT_AVAILABLE`
+             *     `error.code`: `SCOPE_DENIED`, `MODEL_RETIRED`, `ACCOUNT_INACTIVE`, `CREDENTIAL_NOT_PERMITTED`, `MODEL_NOT_AVAILABLE`, `KEY_NOT_OWNED`, `KEY_LIMIT_REACHED`, `TIER_FEATURE_UNAVAILABLE`, `BANK_TRANSFER_NOT_AVAILABLE`, `ROUTING_MODEL_RESTRICTED`
              */
             403: {
                 headers: {
@@ -18813,7 +21862,7 @@ export interface operations {
         };
         requestBody: {
             content: {
-                "application/json": components["schemas"]["DoubaoSeedance20Request"];
+                "application/json": components["schemas"]["DoubaoSeedance20Up720pRequest"];
             };
         };
         responses: {
@@ -18867,7 +21916,7 @@ export interface operations {
                 };
             };
             /**
-             * @description Out of credits, or a sub-key's `key_budget` is exhausted.
+             * @description Out of credits, or a sub-key's `key_budget` is exhausted (or a priced request would cross it).
              *
              *     `error.code`: `INSUFFICIENT_CREDITS`, `KEY_BUDGET_EXHAUSTED`
              */
@@ -18883,7 +21932,7 @@ export interface operations {
             /**
              * @description Valid credential, access denied — the message names the blocking layer.
              *
-             *     `error.code`: `SCOPE_DENIED`, `MODEL_RETIRED`, `ACCOUNT_INACTIVE`, `CREDENTIAL_NOT_PERMITTED`, `MODEL_NOT_AVAILABLE`, `KEY_NOT_OWNED`, `KEY_LIMIT_REACHED`, `TIER_FEATURE_UNAVAILABLE`, `BANK_TRANSFER_NOT_AVAILABLE`
+             *     `error.code`: `SCOPE_DENIED`, `MODEL_RETIRED`, `ACCOUNT_INACTIVE`, `CREDENTIAL_NOT_PERMITTED`, `MODEL_NOT_AVAILABLE`, `KEY_NOT_OWNED`, `KEY_LIMIT_REACHED`, `TIER_FEATURE_UNAVAILABLE`, `BANK_TRANSFER_NOT_AVAILABLE`, `ROUTING_MODEL_RESTRICTED`
              */
             403: {
                 headers: {
@@ -19065,7 +22114,7 @@ export interface operations {
                 };
             };
             /**
-             * @description Out of credits, or a sub-key's `key_budget` is exhausted.
+             * @description Out of credits, or a sub-key's `key_budget` is exhausted (or a priced request would cross it).
              *
              *     `error.code`: `INSUFFICIENT_CREDITS`, `KEY_BUDGET_EXHAUSTED`
              */
@@ -19081,7 +22130,7 @@ export interface operations {
             /**
              * @description Valid credential, access denied — the message names the blocking layer.
              *
-             *     `error.code`: `SCOPE_DENIED`, `MODEL_RETIRED`, `ACCOUNT_INACTIVE`, `CREDENTIAL_NOT_PERMITTED`, `MODEL_NOT_AVAILABLE`, `KEY_NOT_OWNED`, `KEY_LIMIT_REACHED`, `TIER_FEATURE_UNAVAILABLE`, `BANK_TRANSFER_NOT_AVAILABLE`
+             *     `error.code`: `SCOPE_DENIED`, `MODEL_RETIRED`, `ACCOUNT_INACTIVE`, `CREDENTIAL_NOT_PERMITTED`, `MODEL_NOT_AVAILABLE`, `KEY_NOT_OWNED`, `KEY_LIMIT_REACHED`, `TIER_FEATURE_UNAVAILABLE`, `BANK_TRANSFER_NOT_AVAILABLE`, `ROUTING_MODEL_RESTRICTED`
              */
             403: {
                 headers: {
@@ -19263,7 +22312,7 @@ export interface operations {
                 };
             };
             /**
-             * @description Out of credits, or a sub-key's `key_budget` is exhausted.
+             * @description Out of credits, or a sub-key's `key_budget` is exhausted (or a priced request would cross it).
              *
              *     `error.code`: `INSUFFICIENT_CREDITS`, `KEY_BUDGET_EXHAUSTED`
              */
@@ -19279,7 +22328,7 @@ export interface operations {
             /**
              * @description Valid credential, access denied — the message names the blocking layer.
              *
-             *     `error.code`: `SCOPE_DENIED`, `MODEL_RETIRED`, `ACCOUNT_INACTIVE`, `CREDENTIAL_NOT_PERMITTED`, `MODEL_NOT_AVAILABLE`, `KEY_NOT_OWNED`, `KEY_LIMIT_REACHED`, `TIER_FEATURE_UNAVAILABLE`, `BANK_TRANSFER_NOT_AVAILABLE`
+             *     `error.code`: `SCOPE_DENIED`, `MODEL_RETIRED`, `ACCOUNT_INACTIVE`, `CREDENTIAL_NOT_PERMITTED`, `MODEL_NOT_AVAILABLE`, `KEY_NOT_OWNED`, `KEY_LIMIT_REACHED`, `TIER_FEATURE_UNAVAILABLE`, `BANK_TRANSFER_NOT_AVAILABLE`, `ROUTING_MODEL_RESTRICTED`
              */
             403: {
                 headers: {
@@ -19407,7 +22456,7 @@ export interface operations {
         };
         requestBody: {
             content: {
-                "application/json": components["schemas"]["DoubaoSeedanceV2VRequest"];
+                "application/json": components["schemas"]["DoubaoSeedance20Up720pV2VRequest"];
             };
         };
         responses: {
@@ -19461,7 +22510,7 @@ export interface operations {
                 };
             };
             /**
-             * @description Out of credits, or a sub-key's `key_budget` is exhausted.
+             * @description Out of credits, or a sub-key's `key_budget` is exhausted (or a priced request would cross it).
              *
              *     `error.code`: `INSUFFICIENT_CREDITS`, `KEY_BUDGET_EXHAUSTED`
              */
@@ -19477,7 +22526,7 @@ export interface operations {
             /**
              * @description Valid credential, access denied — the message names the blocking layer.
              *
-             *     `error.code`: `SCOPE_DENIED`, `MODEL_RETIRED`, `ACCOUNT_INACTIVE`, `CREDENTIAL_NOT_PERMITTED`, `MODEL_NOT_AVAILABLE`, `KEY_NOT_OWNED`, `KEY_LIMIT_REACHED`, `TIER_FEATURE_UNAVAILABLE`, `BANK_TRANSFER_NOT_AVAILABLE`
+             *     `error.code`: `SCOPE_DENIED`, `MODEL_RETIRED`, `ACCOUNT_INACTIVE`, `CREDENTIAL_NOT_PERMITTED`, `MODEL_NOT_AVAILABLE`, `KEY_NOT_OWNED`, `KEY_LIMIT_REACHED`, `TIER_FEATURE_UNAVAILABLE`, `BANK_TRANSFER_NOT_AVAILABLE`, `ROUTING_MODEL_RESTRICTED`
              */
             403: {
                 headers: {
@@ -19605,7 +22654,7 @@ export interface operations {
         };
         requestBody: {
             content: {
-                "application/json": components["schemas"]["DoubaoSeedance20Request"];
+                "application/json": components["schemas"]["DoubaoSeedance20Up720pRequest"];
             };
         };
         responses: {
@@ -19659,7 +22708,7 @@ export interface operations {
                 };
             };
             /**
-             * @description Out of credits, or a sub-key's `key_budget` is exhausted.
+             * @description Out of credits, or a sub-key's `key_budget` is exhausted (or a priced request would cross it).
              *
              *     `error.code`: `INSUFFICIENT_CREDITS`, `KEY_BUDGET_EXHAUSTED`
              */
@@ -19675,7 +22724,7 @@ export interface operations {
             /**
              * @description Valid credential, access denied — the message names the blocking layer.
              *
-             *     `error.code`: `SCOPE_DENIED`, `MODEL_RETIRED`, `ACCOUNT_INACTIVE`, `CREDENTIAL_NOT_PERMITTED`, `MODEL_NOT_AVAILABLE`, `KEY_NOT_OWNED`, `KEY_LIMIT_REACHED`, `TIER_FEATURE_UNAVAILABLE`, `BANK_TRANSFER_NOT_AVAILABLE`
+             *     `error.code`: `SCOPE_DENIED`, `MODEL_RETIRED`, `ACCOUNT_INACTIVE`, `CREDENTIAL_NOT_PERMITTED`, `MODEL_NOT_AVAILABLE`, `KEY_NOT_OWNED`, `KEY_LIMIT_REACHED`, `TIER_FEATURE_UNAVAILABLE`, `BANK_TRANSFER_NOT_AVAILABLE`, `ROUTING_MODEL_RESTRICTED`
              */
             403: {
                 headers: {
@@ -19857,7 +22906,7 @@ export interface operations {
                 };
             };
             /**
-             * @description Out of credits, or a sub-key's `key_budget` is exhausted.
+             * @description Out of credits, or a sub-key's `key_budget` is exhausted (or a priced request would cross it).
              *
              *     `error.code`: `INSUFFICIENT_CREDITS`, `KEY_BUDGET_EXHAUSTED`
              */
@@ -19873,7 +22922,7 @@ export interface operations {
             /**
              * @description Valid credential, access denied — the message names the blocking layer.
              *
-             *     `error.code`: `SCOPE_DENIED`, `MODEL_RETIRED`, `ACCOUNT_INACTIVE`, `CREDENTIAL_NOT_PERMITTED`, `MODEL_NOT_AVAILABLE`, `KEY_NOT_OWNED`, `KEY_LIMIT_REACHED`, `TIER_FEATURE_UNAVAILABLE`, `BANK_TRANSFER_NOT_AVAILABLE`
+             *     `error.code`: `SCOPE_DENIED`, `MODEL_RETIRED`, `ACCOUNT_INACTIVE`, `CREDENTIAL_NOT_PERMITTED`, `MODEL_NOT_AVAILABLE`, `KEY_NOT_OWNED`, `KEY_LIMIT_REACHED`, `TIER_FEATURE_UNAVAILABLE`, `BANK_TRANSFER_NOT_AVAILABLE`, `ROUTING_MODEL_RESTRICTED`
              */
             403: {
                 headers: {
@@ -20055,7 +23104,7 @@ export interface operations {
                 };
             };
             /**
-             * @description Out of credits, or a sub-key's `key_budget` is exhausted.
+             * @description Out of credits, or a sub-key's `key_budget` is exhausted (or a priced request would cross it).
              *
              *     `error.code`: `INSUFFICIENT_CREDITS`, `KEY_BUDGET_EXHAUSTED`
              */
@@ -20071,7 +23120,7 @@ export interface operations {
             /**
              * @description Valid credential, access denied — the message names the blocking layer.
              *
-             *     `error.code`: `SCOPE_DENIED`, `MODEL_RETIRED`, `ACCOUNT_INACTIVE`, `CREDENTIAL_NOT_PERMITTED`, `MODEL_NOT_AVAILABLE`, `KEY_NOT_OWNED`, `KEY_LIMIT_REACHED`, `TIER_FEATURE_UNAVAILABLE`, `BANK_TRANSFER_NOT_AVAILABLE`
+             *     `error.code`: `SCOPE_DENIED`, `MODEL_RETIRED`, `ACCOUNT_INACTIVE`, `CREDENTIAL_NOT_PERMITTED`, `MODEL_NOT_AVAILABLE`, `KEY_NOT_OWNED`, `KEY_LIMIT_REACHED`, `TIER_FEATURE_UNAVAILABLE`, `BANK_TRANSFER_NOT_AVAILABLE`, `ROUTING_MODEL_RESTRICTED`
              */
             403: {
                 headers: {
@@ -20253,7 +23302,7 @@ export interface operations {
                 };
             };
             /**
-             * @description Out of credits, or a sub-key's `key_budget` is exhausted.
+             * @description Out of credits, or a sub-key's `key_budget` is exhausted (or a priced request would cross it).
              *
              *     `error.code`: `INSUFFICIENT_CREDITS`, `KEY_BUDGET_EXHAUSTED`
              */
@@ -20269,7 +23318,7 @@ export interface operations {
             /**
              * @description Valid credential, access denied — the message names the blocking layer.
              *
-             *     `error.code`: `SCOPE_DENIED`, `MODEL_RETIRED`, `ACCOUNT_INACTIVE`, `CREDENTIAL_NOT_PERMITTED`, `MODEL_NOT_AVAILABLE`, `KEY_NOT_OWNED`, `KEY_LIMIT_REACHED`, `TIER_FEATURE_UNAVAILABLE`, `BANK_TRANSFER_NOT_AVAILABLE`
+             *     `error.code`: `SCOPE_DENIED`, `MODEL_RETIRED`, `ACCOUNT_INACTIVE`, `CREDENTIAL_NOT_PERMITTED`, `MODEL_NOT_AVAILABLE`, `KEY_NOT_OWNED`, `KEY_LIMIT_REACHED`, `TIER_FEATURE_UNAVAILABLE`, `BANK_TRANSFER_NOT_AVAILABLE`, `ROUTING_MODEL_RESTRICTED`
              */
             403: {
                 headers: {
@@ -20451,7 +23500,7 @@ export interface operations {
                 };
             };
             /**
-             * @description Out of credits, or a sub-key's `key_budget` is exhausted.
+             * @description Out of credits, or a sub-key's `key_budget` is exhausted (or a priced request would cross it).
              *
              *     `error.code`: `INSUFFICIENT_CREDITS`, `KEY_BUDGET_EXHAUSTED`
              */
@@ -20467,7 +23516,7 @@ export interface operations {
             /**
              * @description Valid credential, access denied — the message names the blocking layer.
              *
-             *     `error.code`: `SCOPE_DENIED`, `MODEL_RETIRED`, `ACCOUNT_INACTIVE`, `CREDENTIAL_NOT_PERMITTED`, `MODEL_NOT_AVAILABLE`, `KEY_NOT_OWNED`, `KEY_LIMIT_REACHED`, `TIER_FEATURE_UNAVAILABLE`, `BANK_TRANSFER_NOT_AVAILABLE`
+             *     `error.code`: `SCOPE_DENIED`, `MODEL_RETIRED`, `ACCOUNT_INACTIVE`, `CREDENTIAL_NOT_PERMITTED`, `MODEL_NOT_AVAILABLE`, `KEY_NOT_OWNED`, `KEY_LIMIT_REACHED`, `TIER_FEATURE_UNAVAILABLE`, `BANK_TRANSFER_NOT_AVAILABLE`, `ROUTING_MODEL_RESTRICTED`
              */
             403: {
                 headers: {
@@ -20649,7 +23698,7 @@ export interface operations {
                 };
             };
             /**
-             * @description Out of credits, or a sub-key's `key_budget` is exhausted.
+             * @description Out of credits, or a sub-key's `key_budget` is exhausted (or a priced request would cross it).
              *
              *     `error.code`: `INSUFFICIENT_CREDITS`, `KEY_BUDGET_EXHAUSTED`
              */
@@ -20665,7 +23714,7 @@ export interface operations {
             /**
              * @description Valid credential, access denied — the message names the blocking layer.
              *
-             *     `error.code`: `SCOPE_DENIED`, `MODEL_RETIRED`, `ACCOUNT_INACTIVE`, `CREDENTIAL_NOT_PERMITTED`, `MODEL_NOT_AVAILABLE`, `KEY_NOT_OWNED`, `KEY_LIMIT_REACHED`, `TIER_FEATURE_UNAVAILABLE`, `BANK_TRANSFER_NOT_AVAILABLE`
+             *     `error.code`: `SCOPE_DENIED`, `MODEL_RETIRED`, `ACCOUNT_INACTIVE`, `CREDENTIAL_NOT_PERMITTED`, `MODEL_NOT_AVAILABLE`, `KEY_NOT_OWNED`, `KEY_LIMIT_REACHED`, `TIER_FEATURE_UNAVAILABLE`, `BANK_TRANSFER_NOT_AVAILABLE`, `ROUTING_MODEL_RESTRICTED`
              */
             403: {
                 headers: {
@@ -20847,7 +23896,7 @@ export interface operations {
                 };
             };
             /**
-             * @description Out of credits, or a sub-key's `key_budget` is exhausted.
+             * @description Out of credits, or a sub-key's `key_budget` is exhausted (or a priced request would cross it).
              *
              *     `error.code`: `INSUFFICIENT_CREDITS`, `KEY_BUDGET_EXHAUSTED`
              */
@@ -20863,7 +23912,7 @@ export interface operations {
             /**
              * @description Valid credential, access denied — the message names the blocking layer.
              *
-             *     `error.code`: `SCOPE_DENIED`, `MODEL_RETIRED`, `ACCOUNT_INACTIVE`, `CREDENTIAL_NOT_PERMITTED`, `MODEL_NOT_AVAILABLE`, `KEY_NOT_OWNED`, `KEY_LIMIT_REACHED`, `TIER_FEATURE_UNAVAILABLE`, `BANK_TRANSFER_NOT_AVAILABLE`
+             *     `error.code`: `SCOPE_DENIED`, `MODEL_RETIRED`, `ACCOUNT_INACTIVE`, `CREDENTIAL_NOT_PERMITTED`, `MODEL_NOT_AVAILABLE`, `KEY_NOT_OWNED`, `KEY_LIMIT_REACHED`, `TIER_FEATURE_UNAVAILABLE`, `BANK_TRANSFER_NOT_AVAILABLE`, `ROUTING_MODEL_RESTRICTED`
              */
             403: {
                 headers: {
@@ -21045,7 +24094,7 @@ export interface operations {
                 };
             };
             /**
-             * @description Out of credits, or a sub-key's `key_budget` is exhausted.
+             * @description Out of credits, or a sub-key's `key_budget` is exhausted (or a priced request would cross it).
              *
              *     `error.code`: `INSUFFICIENT_CREDITS`, `KEY_BUDGET_EXHAUSTED`
              */
@@ -21061,7 +24110,7 @@ export interface operations {
             /**
              * @description Valid credential, access denied — the message names the blocking layer.
              *
-             *     `error.code`: `SCOPE_DENIED`, `MODEL_RETIRED`, `ACCOUNT_INACTIVE`, `CREDENTIAL_NOT_PERMITTED`, `MODEL_NOT_AVAILABLE`, `KEY_NOT_OWNED`, `KEY_LIMIT_REACHED`, `TIER_FEATURE_UNAVAILABLE`, `BANK_TRANSFER_NOT_AVAILABLE`
+             *     `error.code`: `SCOPE_DENIED`, `MODEL_RETIRED`, `ACCOUNT_INACTIVE`, `CREDENTIAL_NOT_PERMITTED`, `MODEL_NOT_AVAILABLE`, `KEY_NOT_OWNED`, `KEY_LIMIT_REACHED`, `TIER_FEATURE_UNAVAILABLE`, `BANK_TRANSFER_NOT_AVAILABLE`, `ROUTING_MODEL_RESTRICTED`
              */
             403: {
                 headers: {
@@ -21243,7 +24292,7 @@ export interface operations {
                 };
             };
             /**
-             * @description Out of credits, or a sub-key's `key_budget` is exhausted.
+             * @description Out of credits, or a sub-key's `key_budget` is exhausted (or a priced request would cross it).
              *
              *     `error.code`: `INSUFFICIENT_CREDITS`, `KEY_BUDGET_EXHAUSTED`
              */
@@ -21259,7 +24308,7 @@ export interface operations {
             /**
              * @description Valid credential, access denied — the message names the blocking layer.
              *
-             *     `error.code`: `SCOPE_DENIED`, `MODEL_RETIRED`, `ACCOUNT_INACTIVE`, `CREDENTIAL_NOT_PERMITTED`, `MODEL_NOT_AVAILABLE`, `KEY_NOT_OWNED`, `KEY_LIMIT_REACHED`, `TIER_FEATURE_UNAVAILABLE`, `BANK_TRANSFER_NOT_AVAILABLE`
+             *     `error.code`: `SCOPE_DENIED`, `MODEL_RETIRED`, `ACCOUNT_INACTIVE`, `CREDENTIAL_NOT_PERMITTED`, `MODEL_NOT_AVAILABLE`, `KEY_NOT_OWNED`, `KEY_LIMIT_REACHED`, `TIER_FEATURE_UNAVAILABLE`, `BANK_TRANSFER_NOT_AVAILABLE`, `ROUTING_MODEL_RESTRICTED`
              */
             403: {
                 headers: {
@@ -21441,7 +24490,7 @@ export interface operations {
                 };
             };
             /**
-             * @description Out of credits, or a sub-key's `key_budget` is exhausted.
+             * @description Out of credits, or a sub-key's `key_budget` is exhausted (or a priced request would cross it).
              *
              *     `error.code`: `INSUFFICIENT_CREDITS`, `KEY_BUDGET_EXHAUSTED`
              */
@@ -21457,7 +24506,7 @@ export interface operations {
             /**
              * @description Valid credential, access denied — the message names the blocking layer.
              *
-             *     `error.code`: `SCOPE_DENIED`, `MODEL_RETIRED`, `ACCOUNT_INACTIVE`, `CREDENTIAL_NOT_PERMITTED`, `MODEL_NOT_AVAILABLE`, `KEY_NOT_OWNED`, `KEY_LIMIT_REACHED`, `TIER_FEATURE_UNAVAILABLE`, `BANK_TRANSFER_NOT_AVAILABLE`
+             *     `error.code`: `SCOPE_DENIED`, `MODEL_RETIRED`, `ACCOUNT_INACTIVE`, `CREDENTIAL_NOT_PERMITTED`, `MODEL_NOT_AVAILABLE`, `KEY_NOT_OWNED`, `KEY_LIMIT_REACHED`, `TIER_FEATURE_UNAVAILABLE`, `BANK_TRANSFER_NOT_AVAILABLE`, `ROUTING_MODEL_RESTRICTED`
              */
             403: {
                 headers: {
@@ -21639,7 +24688,7 @@ export interface operations {
                 };
             };
             /**
-             * @description Out of credits, or a sub-key's `key_budget` is exhausted.
+             * @description Out of credits, or a sub-key's `key_budget` is exhausted (or a priced request would cross it).
              *
              *     `error.code`: `INSUFFICIENT_CREDITS`, `KEY_BUDGET_EXHAUSTED`
              */
@@ -21655,7 +24704,7 @@ export interface operations {
             /**
              * @description Valid credential, access denied — the message names the blocking layer.
              *
-             *     `error.code`: `SCOPE_DENIED`, `MODEL_RETIRED`, `ACCOUNT_INACTIVE`, `CREDENTIAL_NOT_PERMITTED`, `MODEL_NOT_AVAILABLE`, `KEY_NOT_OWNED`, `KEY_LIMIT_REACHED`, `TIER_FEATURE_UNAVAILABLE`, `BANK_TRANSFER_NOT_AVAILABLE`
+             *     `error.code`: `SCOPE_DENIED`, `MODEL_RETIRED`, `ACCOUNT_INACTIVE`, `CREDENTIAL_NOT_PERMITTED`, `MODEL_NOT_AVAILABLE`, `KEY_NOT_OWNED`, `KEY_LIMIT_REACHED`, `TIER_FEATURE_UNAVAILABLE`, `BANK_TRANSFER_NOT_AVAILABLE`, `ROUTING_MODEL_RESTRICTED`
              */
             403: {
                 headers: {
@@ -21837,7 +24886,7 @@ export interface operations {
                 };
             };
             /**
-             * @description Out of credits, or a sub-key's `key_budget` is exhausted.
+             * @description Out of credits, or a sub-key's `key_budget` is exhausted (or a priced request would cross it).
              *
              *     `error.code`: `INSUFFICIENT_CREDITS`, `KEY_BUDGET_EXHAUSTED`
              */
@@ -21853,7 +24902,7 @@ export interface operations {
             /**
              * @description Valid credential, access denied — the message names the blocking layer.
              *
-             *     `error.code`: `SCOPE_DENIED`, `MODEL_RETIRED`, `ACCOUNT_INACTIVE`, `CREDENTIAL_NOT_PERMITTED`, `MODEL_NOT_AVAILABLE`, `KEY_NOT_OWNED`, `KEY_LIMIT_REACHED`, `TIER_FEATURE_UNAVAILABLE`, `BANK_TRANSFER_NOT_AVAILABLE`
+             *     `error.code`: `SCOPE_DENIED`, `MODEL_RETIRED`, `ACCOUNT_INACTIVE`, `CREDENTIAL_NOT_PERMITTED`, `MODEL_NOT_AVAILABLE`, `KEY_NOT_OWNED`, `KEY_LIMIT_REACHED`, `TIER_FEATURE_UNAVAILABLE`, `BANK_TRANSFER_NOT_AVAILABLE`, `ROUTING_MODEL_RESTRICTED`
              */
             403: {
                 headers: {
@@ -22035,7 +25084,7 @@ export interface operations {
                 };
             };
             /**
-             * @description Out of credits, or a sub-key's `key_budget` is exhausted.
+             * @description Out of credits, or a sub-key's `key_budget` is exhausted (or a priced request would cross it).
              *
              *     `error.code`: `INSUFFICIENT_CREDITS`, `KEY_BUDGET_EXHAUSTED`
              */
@@ -22051,7 +25100,205 @@ export interface operations {
             /**
              * @description Valid credential, access denied — the message names the blocking layer.
              *
-             *     `error.code`: `SCOPE_DENIED`, `MODEL_RETIRED`, `ACCOUNT_INACTIVE`, `CREDENTIAL_NOT_PERMITTED`, `MODEL_NOT_AVAILABLE`, `KEY_NOT_OWNED`, `KEY_LIMIT_REACHED`, `TIER_FEATURE_UNAVAILABLE`, `BANK_TRANSFER_NOT_AVAILABLE`
+             *     `error.code`: `SCOPE_DENIED`, `MODEL_RETIRED`, `ACCOUNT_INACTIVE`, `CREDENTIAL_NOT_PERMITTED`, `MODEL_NOT_AVAILABLE`, `KEY_NOT_OWNED`, `KEY_LIMIT_REACHED`, `TIER_FEATURE_UNAVAILABLE`, `BANK_TRANSFER_NOT_AVAILABLE`, `ROUTING_MODEL_RESTRICTED`
+             */
+            403: {
+                headers: {
+                    "X-Request-ID": components["headers"]["X-Request-ID"];
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["RelayErrorResponse"];
+                };
+            };
+            /**
+             * @description A request with the same `Idempotency-Key` is still being accepted — retry after `Retry-After` seconds.
+             *
+             *     `error.code`: `IDEMPOTENCY_IN_PROGRESS`
+             */
+            409: {
+                headers: {
+                    "Retry-After": components["headers"]["Retry-After"];
+                    "X-Request-ID": components["headers"]["X-Request-ID"];
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["RelayErrorResponse"];
+                };
+            };
+            /**
+             * @description The prompt or its inputs were refused, upstream rejected them as unprocessable, or the request body failed our own validation (`detail` then lists the fields). `error.detail.upstream_code` carries the provider's own verdict where it sent one.
+             *
+             *     `error.code`: `CONTENT_POLICY_DECLINED`, `UPSTREAM_INVALID_REQUEST`, `VALIDATION_ERROR`, `IDEMPOTENCY_KEY_REUSED`
+             */
+            422: {
+                headers: {
+                    "X-Request-ID": components["headers"]["X-Request-ID"];
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["RelayErrorResponse"];
+                };
+            };
+            /**
+             * @description Rate limit — `Retry-After` header set.
+             *
+             *     `error.code`: `RATE_LIMITED`, `WORKFLOW_RUN_LIMIT_REACHED`, `INSTANCE_LIMIT`, `FILE_QUOTA_EXCEEDED`
+             */
+            429: {
+                headers: {
+                    "Retry-After": components["headers"]["Retry-After"];
+                    "X-Request-ID": components["headers"]["X-Request-ID"];
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["RelayErrorResponse"];
+                };
+            };
+            /**
+             * @description The failure could not be attributed to the provider or the request.
+             *
+             *     `error.code`: `INTERNAL_ERROR`
+             */
+            500: {
+                headers: {
+                    "X-Request-ID": components["headers"]["X-Request-ID"];
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["RelayErrorResponse"];
+                };
+            };
+            /**
+             * @description A provider accepted the request and failed while serving it (`UPSTREAM_ERROR`), no provider could take it (`PROVIDER_UNAVAILABLE`), or its response did not match the model's schema.
+             *
+             *     `error.code`: `UPSTREAM_ERROR`, `PROVIDER_UNAVAILABLE`, `PROVIDER_SCHEMA_MISMATCH`
+             */
+            502: {
+                headers: {
+                    "X-Request-ID": components["headers"]["X-Request-ID"];
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["RelayErrorResponse"];
+                };
+            };
+            /**
+             * @description Model temporarily at capacity. `Retry-After` is set.
+             *
+             *     `error.code`: `CAPACITY_EXHAUSTED`
+             */
+            503: {
+                headers: {
+                    "Retry-After": components["headers"]["Retry-After"];
+                    "X-Request-ID": components["headers"]["X-Request-ID"];
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["RelayErrorResponse"];
+                };
+            };
+            /**
+             * @description The request did not complete within the route's inline budget. Use `async: true` for long generations.
+             *
+             *     `error.code`: `UPSTREAM_TIMEOUT`
+             */
+            504: {
+                headers: {
+                    "X-Request-ID": components["headers"]["X-Request-ID"];
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["RelayErrorResponse"];
+                };
+            };
+        };
+    };
+    video_kling_3_omni: {
+        parameters: {
+            query?: never;
+            header?: {
+                authorization?: string | null;
+                /** @description Makes an async submit safe to retry: the same key with the same body inside 24 h answers the original `202` (header `Idempotency-Replayed: true`) and creates, enqueues and bills nothing. Keys are per customer. Honoured when the request runs async; a sync or streaming call is processed as usual. */
+                "Idempotency-Key"?: components["parameters"]["IdempotencyKey"];
+                "x-api-key"?: string | null;
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["KlingV3OmniRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    "X-Request-ID": components["headers"]["X-Request-ID"];
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["KlingV3OmniResponse"];
+                };
+            };
+            /** @description Task accepted (async mode). */
+            202: {
+                headers: {
+                    "Idempotency-Replayed": components["headers"]["Idempotency-Replayed"];
+                    "X-Request-ID": components["headers"]["X-Request-ID"];
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AsyncTaskAccepted"];
+                };
+            };
+            /**
+             * @description Upstream rejected the request parameters. `detail` carries the provider's own message.
+             *
+             *     `error.code`: `UPSTREAM_INVALID_REQUEST`
+             */
+            400: {
+                headers: {
+                    "X-Request-ID": components["headers"]["X-Request-ID"];
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["RelayErrorResponse"];
+                };
+            };
+            /**
+             * @description Credential missing, invalid or revoked.
+             *
+             *     `error.code`: `INVALID_API_KEY`, `KEY_REVOKED`, `MISSING_CREDENTIALS`, `INVALID_TOKEN`
+             */
+            401: {
+                headers: {
+                    "X-Request-ID": components["headers"]["X-Request-ID"];
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["RelayErrorResponse"];
+                };
+            };
+            /**
+             * @description Out of credits, or a sub-key's `key_budget` is exhausted (or a priced request would cross it).
+             *
+             *     `error.code`: `INSUFFICIENT_CREDITS`, `KEY_BUDGET_EXHAUSTED`
+             */
+            402: {
+                headers: {
+                    "X-Request-ID": components["headers"]["X-Request-ID"];
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["RelayErrorResponse"];
+                };
+            };
+            /**
+             * @description Valid credential, access denied — the message names the blocking layer.
+             *
+             *     `error.code`: `SCOPE_DENIED`, `MODEL_RETIRED`, `ACCOUNT_INACTIVE`, `CREDENTIAL_NOT_PERMITTED`, `MODEL_NOT_AVAILABLE`, `KEY_NOT_OWNED`, `KEY_LIMIT_REACHED`, `TIER_FEATURE_UNAVAILABLE`, `BANK_TRANSFER_NOT_AVAILABLE`, `ROUTING_MODEL_RESTRICTED`
              */
             403: {
                 headers: {
@@ -22233,7 +25480,7 @@ export interface operations {
                 };
             };
             /**
-             * @description Out of credits, or a sub-key's `key_budget` is exhausted.
+             * @description Out of credits, or a sub-key's `key_budget` is exhausted (or a priced request would cross it).
              *
              *     `error.code`: `INSUFFICIENT_CREDITS`, `KEY_BUDGET_EXHAUSTED`
              */
@@ -22249,7 +25496,7 @@ export interface operations {
             /**
              * @description Valid credential, access denied — the message names the blocking layer.
              *
-             *     `error.code`: `SCOPE_DENIED`, `MODEL_RETIRED`, `ACCOUNT_INACTIVE`, `CREDENTIAL_NOT_PERMITTED`, `MODEL_NOT_AVAILABLE`, `KEY_NOT_OWNED`, `KEY_LIMIT_REACHED`, `TIER_FEATURE_UNAVAILABLE`, `BANK_TRANSFER_NOT_AVAILABLE`
+             *     `error.code`: `SCOPE_DENIED`, `MODEL_RETIRED`, `ACCOUNT_INACTIVE`, `CREDENTIAL_NOT_PERMITTED`, `MODEL_NOT_AVAILABLE`, `KEY_NOT_OWNED`, `KEY_LIMIT_REACHED`, `TIER_FEATURE_UNAVAILABLE`, `BANK_TRANSFER_NOT_AVAILABLE`, `ROUTING_MODEL_RESTRICTED`
              */
             403: {
                 headers: {
@@ -22432,7 +25679,7 @@ export interface operations {
                 };
             };
             /**
-             * @description Out of credits, or a sub-key's `key_budget` is exhausted.
+             * @description Out of credits, or a sub-key's `key_budget` is exhausted (or a priced request would cross it).
              *
              *     `error.code`: `INSUFFICIENT_CREDITS`, `KEY_BUDGET_EXHAUSTED`
              */
@@ -22448,7 +25695,7 @@ export interface operations {
             /**
              * @description Valid credential, access denied — the message names the blocking layer.
              *
-             *     `error.code`: `SCOPE_DENIED`, `MODEL_RETIRED`, `ACCOUNT_INACTIVE`, `CREDENTIAL_NOT_PERMITTED`, `MODEL_NOT_AVAILABLE`, `KEY_NOT_OWNED`, `KEY_LIMIT_REACHED`, `TIER_FEATURE_UNAVAILABLE`, `BANK_TRANSFER_NOT_AVAILABLE`
+             *     `error.code`: `SCOPE_DENIED`, `MODEL_RETIRED`, `ACCOUNT_INACTIVE`, `CREDENTIAL_NOT_PERMITTED`, `MODEL_NOT_AVAILABLE`, `KEY_NOT_OWNED`, `KEY_LIMIT_REACHED`, `TIER_FEATURE_UNAVAILABLE`, `BANK_TRANSFER_NOT_AVAILABLE`, `ROUTING_MODEL_RESTRICTED`
              */
             403: {
                 headers: {
@@ -22631,7 +25878,7 @@ export interface operations {
                 };
             };
             /**
-             * @description Out of credits, or a sub-key's `key_budget` is exhausted.
+             * @description Out of credits, or a sub-key's `key_budget` is exhausted (or a priced request would cross it).
              *
              *     `error.code`: `INSUFFICIENT_CREDITS`, `KEY_BUDGET_EXHAUSTED`
              */
@@ -22647,7 +25894,7 @@ export interface operations {
             /**
              * @description Valid credential, access denied — the message names the blocking layer.
              *
-             *     `error.code`: `SCOPE_DENIED`, `MODEL_RETIRED`, `ACCOUNT_INACTIVE`, `CREDENTIAL_NOT_PERMITTED`, `MODEL_NOT_AVAILABLE`, `KEY_NOT_OWNED`, `KEY_LIMIT_REACHED`, `TIER_FEATURE_UNAVAILABLE`, `BANK_TRANSFER_NOT_AVAILABLE`
+             *     `error.code`: `SCOPE_DENIED`, `MODEL_RETIRED`, `ACCOUNT_INACTIVE`, `CREDENTIAL_NOT_PERMITTED`, `MODEL_NOT_AVAILABLE`, `KEY_NOT_OWNED`, `KEY_LIMIT_REACHED`, `TIER_FEATURE_UNAVAILABLE`, `BANK_TRANSFER_NOT_AVAILABLE`, `ROUTING_MODEL_RESTRICTED`
              */
             403: {
                 headers: {
@@ -22829,7 +26076,7 @@ export interface operations {
                 };
             };
             /**
-             * @description Out of credits, or a sub-key's `key_budget` is exhausted.
+             * @description Out of credits, or a sub-key's `key_budget` is exhausted (or a priced request would cross it).
              *
              *     `error.code`: `INSUFFICIENT_CREDITS`, `KEY_BUDGET_EXHAUSTED`
              */
@@ -22845,7 +26092,7 @@ export interface operations {
             /**
              * @description Valid credential, access denied — the message names the blocking layer.
              *
-             *     `error.code`: `SCOPE_DENIED`, `MODEL_RETIRED`, `ACCOUNT_INACTIVE`, `CREDENTIAL_NOT_PERMITTED`, `MODEL_NOT_AVAILABLE`, `KEY_NOT_OWNED`, `KEY_LIMIT_REACHED`, `TIER_FEATURE_UNAVAILABLE`, `BANK_TRANSFER_NOT_AVAILABLE`
+             *     `error.code`: `SCOPE_DENIED`, `MODEL_RETIRED`, `ACCOUNT_INACTIVE`, `CREDENTIAL_NOT_PERMITTED`, `MODEL_NOT_AVAILABLE`, `KEY_NOT_OWNED`, `KEY_LIMIT_REACHED`, `TIER_FEATURE_UNAVAILABLE`, `BANK_TRANSFER_NOT_AVAILABLE`, `ROUTING_MODEL_RESTRICTED`
              */
             403: {
                 headers: {
@@ -23027,7 +26274,7 @@ export interface operations {
                 };
             };
             /**
-             * @description Out of credits, or a sub-key's `key_budget` is exhausted.
+             * @description Out of credits, or a sub-key's `key_budget` is exhausted (or a priced request would cross it).
              *
              *     `error.code`: `INSUFFICIENT_CREDITS`, `KEY_BUDGET_EXHAUSTED`
              */
@@ -23043,7 +26290,7 @@ export interface operations {
             /**
              * @description Valid credential, access denied — the message names the blocking layer.
              *
-             *     `error.code`: `SCOPE_DENIED`, `MODEL_RETIRED`, `ACCOUNT_INACTIVE`, `CREDENTIAL_NOT_PERMITTED`, `MODEL_NOT_AVAILABLE`, `KEY_NOT_OWNED`, `KEY_LIMIT_REACHED`, `TIER_FEATURE_UNAVAILABLE`, `BANK_TRANSFER_NOT_AVAILABLE`
+             *     `error.code`: `SCOPE_DENIED`, `MODEL_RETIRED`, `ACCOUNT_INACTIVE`, `CREDENTIAL_NOT_PERMITTED`, `MODEL_NOT_AVAILABLE`, `KEY_NOT_OWNED`, `KEY_LIMIT_REACHED`, `TIER_FEATURE_UNAVAILABLE`, `BANK_TRANSFER_NOT_AVAILABLE`, `ROUTING_MODEL_RESTRICTED`
              */
             403: {
                 headers: {
@@ -23226,7 +26473,7 @@ export interface operations {
                 };
             };
             /**
-             * @description Out of credits, or a sub-key's `key_budget` is exhausted.
+             * @description Out of credits, or a sub-key's `key_budget` is exhausted (or a priced request would cross it).
              *
              *     `error.code`: `INSUFFICIENT_CREDITS`, `KEY_BUDGET_EXHAUSTED`
              */
@@ -23242,7 +26489,205 @@ export interface operations {
             /**
              * @description Valid credential, access denied — the message names the blocking layer.
              *
-             *     `error.code`: `SCOPE_DENIED`, `MODEL_RETIRED`, `ACCOUNT_INACTIVE`, `CREDENTIAL_NOT_PERMITTED`, `MODEL_NOT_AVAILABLE`, `KEY_NOT_OWNED`, `KEY_LIMIT_REACHED`, `TIER_FEATURE_UNAVAILABLE`, `BANK_TRANSFER_NOT_AVAILABLE`
+             *     `error.code`: `SCOPE_DENIED`, `MODEL_RETIRED`, `ACCOUNT_INACTIVE`, `CREDENTIAL_NOT_PERMITTED`, `MODEL_NOT_AVAILABLE`, `KEY_NOT_OWNED`, `KEY_LIMIT_REACHED`, `TIER_FEATURE_UNAVAILABLE`, `BANK_TRANSFER_NOT_AVAILABLE`, `ROUTING_MODEL_RESTRICTED`
+             */
+            403: {
+                headers: {
+                    "X-Request-ID": components["headers"]["X-Request-ID"];
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["RelayErrorResponse"];
+                };
+            };
+            /**
+             * @description A request with the same `Idempotency-Key` is still being accepted — retry after `Retry-After` seconds.
+             *
+             *     `error.code`: `IDEMPOTENCY_IN_PROGRESS`
+             */
+            409: {
+                headers: {
+                    "Retry-After": components["headers"]["Retry-After"];
+                    "X-Request-ID": components["headers"]["X-Request-ID"];
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["RelayErrorResponse"];
+                };
+            };
+            /**
+             * @description The prompt or its inputs were refused, upstream rejected them as unprocessable, or the request body failed our own validation (`detail` then lists the fields). `error.detail.upstream_code` carries the provider's own verdict where it sent one.
+             *
+             *     `error.code`: `CONTENT_POLICY_DECLINED`, `UPSTREAM_INVALID_REQUEST`, `VALIDATION_ERROR`, `IDEMPOTENCY_KEY_REUSED`
+             */
+            422: {
+                headers: {
+                    "X-Request-ID": components["headers"]["X-Request-ID"];
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["RelayErrorResponse"];
+                };
+            };
+            /**
+             * @description Rate limit — `Retry-After` header set.
+             *
+             *     `error.code`: `RATE_LIMITED`, `WORKFLOW_RUN_LIMIT_REACHED`, `INSTANCE_LIMIT`, `FILE_QUOTA_EXCEEDED`
+             */
+            429: {
+                headers: {
+                    "Retry-After": components["headers"]["Retry-After"];
+                    "X-Request-ID": components["headers"]["X-Request-ID"];
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["RelayErrorResponse"];
+                };
+            };
+            /**
+             * @description The failure could not be attributed to the provider or the request.
+             *
+             *     `error.code`: `INTERNAL_ERROR`
+             */
+            500: {
+                headers: {
+                    "X-Request-ID": components["headers"]["X-Request-ID"];
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["RelayErrorResponse"];
+                };
+            };
+            /**
+             * @description A provider accepted the request and failed while serving it (`UPSTREAM_ERROR`), no provider could take it (`PROVIDER_UNAVAILABLE`), or its response did not match the model's schema.
+             *
+             *     `error.code`: `UPSTREAM_ERROR`, `PROVIDER_UNAVAILABLE`, `PROVIDER_SCHEMA_MISMATCH`
+             */
+            502: {
+                headers: {
+                    "X-Request-ID": components["headers"]["X-Request-ID"];
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["RelayErrorResponse"];
+                };
+            };
+            /**
+             * @description Model temporarily at capacity. `Retry-After` is set.
+             *
+             *     `error.code`: `CAPACITY_EXHAUSTED`
+             */
+            503: {
+                headers: {
+                    "Retry-After": components["headers"]["Retry-After"];
+                    "X-Request-ID": components["headers"]["X-Request-ID"];
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["RelayErrorResponse"];
+                };
+            };
+            /**
+             * @description The request did not complete within the route's inline budget. Use `async: true` for long generations.
+             *
+             *     `error.code`: `UPSTREAM_TIMEOUT`
+             */
+            504: {
+                headers: {
+                    "X-Request-ID": components["headers"]["X-Request-ID"];
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["RelayErrorResponse"];
+                };
+            };
+        };
+    };
+    video_minimax_h3_generate: {
+        parameters: {
+            query?: never;
+            header?: {
+                authorization?: string | null;
+                /** @description Makes an async submit safe to retry: the same key with the same body inside 24 h answers the original `202` (header `Idempotency-Replayed: true`) and creates, enqueues and bills nothing. Keys are per customer. Honoured when the request runs async; a sync or streaming call is processed as usual. */
+                "Idempotency-Key"?: components["parameters"]["IdempotencyKey"];
+                "x-api-key"?: string | null;
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["MiniMaxH3Request"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    "X-Request-ID": components["headers"]["X-Request-ID"];
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["MiniMaxH3Response"];
+                };
+            };
+            /** @description Task accepted (async mode). */
+            202: {
+                headers: {
+                    "Idempotency-Replayed": components["headers"]["Idempotency-Replayed"];
+                    "X-Request-ID": components["headers"]["X-Request-ID"];
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AsyncTaskAccepted"];
+                };
+            };
+            /**
+             * @description Upstream rejected the request parameters. `detail` carries the provider's own message.
+             *
+             *     `error.code`: `UPSTREAM_INVALID_REQUEST`
+             */
+            400: {
+                headers: {
+                    "X-Request-ID": components["headers"]["X-Request-ID"];
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["RelayErrorResponse"];
+                };
+            };
+            /**
+             * @description Credential missing, invalid or revoked.
+             *
+             *     `error.code`: `INVALID_API_KEY`, `KEY_REVOKED`, `MISSING_CREDENTIALS`, `INVALID_TOKEN`
+             */
+            401: {
+                headers: {
+                    "X-Request-ID": components["headers"]["X-Request-ID"];
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["RelayErrorResponse"];
+                };
+            };
+            /**
+             * @description Out of credits, or a sub-key's `key_budget` is exhausted (or a priced request would cross it).
+             *
+             *     `error.code`: `INSUFFICIENT_CREDITS`, `KEY_BUDGET_EXHAUSTED`
+             */
+            402: {
+                headers: {
+                    "X-Request-ID": components["headers"]["X-Request-ID"];
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["RelayErrorResponse"];
+                };
+            };
+            /**
+             * @description Valid credential, access denied — the message names the blocking layer.
+             *
+             *     `error.code`: `SCOPE_DENIED`, `MODEL_RETIRED`, `ACCOUNT_INACTIVE`, `CREDENTIAL_NOT_PERMITTED`, `MODEL_NOT_AVAILABLE`, `KEY_NOT_OWNED`, `KEY_LIMIT_REACHED`, `TIER_FEATURE_UNAVAILABLE`, `BANK_TRANSFER_NOT_AVAILABLE`, `ROUTING_MODEL_RESTRICTED`
              */
             403: {
                 headers: {
@@ -23425,7 +26870,7 @@ export interface operations {
                 };
             };
             /**
-             * @description Out of credits, or a sub-key's `key_budget` is exhausted.
+             * @description Out of credits, or a sub-key's `key_budget` is exhausted (or a priced request would cross it).
              *
              *     `error.code`: `INSUFFICIENT_CREDITS`, `KEY_BUDGET_EXHAUSTED`
              */
@@ -23441,7 +26886,7 @@ export interface operations {
             /**
              * @description Valid credential, access denied — the message names the blocking layer.
              *
-             *     `error.code`: `SCOPE_DENIED`, `MODEL_RETIRED`, `ACCOUNT_INACTIVE`, `CREDENTIAL_NOT_PERMITTED`, `MODEL_NOT_AVAILABLE`, `KEY_NOT_OWNED`, `KEY_LIMIT_REACHED`, `TIER_FEATURE_UNAVAILABLE`, `BANK_TRANSFER_NOT_AVAILABLE`
+             *     `error.code`: `SCOPE_DENIED`, `MODEL_RETIRED`, `ACCOUNT_INACTIVE`, `CREDENTIAL_NOT_PERMITTED`, `MODEL_NOT_AVAILABLE`, `KEY_NOT_OWNED`, `KEY_LIMIT_REACHED`, `TIER_FEATURE_UNAVAILABLE`, `BANK_TRANSFER_NOT_AVAILABLE`, `ROUTING_MODEL_RESTRICTED`
              */
             403: {
                 headers: {
@@ -23624,7 +27069,7 @@ export interface operations {
                 };
             };
             /**
-             * @description Out of credits, or a sub-key's `key_budget` is exhausted.
+             * @description Out of credits, or a sub-key's `key_budget` is exhausted (or a priced request would cross it).
              *
              *     `error.code`: `INSUFFICIENT_CREDITS`, `KEY_BUDGET_EXHAUSTED`
              */
@@ -23640,7 +27085,7 @@ export interface operations {
             /**
              * @description Valid credential, access denied — the message names the blocking layer.
              *
-             *     `error.code`: `SCOPE_DENIED`, `MODEL_RETIRED`, `ACCOUNT_INACTIVE`, `CREDENTIAL_NOT_PERMITTED`, `MODEL_NOT_AVAILABLE`, `KEY_NOT_OWNED`, `KEY_LIMIT_REACHED`, `TIER_FEATURE_UNAVAILABLE`, `BANK_TRANSFER_NOT_AVAILABLE`
+             *     `error.code`: `SCOPE_DENIED`, `MODEL_RETIRED`, `ACCOUNT_INACTIVE`, `CREDENTIAL_NOT_PERMITTED`, `MODEL_NOT_AVAILABLE`, `KEY_NOT_OWNED`, `KEY_LIMIT_REACHED`, `TIER_FEATURE_UNAVAILABLE`, `BANK_TRANSFER_NOT_AVAILABLE`, `ROUTING_MODEL_RESTRICTED`
              */
             403: {
                 headers: {
@@ -23823,7 +27268,7 @@ export interface operations {
                 };
             };
             /**
-             * @description Out of credits, or a sub-key's `key_budget` is exhausted.
+             * @description Out of credits, or a sub-key's `key_budget` is exhausted (or a priced request would cross it).
              *
              *     `error.code`: `INSUFFICIENT_CREDITS`, `KEY_BUDGET_EXHAUSTED`
              */
@@ -23839,7 +27284,7 @@ export interface operations {
             /**
              * @description Valid credential, access denied — the message names the blocking layer.
              *
-             *     `error.code`: `SCOPE_DENIED`, `MODEL_RETIRED`, `ACCOUNT_INACTIVE`, `CREDENTIAL_NOT_PERMITTED`, `MODEL_NOT_AVAILABLE`, `KEY_NOT_OWNED`, `KEY_LIMIT_REACHED`, `TIER_FEATURE_UNAVAILABLE`, `BANK_TRANSFER_NOT_AVAILABLE`
+             *     `error.code`: `SCOPE_DENIED`, `MODEL_RETIRED`, `ACCOUNT_INACTIVE`, `CREDENTIAL_NOT_PERMITTED`, `MODEL_NOT_AVAILABLE`, `KEY_NOT_OWNED`, `KEY_LIMIT_REACHED`, `TIER_FEATURE_UNAVAILABLE`, `BANK_TRANSFER_NOT_AVAILABLE`, `ROUTING_MODEL_RESTRICTED`
              */
             403: {
                 headers: {
@@ -24022,7 +27467,7 @@ export interface operations {
                 };
             };
             /**
-             * @description Out of credits, or a sub-key's `key_budget` is exhausted.
+             * @description Out of credits, or a sub-key's `key_budget` is exhausted (or a priced request would cross it).
              *
              *     `error.code`: `INSUFFICIENT_CREDITS`, `KEY_BUDGET_EXHAUSTED`
              */
@@ -24038,7 +27483,7 @@ export interface operations {
             /**
              * @description Valid credential, access denied — the message names the blocking layer.
              *
-             *     `error.code`: `SCOPE_DENIED`, `MODEL_RETIRED`, `ACCOUNT_INACTIVE`, `CREDENTIAL_NOT_PERMITTED`, `MODEL_NOT_AVAILABLE`, `KEY_NOT_OWNED`, `KEY_LIMIT_REACHED`, `TIER_FEATURE_UNAVAILABLE`, `BANK_TRANSFER_NOT_AVAILABLE`
+             *     `error.code`: `SCOPE_DENIED`, `MODEL_RETIRED`, `ACCOUNT_INACTIVE`, `CREDENTIAL_NOT_PERMITTED`, `MODEL_NOT_AVAILABLE`, `KEY_NOT_OWNED`, `KEY_LIMIT_REACHED`, `TIER_FEATURE_UNAVAILABLE`, `BANK_TRANSFER_NOT_AVAILABLE`, `ROUTING_MODEL_RESTRICTED`
              */
             403: {
                 headers: {
@@ -24220,7 +27665,7 @@ export interface operations {
                 };
             };
             /**
-             * @description Out of credits, or a sub-key's `key_budget` is exhausted.
+             * @description Out of credits, or a sub-key's `key_budget` is exhausted (or a priced request would cross it).
              *
              *     `error.code`: `INSUFFICIENT_CREDITS`, `KEY_BUDGET_EXHAUSTED`
              */
@@ -24236,7 +27681,7 @@ export interface operations {
             /**
              * @description Valid credential, access denied — the message names the blocking layer.
              *
-             *     `error.code`: `SCOPE_DENIED`, `MODEL_RETIRED`, `ACCOUNT_INACTIVE`, `CREDENTIAL_NOT_PERMITTED`, `MODEL_NOT_AVAILABLE`, `KEY_NOT_OWNED`, `KEY_LIMIT_REACHED`, `TIER_FEATURE_UNAVAILABLE`, `BANK_TRANSFER_NOT_AVAILABLE`
+             *     `error.code`: `SCOPE_DENIED`, `MODEL_RETIRED`, `ACCOUNT_INACTIVE`, `CREDENTIAL_NOT_PERMITTED`, `MODEL_NOT_AVAILABLE`, `KEY_NOT_OWNED`, `KEY_LIMIT_REACHED`, `TIER_FEATURE_UNAVAILABLE`, `BANK_TRANSFER_NOT_AVAILABLE`, `ROUTING_MODEL_RESTRICTED`
              */
             403: {
                 headers: {
@@ -24418,7 +27863,7 @@ export interface operations {
                 };
             };
             /**
-             * @description Out of credits, or a sub-key's `key_budget` is exhausted.
+             * @description Out of credits, or a sub-key's `key_budget` is exhausted (or a priced request would cross it).
              *
              *     `error.code`: `INSUFFICIENT_CREDITS`, `KEY_BUDGET_EXHAUSTED`
              */
@@ -24434,7 +27879,7 @@ export interface operations {
             /**
              * @description Valid credential, access denied — the message names the blocking layer.
              *
-             *     `error.code`: `SCOPE_DENIED`, `MODEL_RETIRED`, `ACCOUNT_INACTIVE`, `CREDENTIAL_NOT_PERMITTED`, `MODEL_NOT_AVAILABLE`, `KEY_NOT_OWNED`, `KEY_LIMIT_REACHED`, `TIER_FEATURE_UNAVAILABLE`, `BANK_TRANSFER_NOT_AVAILABLE`
+             *     `error.code`: `SCOPE_DENIED`, `MODEL_RETIRED`, `ACCOUNT_INACTIVE`, `CREDENTIAL_NOT_PERMITTED`, `MODEL_NOT_AVAILABLE`, `KEY_NOT_OWNED`, `KEY_LIMIT_REACHED`, `TIER_FEATURE_UNAVAILABLE`, `BANK_TRANSFER_NOT_AVAILABLE`, `ROUTING_MODEL_RESTRICTED`
              */
             403: {
                 headers: {
@@ -24616,7 +28061,7 @@ export interface operations {
                 };
             };
             /**
-             * @description Out of credits, or a sub-key's `key_budget` is exhausted.
+             * @description Out of credits, or a sub-key's `key_budget` is exhausted (or a priced request would cross it).
              *
              *     `error.code`: `INSUFFICIENT_CREDITS`, `KEY_BUDGET_EXHAUSTED`
              */
@@ -24632,7 +28077,7 @@ export interface operations {
             /**
              * @description Valid credential, access denied — the message names the blocking layer.
              *
-             *     `error.code`: `SCOPE_DENIED`, `MODEL_RETIRED`, `ACCOUNT_INACTIVE`, `CREDENTIAL_NOT_PERMITTED`, `MODEL_NOT_AVAILABLE`, `KEY_NOT_OWNED`, `KEY_LIMIT_REACHED`, `TIER_FEATURE_UNAVAILABLE`, `BANK_TRANSFER_NOT_AVAILABLE`
+             *     `error.code`: `SCOPE_DENIED`, `MODEL_RETIRED`, `ACCOUNT_INACTIVE`, `CREDENTIAL_NOT_PERMITTED`, `MODEL_NOT_AVAILABLE`, `KEY_NOT_OWNED`, `KEY_LIMIT_REACHED`, `TIER_FEATURE_UNAVAILABLE`, `BANK_TRANSFER_NOT_AVAILABLE`, `ROUTING_MODEL_RESTRICTED`
              */
             403: {
                 headers: {
@@ -24815,7 +28260,7 @@ export interface operations {
                 };
             };
             /**
-             * @description Out of credits, or a sub-key's `key_budget` is exhausted.
+             * @description Out of credits, or a sub-key's `key_budget` is exhausted (or a priced request would cross it).
              *
              *     `error.code`: `INSUFFICIENT_CREDITS`, `KEY_BUDGET_EXHAUSTED`
              */
@@ -24831,7 +28276,7 @@ export interface operations {
             /**
              * @description Valid credential, access denied — the message names the blocking layer.
              *
-             *     `error.code`: `SCOPE_DENIED`, `MODEL_RETIRED`, `ACCOUNT_INACTIVE`, `CREDENTIAL_NOT_PERMITTED`, `MODEL_NOT_AVAILABLE`, `KEY_NOT_OWNED`, `KEY_LIMIT_REACHED`, `TIER_FEATURE_UNAVAILABLE`, `BANK_TRANSFER_NOT_AVAILABLE`
+             *     `error.code`: `SCOPE_DENIED`, `MODEL_RETIRED`, `ACCOUNT_INACTIVE`, `CREDENTIAL_NOT_PERMITTED`, `MODEL_NOT_AVAILABLE`, `KEY_NOT_OWNED`, `KEY_LIMIT_REACHED`, `TIER_FEATURE_UNAVAILABLE`, `BANK_TRANSFER_NOT_AVAILABLE`, `ROUTING_MODEL_RESTRICTED`
              */
             403: {
                 headers: {
@@ -25013,7 +28458,7 @@ export interface operations {
                 };
             };
             /**
-             * @description Out of credits, or a sub-key's `key_budget` is exhausted.
+             * @description Out of credits, or a sub-key's `key_budget` is exhausted (or a priced request would cross it).
              *
              *     `error.code`: `INSUFFICIENT_CREDITS`, `KEY_BUDGET_EXHAUSTED`
              */
@@ -25029,7 +28474,7 @@ export interface operations {
             /**
              * @description Valid credential, access denied — the message names the blocking layer.
              *
-             *     `error.code`: `SCOPE_DENIED`, `MODEL_RETIRED`, `ACCOUNT_INACTIVE`, `CREDENTIAL_NOT_PERMITTED`, `MODEL_NOT_AVAILABLE`, `KEY_NOT_OWNED`, `KEY_LIMIT_REACHED`, `TIER_FEATURE_UNAVAILABLE`, `BANK_TRANSFER_NOT_AVAILABLE`
+             *     `error.code`: `SCOPE_DENIED`, `MODEL_RETIRED`, `ACCOUNT_INACTIVE`, `CREDENTIAL_NOT_PERMITTED`, `MODEL_NOT_AVAILABLE`, `KEY_NOT_OWNED`, `KEY_LIMIT_REACHED`, `TIER_FEATURE_UNAVAILABLE`, `BANK_TRANSFER_NOT_AVAILABLE`, `ROUTING_MODEL_RESTRICTED`
              */
             403: {
                 headers: {
@@ -25287,7 +28732,7 @@ export interface operations {
                     "application/json": components["schemas"]["RelayErrorResponse"];
                 };
             };
-            /** @description Your tier cannot run this workflow, or a step's model is outside your key's scope. The message names the step. */
+            /** @description Your tier cannot run this workflow, a step's model is outside your key's scope, or a step's model is no longer offered (`MODEL_NOT_AVAILABLE`). The message names the step. */
             403: {
                 headers: {
                     "X-Request-ID": components["headers"]["X-Request-ID"];

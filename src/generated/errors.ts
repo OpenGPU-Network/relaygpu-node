@@ -76,6 +76,12 @@ export class ModelNotAvailableError extends PermissionDeniedError {}
 export class ModelNotFoundError extends NotFoundError {}
 /** `MODEL_RETIRED` (HTTP 403). */
 export class ModelRetiredError extends PermissionDeniedError {}
+/** `OAUTH_GRANT_NOT_FOUND` (HTTP 404). */
+export class OauthGrantNotFoundError extends NotFoundError {}
+/** `OAUTH_TXN_DECIDED` (HTTP 409). */
+export class OauthTxnDecidedError extends ConflictError {}
+/** `OAUTH_TXN_NOT_FOUND` (HTTP 404). */
+export class OauthTxnNotFoundError extends NotFoundError {}
 /** `PAYMENT_SERVICE_UNAVAILABLE` (HTTP 503). */
 export class PaymentServiceUnavailableError extends CapacityError {}
 /** `PROMO_ALREADY_REDEEMED` (HTTP 409). */
@@ -98,8 +104,30 @@ export class ReceivableLimitExceededError extends ConflictError {}
 export class ReceivableOverdueError extends ConflictError {}
 /** `REFUND_NOT_FOUND` (HTTP 404). */
 export class RefundNotFoundError extends NotFoundError {}
+/** `ROUTING_DOC_NOT_FOUND` (HTTP 404). */
+export class RoutingDocNotFoundError extends NotFoundError {}
+/** `ROUTING_ENGINE_UNKNOWN` (HTTP 422). */
+export class RoutingEngineUnknownError extends ValidationError {}
+/** `ROUTING_LIST_TOO_LONG` (HTTP 422). */
+export class RoutingListTooLongError extends ValidationError {}
+/** `ROUTING_LIST_UNKNOWN` (HTTP 422). */
+export class RoutingListUnknownError extends ValidationError {}
+/** `ROUTING_MODEL_RESTRICTED` (HTTP 403). */
+export class RoutingModelRestrictedError extends PermissionDeniedError {}
+/** `ROUTING_MODEL_UNKNOWN` (HTTP 422). */
+export class RoutingModelUnknownError extends ValidationError {}
+/** `ROUTING_MODEL_UNSCORED` (HTTP 422). */
+export class RoutingModelUnscoredError extends ValidationError {}
+/** `ROUTING_MODEL_VETOED` (HTTP 422). */
+export class RoutingModelVetoedError extends ValidationError {}
+/** `ROUTING_NO_CANDIDATES` (HTTP 422). */
+export class RoutingNoCandidatesError extends ValidationError {}
+/** `ROUTING_ON_FIXED_MODEL` (HTTP 422). */
+export class RoutingOnFixedModelError extends ValidationError {}
 /** `SCOPE_DENIED` (HTTP 403). */
 export class ScopeDeniedError extends PermissionDeniedError {}
+/** `SERVICE_UNAVAILABLE` (HTTP 503). */
+export class ServiceUnavailableError extends CapacityError {}
 /** `SUPERKEY_CONFLICT` (HTTP 409). */
 export class SuperkeyConflictError extends ConflictError {}
 /** `SYSTEM_KEY_IMMUTABLE` (HTTP 400). */
@@ -165,6 +193,9 @@ export const ERROR_CODE_CLASSES = {
   MODEL_NOT_AVAILABLE: ModelNotAvailableError,
   MODEL_NOT_FOUND: ModelNotFoundError,
   MODEL_RETIRED: ModelRetiredError,
+  OAUTH_GRANT_NOT_FOUND: OauthGrantNotFoundError,
+  OAUTH_TXN_DECIDED: OauthTxnDecidedError,
+  OAUTH_TXN_NOT_FOUND: OauthTxnNotFoundError,
   PAYMENT_SERVICE_UNAVAILABLE: PaymentServiceUnavailableError,
   PROMO_ALREADY_REDEEMED: PromoAlreadyRedeemedError,
   PROMO_CODE_EXHAUSTED: PromoCodeExhaustedError,
@@ -176,7 +207,18 @@ export const ERROR_CODE_CLASSES = {
   RECEIVABLE_LIMIT_EXCEEDED: ReceivableLimitExceededError,
   RECEIVABLE_OVERDUE: ReceivableOverdueError,
   REFUND_NOT_FOUND: RefundNotFoundError,
+  ROUTING_DOC_NOT_FOUND: RoutingDocNotFoundError,
+  ROUTING_ENGINE_UNKNOWN: RoutingEngineUnknownError,
+  ROUTING_LIST_TOO_LONG: RoutingListTooLongError,
+  ROUTING_LIST_UNKNOWN: RoutingListUnknownError,
+  ROUTING_MODEL_RESTRICTED: RoutingModelRestrictedError,
+  ROUTING_MODEL_UNKNOWN: RoutingModelUnknownError,
+  ROUTING_MODEL_UNSCORED: RoutingModelUnscoredError,
+  ROUTING_MODEL_VETOED: RoutingModelVetoedError,
+  ROUTING_NO_CANDIDATES: RoutingNoCandidatesError,
+  ROUTING_ON_FIXED_MODEL: RoutingOnFixedModelError,
   SCOPE_DENIED: ScopeDeniedError,
+  SERVICE_UNAVAILABLE: ServiceUnavailableError,
   SUPERKEY_CONFLICT: SuperkeyConflictError,
   SYSTEM_KEY_IMMUTABLE: SystemKeyImmutableError,
   TASK_NOT_FOUND: TaskNotFoundError,
