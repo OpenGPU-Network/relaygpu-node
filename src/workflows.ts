@@ -73,7 +73,7 @@ export class Workflows {
     return this.waitRun(accepted.run_id, opts);
   }
 
-  /** `GET /v2/workflows/runs/{run_id}`. Keyless: the run id is the capability token. */
+  /** `GET /v2/workflows/runs/{run_id}`. Sent without the credential: the run id is the capability token. */
   async getRun(runId: string, opts: { signal?: AbortSignal } = {}): Promise<WorkflowRunState> {
     return (await this.relay._http.request<WorkflowRunState>("GET", `/v2/workflows/runs/${pathId(runId)}`, { noAuth: true, signal: opts.signal })).data;
   }

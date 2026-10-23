@@ -11,9 +11,8 @@ export type paths = {
         get?: never;
         put?: never;
         /**
-         * Create a message (Anthropic-compatible) — currently unavailable
-         * @deprecated
-         * @description Create a message with the Anthropic Messages request and response shape (Claude models).
+         * Create a message (Anthropic-compatible)
+         * @description Create a message with the Anthropic Messages request and response shape (`anthropic/<model>`).
          *
          *     ## Authentication
          *     **Optional** — omit for guest access (lower rate limits; some models are not available to guests; prompt caching needs a key).
@@ -25,8 +24,7 @@ export type paths = {
          *
          *     If both are provided, `X-API-Key` takes priority.
          *
-         *     **Models:** Claude models, for example `anthropic/claude-opus-5-5`,
-         *     `anthropic/claude-sonnet-5`, `anthropic/claude-sonnet-4-6`.
+         *     **Models:** `anthropic/<model>`; the ones your account can call are the `anthropic` source in `GET /v2/models` (send your key).
          *
          *     ## Required Parameters
          *     | Parameter | Type | Description |
@@ -39,16 +37,16 @@ export type paths = {
          *     | Parameter | Type | Default | Description |
          *     |-----------|------|---------|-------------|
          *     | system | string/array | - | System prompt as a string or array of content blocks (separate from messages, unlike OpenAI) |
-         *     | temperature | float | - | Sampling temperature (0.0-1.0). Lower = more deterministic. Rejected with 422 on the newer Claude models named in the field description. |
-         *     | top_p | float | - | Nucleus sampling threshold (0.0-1.0). Alternative to temperature. Rejected with 422 on the newer Claude models named in the field description. |
-         *     | top_k | integer | - | Top-k sampling (>=0). Only sample from the top K most likely tokens. Rejected with 422 on the newer Claude models named in the field description. |
+         *     | temperature | float | - | Sampling temperature (0.0-1.0). Lower = more deterministic. Rejected with 422 on the newer models named in the field description. |
+         *     | top_p | float | - | Nucleus sampling threshold (0.0-1.0). Alternative to temperature. Rejected with 422 on the newer models named in the field description. |
+         *     | top_k | integer | - | Top-k sampling (>=0). Only sample from the top K most likely tokens. Rejected with 422 on the newer models named in the field description. |
          *     | stop_sequences | array | - | Custom stop sequences where generation halts |
          *     | stream | boolean | `false` | Enable SSE streaming (direct mode only). Cannot combine with `async`. |
          *     | tools | array | - | Available tools: `[{"name":"...","description":"...","input_schema":{...}}]` |
          *     | tool_choice | object | - | Tool choice: `{"type":"auto"}`, `{"type":"any"}`, or `{"type":"tool","name":"..."}` |
          *     | cache_control | object | - | Automatic prompt caching: `{"type":"ephemeral"}`, optional `"ttl":"5m"` (default) or `"1h"`. Placed on the last cacheable block. |
          *     | thinking | object | - | Extended thinking; accepted forms depend on the model (see the field) |
-         *     | mode | string | `auto` | Request-body routing field: `auto` or `direct` (Claude is direct-only) |
+         *     | mode | string | `auto` | Request-body routing field: `auto` or `direct` (this route is direct-only) |
          *     | async | boolean | `false` | Return `202` with a `task_id` at once; poll `GET /v2/tasks/{task_id}` |
          *     | webhook_url | string | - | HTTPS URL signed-notified when an async task finishes (needs an API key and `async: true`) |
          *
@@ -845,7 +843,8 @@ export type paths = {
          *     `is_override: true` where applicable. Only rate fields relevant to a model's
          *     billing type are present (nulls omitted); retired models are hidden (parity with
          *     `GET /v2/pricing`). 403 for non-custom tiers — those customers see the public
-         *     rates at `GET /v2/pricing`.
+         *     rates at `GET /v2/pricing` — except that a caller granted private models gets
+         *     those models' rows here too, on any tier.
          *
          *     Auth: JWT (dashboard) or superkey (X-API-Key).
          */
@@ -2044,7 +2043,10 @@ export type paths = {
          * @description List every model you can call, grouped by mode and source, plus the
          *     models each default tier is barred from.
          *
-         *     **No authentication** — the same response is returned to every caller.
+         *     **Authentication is optional.** Without a key the response is the public
+         *     catalogue, the same for every caller. With your key it also lists the
+         *     private models your account has been granted, exactly like any other model;
+         *     an invalid or revoked key is a 401, as on inference routes.
          *
          *     Returns models grouped by: mode -> source -> [models with tags]
          *     Plus model_restrictions_per_tier showing which models are restricted for each tier.
@@ -2131,9 +2133,8 @@ export type paths = {
          *     it. It is not available to guests. `GET /v2/models/relay%2Fconductor`
          *     returns its ladders.
          *
-         *     **Note:** `model_restrictions_per_tier` is a public reference matrix —
-         *     the same response is returned to every caller, authenticated or not.
-         *     The `guest` row describes restrictions for unauthenticated callers, NOT
+         *     **Note:** `model_restrictions_per_tier` is a reference matrix of the
+         *     default tiers, not a statement about your own account. The `guest` row describes restrictions for unauthenticated callers, NOT
          *     your own restrictions. To check your own tier, call `GET /v2/tiers` with
          *     your key and read `current_tier`.
          */
@@ -2158,7 +2159,10 @@ export type paths = {
          * @description Get one model: the modes and sources that offer it, the route that serves
          *     it, its list prices, and the default tiers barred from it.
          *
-         *     **No authentication** — the same response is returned to every caller.
+         *     **Authentication is optional.** Without a key the response is the public
+         *     view; with your key a private model your account has been granted resolves
+         *     like any other. A model your account may not see is a `404`, the same as
+         *     an unknown name. An invalid or revoked key is a 401.
          *
          *     `model` is the canonical name exactly as `GET /v2/models` lists it,
          *     slashes included: `GET /v2/models/openai/gpt-5.4`. A display name is not
@@ -2389,7 +2393,9 @@ export type paths = {
          * List model pricing
          * @description List the list price of every available model.
          *
-         *     **No authentication.** Rates are in USD (credits are USD) and are the
+         *     **Authentication is optional.** Without a key the list is the public one;
+         *     with your key it also carries the rows of the private models your account
+         *     has been granted. An invalid or revoked key is a 401. Rates are in USD (credits are USD) and are the
          *     default prices; a custom (partner) tier may have its own contract rates,
          *     which this endpoint does not show. `model` is `source.model`, e.g.
          *     `openai.openai/gpt-5.4`. Only the rate fields relevant to each model's
@@ -4622,7 +4628,7 @@ export type components = {
             mode?: ("auto" | "direct") | null;
             /**
              * Model
-             * @description Model name, case-sensitive (e.g. anthropic/claude-opus-5-5, anthropic/claude-sonnet-5-5, anthropic/claude-haiku-5-5, anthropic/claude-opus-5, anthropic/claude-fable-5-1, anthropic/claude-fable-5, anthropic/claude-opus-4-8, anthropic/claude-opus-4-6, anthropic/claude-sonnet-5, anthropic/claude-sonnet-4-6, anthropic/claude-haiku-4-5-20251001). The current list is the `anthropic` source in `GET /v2/models`.
+             * @description Model name, case-sensitive, in the form `anthropic/<model>`. The models your account can call are the `anthropic` source in `GET /v2/models` (send your key to see them).
              */
             model: string;
             /**
@@ -4657,12 +4663,12 @@ export type components = {
             }[] | null;
             /**
              * Temperature
-             * @description Sampling temperature (0.0-1.0). Not supported on Claude 4.8+ models (claude-opus-4-8, claude-opus-5, claude-opus-5-5, claude-sonnet-5, claude-sonnet-5-5, claude-haiku-5-5, claude-fable-5, claude-fable-5-1); such requests are rejected with 422.
+             * @description Sampling temperature (0.0-1.0). Not supported on the newest models (the `anthropic/<model>` generation from 4.8 on); such requests are rejected with 422.
              */
             temperature?: number | null;
             /**
              * Thinking
-             * @description Extended thinking config, passed to the model unchanged. Accepted forms depend on the model. Claude Opus 4.8 and later (claude-opus-4-8, claude-opus-5, claude-sonnet-5, claude-haiku-5-5) take `{"type": "adaptive"}` or `{"type": "disabled"}`; claude-fable-5, claude-fable-5-1 and claude-opus-5-5 always think and accept only `{"type": "adaptive"}`; claude-sonnet-5-5 takes `{"type": "adaptive"}` or `{"type": "between_tools"}` (no thinking before the reply). On all of these the thinking block arrives empty unless you add `"display": "summarized"`, which returns a readable summary; billing is the same either way. The legacy `{"type": "enabled", "budget_tokens": N}` (N >= 1024 and below `max_tokens`) works on claude-opus-4-6, claude-sonnet-4-6 and claude-haiku-4-5 only, and is rejected with 400 elsewhere. claude-opus-4-6 and claude-sonnet-4-6 also accept `adaptive` and show the summary by default.
+             * @description Extended thinking config, passed to the model unchanged. Accepted forms depend on the model: newer models take `{"type": "adaptive"}` or `{"type": "disabled"}`, some always think and accept only `{"type": "adaptive"}`, one takes `{"type": "between_tools"}` (no thinking before the reply). On these the thinking block arrives empty unless you add `"display": "summarized"`, which returns a readable summary; billing is the same either way. The legacy `{"type": "enabled", "budget_tokens": N}` (N >= 1024 and below `max_tokens`) works on older models only, and is rejected with 400 elsewhere.
              */
             thinking?: {
                 [key: string]: unknown;
@@ -4683,12 +4689,12 @@ export type components = {
             }[] | null;
             /**
              * Top K
-             * @description Top-K sampling parameter. Not supported on Claude 4.8+ models (claude-opus-4-8, claude-opus-5, claude-opus-5-5, claude-sonnet-5, claude-sonnet-5-5, claude-haiku-5-5, claude-fable-5, claude-fable-5-1); such requests are rejected with 422.
+             * @description Top-K sampling parameter. Not supported on the newest models (the `anthropic/<model>` generation from 4.8 on); such requests are rejected with 422.
              */
             top_k?: number | null;
             /**
              * Top P
-             * @description Nucleus sampling parameter. Not supported on Claude 4.8+ models (claude-opus-4-8, claude-opus-5, claude-opus-5-5, claude-sonnet-5, claude-sonnet-5-5, claude-haiku-5-5, claude-fable-5, claude-fable-5-1); such requests are rejected with 422.
+             * @description Nucleus sampling parameter. Not supported on the newest models (the `anthropic/<model>` generation from 4.8 on); such requests are rejected with 422.
              */
             top_p?: number | null;
             /**
@@ -10835,7 +10841,7 @@ export type components = {
             structured_outputs?: boolean | null;
             /**
              * Temperature
-             * @description Sampling temperature (0.0-2.0). Not supported on Claude 4.8+ models (claude-opus-4-8, claude-opus-5, claude-opus-5-5, claude-sonnet-5, claude-sonnet-5-5, claude-haiku-5-5, claude-fable-5, claude-fable-5-1); such requests are rejected with 422.
+             * @description Sampling temperature (0.0-2.0). Not supported on the newest models (the `anthropic/<model>` generation from 4.8 on); such requests are rejected with 422.
              */
             temperature?: number | null;
             /**
@@ -10854,7 +10860,7 @@ export type components = {
             }[] | null;
             /**
              * Top K
-             * @description Top-K sampling: keep only the top K tokens. Not supported on Claude 4.8+ models (claude-opus-4-8, claude-opus-5, claude-opus-5-5, claude-sonnet-5, claude-sonnet-5-5, claude-haiku-5-5, claude-fable-5, claude-fable-5-1); such requests are rejected with 422.
+             * @description Top-K sampling: keep only the top K tokens. Not supported on the newest models (the `anthropic/<model>` generation from 4.8 on); such requests are rejected with 422.
              */
             top_k?: number | null;
             /**
@@ -10864,7 +10870,7 @@ export type components = {
             top_logprobs?: number | null;
             /**
              * Top P
-             * @description Nucleus sampling parameter. Not supported on Claude 4.8+ models (claude-opus-4-8, claude-opus-5, claude-opus-5-5, claude-sonnet-5, claude-sonnet-5-5, claude-haiku-5-5, claude-fable-5, claude-fable-5-1); such requests are rejected with 422.
+             * @description Nucleus sampling parameter. Not supported on the newest models (the `anthropic/<model>` generation from 4.8 on); such requests are rejected with 422.
              */
             top_p?: number | null;
             /**
@@ -14179,7 +14185,6 @@ export type components = {
 };
 export type $defs = Record<string, never>;
 export interface operations {
-    /** @deprecated No live model serves this operation. */
     anthropic_messages: {
         parameters: {
             query?: never;
@@ -20282,7 +20287,10 @@ export interface operations {
     models_list: {
         parameters: {
             query?: never;
-            header?: never;
+            header?: {
+                authorization?: string | null;
+                "x-api-key"?: string | null;
+            };
             path?: never;
             cookie?: never;
         };
@@ -20298,12 +20306,25 @@ export interface operations {
                     "application/json": components["schemas"]["ModelsResponse"];
                 };
             };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    "X-Request-ID": components["headers"]["X-Request-ID"];
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["RelayErrorResponse"];
+                };
+            };
         };
     };
     models_get: {
         parameters: {
             query?: never;
-            header?: never;
+            header?: {
+                authorization?: string | null;
+                "x-api-key"?: string | null;
+            };
             path: {
                 model: string;
             };
@@ -20745,7 +20766,10 @@ export interface operations {
     pricing_list: {
         parameters: {
             query?: never;
-            header?: never;
+            header?: {
+                authorization?: string | null;
+                "x-api-key"?: string | null;
+            };
             path?: never;
             cookie?: never;
         };
@@ -20759,6 +20783,16 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["PricingResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    "X-Request-ID": components["headers"]["X-Request-ID"];
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["RelayErrorResponse"];
                 };
             };
         };
