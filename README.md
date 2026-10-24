@@ -4,7 +4,7 @@
 
 The TypeScript client for [Relay](https://relaygpu.com): image, video and audio generation, async tasks,
 file uploads, webhook verification, workflows, account and keys, with typed errors. Request and response
-types are generated from Relay's public OpenAPI spec. Chat is not wrapped: point the OpenAI or Anthropic
+types are generated from Relay's public OpenAPI spec. Chat is not wrapped: point the OpenAI
 SDK at Relay ([quickstart 6](#6-chat-use-the-sdk-you-already-have)).
 
 ```bash
@@ -227,9 +227,9 @@ try {
 }
 ```
 
-### 6. Chat: use the SDK you already have
+### 6. Text: use the SDK you already have
 
-Chat and completions run on the official OpenAI and Anthropic SDKs: point them at Relay. This SDK does not wrap chat. ([`examples/06-chat-base-url.ts`](examples/06-chat-base-url.ts))
+Chat and completions run on the official OpenAI SDK: point it at Relay. This SDK does not wrap chat. ([`examples/06-chat-base-url.ts`](examples/06-chat-base-url.ts))
 
 ```ts
 import OpenAI from "openai";
@@ -451,14 +451,13 @@ client uses only `fetch` and WebCrypto) and not yet in CI. ESM and CommonJS buil
 runtime dependencies. `relay.request(method, path, body)` reaches any route with the same errors and
 retry policy.
 
-## Chat
+## Text
 
-Chat is a base-URL swap on the official SDKs, in any language:
+Chat is a base-URL swap on the official SDK, in any language:
 
 | SDK | Base URL |
 |---|---|
 | OpenAI | `https://relaygpu.com/v2/openai/v1` |
-| Anthropic | `https://relaygpu.com/v2/anthropic` |
 
 ## License
 
