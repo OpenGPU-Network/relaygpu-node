@@ -44,7 +44,7 @@ export interface RequestOptions {
    * error / timeout / 5xx with the same key. Without it a POST is never retried.
    */
   idempotencyKey?: string;
-  /** Skip the credential (keyless routes such as the task poll). */
+  /** Skip the credential (routes keyless by design: the task and workflow-run polls, health). */
   noAuth?: boolean;
 }
 

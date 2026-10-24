@@ -1,10 +1,10 @@
 import { describe, expect, it } from "vitest";
 import { ModelNotFoundError } from "../../src/errors.js";
-import { DETAILS, MODELS, PRICING, detail, relayWith } from "../fixtures/catalog.js";
+import { DETAILS, KEY, MODELS, PRICING, detail, relayWith } from "../fixtures/catalog.js";
 import { json, mockFetch } from "./helpers.js";
 
 describe("models.get", () => {
-  it("puts the slash raw in the path, sends no key, caches for one fetch per name", async () => {
+  it("puts the slash raw in the path, sends the key, caches for one fetch per name", async () => {
     const m = mockFetch(detail("KlingTeam/v3-T2V"));
     const relay = relayWith(m.fetch);
     const a = await relay.models.get("KlingTeam/v3-T2V");
@@ -12,7 +12,7 @@ describe("models.get", () => {
     expect(a).toBe(b);
     expect(m.calls).toHaveLength(1);
     expect(m.calls[0].url).toBe("http://relay.test/v2/models/KlingTeam/v3-T2V");
-    expect(m.calls[0].headers["x-api-key"]).toBeUndefined();
+    expect(m.calls[0].headers["x-api-key"]).toBe(KEY);
     expect(a.endpoint).toMatchObject({ path: "/v2/video/kling-3/t2v", model_in_body: false, async_default: true });
   });
 
@@ -51,13 +51,13 @@ describe("models.list", () => {
 });
 
 describe("pricing, tiers, health", () => {
-  it("are keyless GETs", async () => {
+  it("health is keyless; pricing and tiers carry the key", async () => {
     const m = mockFetch(json(200, PRICING), json(200, { tiers: [] }), json(200, { status: "ok", version: "2", commit: "abc" }));
     const relay = relayWith(m.fetch);
     expect((await relay.pricing.get()).media_storage).toMatchObject({ relay1d: 0.0005 });
     await relay.tiers.list();
     expect(await relay.health()).toMatchObject({ status: "ok" });
     expect(m.calls.map((c) => c.url)).toEqual(["http://relay.test/v2/pricing", "http://relay.test/v2/tiers", "http://relay.test/v2/health"]);
-    expect(m.calls.every((c) => c.headers["x-api-key"] === undefined)).toBe(true);
+    expect(m.calls.map((c) => c.headers["x-api-key"])).toEqual([KEY, KEY, undefined]);
   });
 });

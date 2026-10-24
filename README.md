@@ -27,7 +27,9 @@ const relay = new Relay({
 ```
 
 The key never appears in an error, a log line or `JSON.stringify(relay)`. Catalog reads (`models`,
-`pricing`, `tiers`, `health`) and task polls need no credential.
+`pricing`, `tiers`) send the client's credential when it has one: they are then your account's view, what
+your tier and grants can run. Without a credential they answer the public catalog, and a key Relay refuses
+answers `AuthenticationError` on them. `health` and task and workflow-run polls are sent without the credential.
 
 ## Quickstarts
 

@@ -28,7 +28,7 @@ export interface WaitOptions {
 /** The task id goes into the path raw: the colon of `direct:{uuid}` stays literal. */
 const taskPath = (id: string) => "/v2/tasks/" + pathId(id);
 
-/** Async task polling. Keyless: the task id is the capability. */
+/** Async task polling. Sent without the credential: the task id is the capability. */
 export class Tasks {
   readonly #relay: Relay;
   constructor(relay: Relay) {

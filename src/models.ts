@@ -12,7 +12,7 @@ export type HealthResponse = OperationResponse<"health_get", 200>;
 /** A model name as a path: the `/` stays literal (the route is `{model:path}`), every other reserved character is encoded. */
 export const modelPath = (name: string) => "/v2/models/" + name.split("/").map(encodeURIComponent).join("/");
 
-/** The catalog (keyless). `get()` is the SDK's one resolver of route, `model_in_body`, `async_default` and schemas. */
+/** The catalog, read as your account when the client has a credential (what your tier and grants can run); the public catalog otherwise. `get()` is the SDK's one resolver of route, `model_in_body`, `async_default` and schemas. */
 export class Models {
   readonly #relay: Relay;
   readonly #cache = new Map<string, { expires: number; detail: Promise<ModelDetail> }>();
@@ -23,7 +23,7 @@ export class Models {
 
   /** `GET /v2/models` flattened: every model listed under `auto`, once, optionally filtered by `tag` (e.g. `text-to-video`). */
   async list(opts: { tag?: string; signal?: AbortSignal } = {}): Promise<ModelRow[]> {
-    const { data } = await this.#relay._http.request<ModelCatalog>("GET", "/v2/models", { noAuth: true, signal: opts.signal });
+    const { data } = await this.#relay._http.request<ModelCatalog>("GET", "/v2/models", { signal: opts.signal });
     const seen = new Map<string, ModelRow>();
     for (const rows of Object.values(data.auto ?? {})) {
       for (const row of rows ?? []) if (!seen.has(row.name)) seen.set(row.name, row);
@@ -40,7 +40,7 @@ export class Models {
     const now = Date.now();
     const hit = this.#cache.get(name);
     if (hit && hit.expires > now) return hit.detail;
-    const detail = this.#relay._http.request<ModelDetail>("GET", modelPath(name), { noAuth: true }).then((r) => r.data);
+    const detail = this.#relay._http.request<ModelDetail>("GET", modelPath(name)).then((r) => r.data);
     const entry = { expires: now + MODEL_CACHE_MS, detail };
     this.#cache.set(name, entry);
     detail.catch(() => {
@@ -50,14 +50,14 @@ export class Models {
   }
 }
 
-/** `GET /v2/pricing` — list prices per mode and model, plus the `media_storage` per-file fees. */
+/** `GET /v2/pricing` (your account's view with a credential, public without) — list prices per mode and model, plus the `media_storage` per-file fees. */
 export class Pricing {
   readonly #relay: Relay;
   constructor(relay: Relay) {
     this.#relay = relay;
   }
   async get(opts: { signal?: AbortSignal } = {}): Promise<PricingResponse> {
-    return (await this.#relay._http.request<PricingResponse>("GET", "/v2/pricing", { noAuth: true, signal: opts.signal })).data;
+    return (await this.#relay._http.request<PricingResponse>("GET", "/v2/pricing", { signal: opts.signal })).data;
   }
 }
 
@@ -68,7 +68,7 @@ export class Tiers {
     this.#relay = relay;
   }
   async list(opts: { signal?: AbortSignal } = {}): Promise<TiersResponse> {
-    return (await this.#relay._http.request<TiersResponse>("GET", "/v2/tiers", { noAuth: true, signal: opts.signal })).data;
+    return (await this.#relay._http.request<TiersResponse>("GET", "/v2/tiers", { signal: opts.signal })).data;
   }
 }
 
