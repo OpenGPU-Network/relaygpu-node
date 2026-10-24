@@ -25,7 +25,7 @@ suite("typed errors e2e (staging)", () => {
   });
 
   it("A5: the allowlisted key on any other model → the 403 class with its code", async () => {
-    const other = allowedModel === "Qwen/qwen3-tts-flash" ? "Qwen/qwen-image" : "Qwen/qwen3-tts-flash";
+    const other = allowedModel === "Qwen/qwen3-tts-flash" ? "google/gemini-nano-banana-2.1" : "Qwen/qwen3-tts-flash";
     const relay = new Relay({ apiKey: allowlisted, baseUrl: env.baseUrl });
     const e = await relay.run(other, await exampleFor(other), { wait: false }).catch((e) => e);
     expect(e).toBeInstanceOf(PermissionDeniedError);

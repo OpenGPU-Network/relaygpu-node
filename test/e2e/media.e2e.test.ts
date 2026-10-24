@@ -1,7 +1,7 @@
 // A8 + A1 (media): BILLED against staging — the lead runs this once. Skips without RELAY_API_KEY / RELAY_BASE_URL;
 // refuses a production base URL. Approximate cost at 2026-10-06 list prices:
 //   A8 Kling v3-T2V 5 s std silent: 1 task (0.42; the replay and the 422 create none) — not waited on
-//   A1 image Qwen/qwen-image 512x512: 0.036 · TTS qwen3-tts-flash ~20 chars: ~0.0002
+//   A1 image google/gemini-nano-banana-2.1 1K: ~0.04 · TTS qwen3-tts-flash ~20 chars: ~0.0002
 //   A1 ASR whisper-1 on that TTS clip (~2 s, implicit relay1h upload = free): ~0.0002
 //   A1 video + wait: Kling v3-T2V 3 s std silent: 0.252
 import { describe, expect, it } from "vitest";
@@ -65,7 +65,7 @@ suite("media e2e (staging, billed)", () => {
 
   it("A1: image sync and TTS carry no Idempotency-Key; ASR takes a Blob through the implicit upload", async () => {
     const { relay, calls } = counted();
-    const img = await relay.image.generate("Qwen/qwen-image", { prompt: "A small red apple on a white table", size: "512x512" });
+    const img = await relay.image.generate("google/gemini-nano-banana-2.1", { prompt: "A small red apple on a white table" });
     expect(img.images.length).toBeGreaterThan(0);
     expect(img.images[0].url).toMatch(/^https:\/\//);
     expect((await img.images[0].toBlob()).size).toBeGreaterThan(0);

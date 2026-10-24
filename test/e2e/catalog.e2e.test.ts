@@ -21,7 +21,7 @@ function counted() {
 }
 
 const FAMILIES: [name: string, path: string, modelInBody: boolean, asyncDefault: boolean][] = [
-  ["Qwen/qwen-image", "/v2/image/qwen/generate", true, false],
+  ["google/gemini-nano-banana-2.1", "/v2/image/gemini-3/generate", true, false],
   ["openai/gpt-image-1.5-T2I", "/v2/image/gpt-image/generate", false, false],
   ["KlingTeam/v3-T2V", "/v2/video/kling-3/t2v", false, true],
   ["KlingTeam/v3-Motion-Control", "/v2/video/kling-3/motion-control", false, true],
@@ -54,7 +54,7 @@ suite("catalog e2e (staging, free)", () => {
       await relay.models.get(name);
     }
     expect(calls).toHaveLength(FAMILIES.length);
-    expect(calls[0].url).toBe(`${baseUrl!.replace(/\/+$/, "")}/v2/models/Qwen/qwen-image`);
+    expect(calls[0].url).toBe(`${baseUrl!.replace(/\/+$/, "")}/v2/models/google/gemini-nano-banana-2.1`);
     expect(posts()).toBe(0);
   });
 
