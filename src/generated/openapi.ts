@@ -91,7 +91,7 @@ export type paths = {
          *     ## Models
          *     | `model` | Billed | Returns |
          *     |---|---|---|
-         *     | `openai/whisper-1` | per second of audio | text, language, duration |
+         *     | `openai/whisper-1` | currently unavailable (403 `MODEL_NOT_AVAILABLE`) | text, language, duration |
          *     | `openai/gpt-4o-mini-transcribe` | per token | text |
          *     | `relay/stt-1` | per second of audio (per channel) | text, language, duration, billable_seconds, words, … |
          *     | `openai/whisper-large-v3` | currently unavailable (403 `MODEL_NOT_AVAILABLE`) | text, language, duration |
@@ -454,6 +454,10 @@ export type paths = {
         /**
          * Get Credit History
          * @description Get the credit history: every movement of your credits.
+         *
+         *     Auth: a dashboard JWT, or a superkey (`X-API-Key`) on a custom tier, like
+         *     `GET /credits`; an inference-only key gets 403 `CREDENTIAL_NOT_PERMITTED`.
+         *     (The MCP credential is not admitted: its ruled scope is balance and usage.)
          *
          *     Returns a paginated list, newest first: top-ups and deductions
          *     (`credit_topup`, `credit_deduct`), promo grants and expiry write-offs
@@ -916,6 +920,153 @@ export type paths = {
         patch: operations["customer_settings_update"];
         trace?: never;
     };
+    "/v2/customer/subscription": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Get Subscription
+         * @description Your plan: status, the current period, the editing minutes, whether
+         *     the plan's features are available right now (`entitled`, with
+         *     `entitlement_reason` when not) and the trial (`trial`: running, used, and
+         *     whether the trial button would work, with `ineligible_reason` when not).
+         *
+         *     Plans: **Hobbyist**, **Creator** and **Studio**; their prices, credits and
+         *     editing minutes come from `GET /v2/customer/subscription/plans`, never from this text.
+         *     Every plan credits its price to the wallet each month, spendable on any model, and
+         *     adds the editing minutes and Smith for the month. Each charge goes to the saved
+         *     card, plus the payment processing fee, itemised.
+         *
+         *     Poll this after subscribing: `status` reads `pending_first` until the first
+         *     payment confirms, then `active`.
+         *
+         *     Auth: dashboard login (JWT) or a custom-tier superkey.
+         */
+        get: operations["customer_subscription_get"];
+        put?: never;
+        /**
+         * Subscribe
+         * @description Start a plan. The first month is charged at once to the saved card;
+         *     the plan becomes `active` when the payment confirms (poll
+         *     `GET /v2/customer/subscription`). After that it renews each month on the same
+         *     day.
+         *
+         *     Plans: **Hobbyist**, **Creator** and **Studio**; their prices, credits and
+         *     editing minutes come from `GET /v2/customer/subscription/plans`, never from this text.
+         *     Every plan credits its price to the wallet each month, spendable on any model, and
+         *     adds the editing minutes and Smith for the month. Each charge goes to the saved
+         *     card, plus the payment processing fee, itemised.
+         *
+         *     - No saved card: nothing is charged; the answer is `status: pending_first`
+         *       with `setup_url`, the hosted page that saves one. When the person comes back
+         *       (the existing `/return/setup` path), POST this route again: it runs the
+         *       first charge (safe to repeat). Relay never charges from the return alone.
+         *     - Already subscribed but cancelling at period end: subscribing again keeps the
+         *       plan and charges nothing.
+         *     - A request while the first payment is in progress answers that payment; it
+         *       never charges twice.
+         *
+         *     Refusals: `403 SUBSCRIPTION_NOT_ELIGIBLE` (the message says why: email not
+         *     verified, account tier), `402 SUBSCRIPTION_CHARGE_FAILED` (the card was
+         *     declined; nothing changed), `409 SUBSCRIPTION_EXISTS` (already active, or a
+         *     failed renewal is being retried), `503 SUBSCRIPTION_UNAVAILABLE`.
+         *
+         *     Auth: dashboard login (JWT) only.
+         */
+        post: operations["customer_subscription_create"];
+        /**
+         * Cancel Subscription
+         * @description Cancel at the end of the current month: the plan's features stay
+         *     available until `current_period_end`, nothing is charged after it, and credits
+         *     already added stay in the wallet. Cancelling twice is harmless. A plan whose
+         *     renewal failed (`past_due`) is cancelled at once, with no further retries.
+         *     Subscribe again before the month ends to keep the plan, with no charge.
+         *
+         *     Refusals: `409 SUBSCRIPTION_EXISTS` while the first payment is in progress.
+         *
+         *     Auth: dashboard login (JWT) only.
+         */
+        delete: operations["customer_subscription_delete"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v2/customer/subscription/plan": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Change Plan
+         * @description Move an active plan up or down.
+         *
+         *     - **Up**: the price difference is charged at once; when it confirms the new
+         *       plan's editing minutes apply to the current month and the new price applies
+         *       from the next renewal. A decline answers `402 SUBSCRIPTION_CHARGE_FAILED` and
+         *       changes nothing.
+         *     - **Down**: accepted at any time and takes effect at the next renewal
+         *       (`next_plan_id`); the current month keeps its minutes. No refunds.
+         *     - **The current plan**: clears a pending move down.
+         *
+         *     Plans: **Hobbyist**, **Creator** and **Studio**; their prices, credits and
+         *     editing minutes come from `GET /v2/customer/subscription/plans`, never from this text.
+         *     Every plan credits its price to the wallet each month, spendable on any model, and
+         *     adds the editing minutes and Smith for the month. Each charge goes to the saved
+         *     card, plus the payment processing fee, itemised.
+         *
+         *     Refusals: `403 SUBSCRIPTION_NOT_ELIGIBLE` (no active plan), `409
+         *     SUBSCRIPTION_EXISTS` (another plan payment is in progress), `422
+         *     VALIDATION_ERROR` (unknown `plan_id`).
+         *
+         *     Auth: dashboard login (JWT) only.
+         */
+        post: operations["customer_subscription_plan_change"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v2/customer/subscription/trial": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Start Trial
+         * @description Start the free trial: three days of the plan's features at the
+         *     first level, with 15 editing minutes in total. The trial adds no credits;
+         *     models used during it are billed at the normal rates from the wallet.
+         *
+         *     Once per email address, ever (deleting the account does not reset it). Needs a
+         *     verified email and at least $5 of purchased credits (promotional credits do
+         *     not count). Subscribing during the trial ends it.
+         *
+         *     Refusals: `403 SUBSCRIPTION_NOT_ELIGIBLE` (the message says why), `409
+         *     SUBSCRIPTION_TRIAL_USED`, `409 SUBSCRIPTION_EXISTS` (already on a plan),
+         *     `503 SUBSCRIPTION_UNAVAILABLE`.
+         *
+         *     Auth: dashboard login (JWT) only.
+         */
+        post: operations["customer_subscription_trial_start"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/v2/customer/tasks": {
         parameters: {
             query?: never;
@@ -1303,6 +1454,69 @@ export type paths = {
         get: operations["health_get"];
         put?: never;
         post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v2/image/clarity/upscale": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Upscale an image using ClarityAI
+         * @description Upscale an image with ClarityAI. Pick the upscaler with `model`.
+         *
+         *     **Available Models:**
+         *     - `ClarityAI/crystal` (default): faithful, high-precision; strongest on
+         *       portraits, faces and products. Size by `scale_factor` (1-200) or
+         *       `target_megapixels`.
+         *     - `ClarityAI/flux`: FLUX-based, strong face preservation, optional custom
+         *       LoRA (`lora_link`). `scale_factor` 2-16.
+         *     - `ClarityAI/creative`: enlarges and adds new realistic detail. `scale_factor`
+         *       2-16, plus `resemblance`, `dynamic`, `fractality` and `style`.
+         *
+         *     ## Input
+         *     Exactly one of `image_url` (the provider fetches it) or `image_b64`.
+         *
+         *     ## Per-model fields
+         *     | Field | crystal | flux | creative |
+         *     |---|---|---|---|
+         *     | scale_factor | 1-200 | 2-16 | 2-16 |
+         *     | target_megapixels | 0.001-200 | - | - |
+         *     | creativity | 0..10 | -10..10 | -10..10 |
+         *     | resemblance, dynamic, fractality, style | - | - | yes |
+         *     | prompt | - | yes | yes |
+         *     | lora_link | - | yes | - |
+         *     | output_format (`jpg`, `png`) | yes | - | - |
+         *
+         *     A field the picked model does not take is a 422.
+         *
+         *     ## Billing
+         *     A flat rate per image and model: every scale factor and megapixel count
+         *     costs one unit. Rates are published at `/v2/pricing`.
+         *
+         *     ## Response
+         *     ```json
+         *     {
+         *       "urls": ["https://cdn.relaygpu.com/content/..."],
+         *       "model": "ClarityAI/crystal"
+         *     }
+         *     ```
+         *
+         *     The link is re-hosted by Relay. It lives for an hour by default; pass
+         *     `store_output` (`relay1d` / `relay7d` / `relay30d`) for a durable copy.
+         *
+         *     ## Async Mode
+         *     Set `async: true` to get a task_id immediately and poll for results.
+         */
+        post: operations["image_clarity_upscale"];
         delete?: never;
         options?: never;
         head?: never;
@@ -2092,15 +2306,15 @@ export type paths = {
          *     {
          *       "auto": {
          *         "openai": [
-         *           {"name": "openai/gpt-5.4", "tag": "text-to-text", "display_name": "GPT-5.4", "store_output_supported": false,
+         *           {"name": "openai/gpt-5.4", "tag": "text-to-text", "display_name": "GPT-5.4", "store_output_supported": false, "status": "available",
          *            "endpoint": {"method": "POST", "path": "/v2/openai/v1/chat/completions", "operation_id": "openai_chat_completions",
          *                         "model_in_body": true, "model_default": null, "async_default": false, "streams": true},
          *            "conductable": ["code", "general"]},
-         *           {"name": "relay/conductor", "tag": "text-to-text", "display_name": "RelayConductor", "store_output_supported": false,
+         *           {"name": "relay/conductor", "tag": "text-to-text", "display_name": "Conductor", "store_output_supported": false, "status": "available",
          *            "endpoint": {...}, "conductable": []}
          *         ],
          *         "audio": [
-         *           {"name": "Qwen/qwen3-tts-flash", "tag": "text-to-speech", "display_name": "Qwen3 TTS Flash", "store_output_supported": true,
+         *           {"name": "Qwen/qwen3-tts-flash", "tag": "text-to-speech", "display_name": "Qwen3 TTS Flash", "store_output_supported": true, "status": "available",
          *            "endpoint": {...}, "conductable": []}
          *         ]
          *       },
@@ -2204,6 +2418,7 @@ export type paths = {
          *       "sources": ["openai"],
          *       "endpoint": {"method": "POST", "path": "/v2/openai/v1/chat/completions", "operation_id": "openai_chat_completions",
          *                    "model_in_body": true, "model_default": null, "async_default": false, "streams": true},
+         *       "endpoints": ["chat_completions"],
          *       "request_schema": {"type": "object", "required": ["model", "messages"], "properties": {"model": {"type": "string"}, "messages": {"type": "array", "items": {"...": "..."}}, "...": "..."}},
          *       "request_schema_url": "https://relaygpu.com/v2/openapi-public.json#/components/schemas/OpenAIChatRequest",
          *       "request_example": {"model": "openai/gpt-5.4", "messages": [{"role": "user", "content": "Hello"}]},
@@ -2382,6 +2597,60 @@ export type paths = {
         patch?: never;
         trace?: never;
     };
+    "/v2/openai/v1/responses": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Create a response (OpenAI Responses API)
+         * @description Create a model response with the OpenAI Responses API request and response shape
+         *     (`client.responses.create` in the official `openai` libraries).
+         *
+         *     Served for the models whose `GET /v2/models/{model}` lists `responses` in `endpoints`;
+         *     any other model answers `403 MODEL_NOT_AVAILABLE` here and keeps serving
+         *     `/v2/openai/v1/chat/completions`.
+         *
+         *     ## Stateless
+         *     Relay never stores a response and never continues one: every request goes upstream with
+         *     `store: false`, and `previous_response_id`, `conversation` and `store: true` are refused with
+         *     `422 VALIDATION_ERROR`. Send the whole conversation in `input` each turn. To keep a reasoning
+         *     model's reasoning across turns, send `include: ["reasoning.encrypted_content"]` and pass the
+         *     returned `reasoning` items back in `input` with the rest of the output.
+         *
+         *     ## Offered
+         *     `model`, `input`, `instructions`, `tools` (type `function` only), `tool_choice`,
+         *     `parallel_tool_calls`, `reasoning` (`effort`, `summary`), `include`
+         *     (`reasoning.encrypted_content` only), `max_output_tokens` (at most the model's output limit),
+         *     `temperature`, `top_p`, `metadata`, `text`, `truncation`, `stream`, `mode`.
+         *
+         *     ## Refused with 422 before anything runs
+         *     `store: true`, `previous_response_id`, `conversation`, `background: true`, `stream_options`,
+         *     a tool of any type other than `function`, an `include` value other than
+         *     `reasoning.encrypted_content`, `max_output_tokens` above the model's output limit, and a
+         *     sampling field the model does not take (each model's own rule, named in the message).
+         *
+         *     ## Streaming
+         *     `stream: true` answers Server-Sent Events in OpenAI's typed-event format (`event:` + `data:`
+         *     pairs, `response.created` through `response.completed`); usage arrives on `response.completed`.
+         *     A failure before the first event is an ordinary HTTP error; after it, one
+         *     `data: {"error": {...}}` frame ends the stream.
+         *
+         *     ## Mode
+         *     Direct mode only: `mode` `auto` or `direct`; `opengpu` is refused with 422. No `async`: use
+         *     `stream: true` for long answers.
+         */
+        post: operations["openai_responses"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/v2/pricing": {
         parameters: {
             query?: never;
@@ -2417,6 +2686,302 @@ export type paths = {
          *     ```
          */
         get: operations["pricing_list"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v2/smith/levels": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * List Smith levels
+         * @description The levels a session can use; only `enabled` ones can start a session.
+         */
+        get: operations["smith_levels_list"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v2/smith/prefs": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Get Smith settings
+         * @description The account's switches: whether Smith asks before an image or a video model runs.
+         */
+        get: operations["smith_prefs_list"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        /**
+         * Update Smith settings
+         * @description Turns a switch on or off; a switch left out keeps its value. A change counts from the next model run, also in a turn already running.
+         */
+        patch: operations["smith_prefs_update"];
+        trace?: never;
+    };
+    "/v2/smith/sessions": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * List Smith sessions
+         * @description Your sessions, newest activity first, each with its name, status, level and what it has cost.
+         */
+        get: operations["smith_sessions_list"];
+        put?: never;
+        /**
+         * Start a Smith session
+         * @description Starts a session at a level. The level is fixed for the session; it is named from its first message until renamed.
+         */
+        post: operations["smith_sessions_create"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v2/smith/sessions/{session_id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Get a Smith session
+         * @description One session's state.
+         */
+        get: operations["smith_sessions_get"];
+        put?: never;
+        post?: never;
+        /**
+         * Delete a Smith session
+         * @description Deletes the session, its events and its sandbox. Files already handed back stay on the CDN until their own expiry.
+         */
+        delete: operations["smith_sessions_delete"];
+        options?: never;
+        head?: never;
+        /**
+         * Update a Smith session
+         * @description Renames the session (`name`), pins it (`pinned`) or moves it to another level (`level`, between turns: the next turn runs on that level's model with the same history, and the session notes the switch); a pin never counts as activity.
+         */
+        patch: operations["smith_sessions_update"];
+        trace?: never;
+    };
+    "/v2/smith/sessions/{session_id}/assets/{file_id}/save": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Keep a Smith file longer
+         * @description Stores a copy of one of the session's files for 7 or 30 days at the storage fee in `GET /v2/pricing` (each `asset_ready` carries both prices). The session then reads `asset_saved`.
+         */
+        post: operations["smith_sessions_assets_save"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v2/smith/sessions/{session_id}/events": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Follow a Smith session
+         * @description Server-sent events: the session's events after `after` (or `Last-Event-ID`), then live ones, with `id: <seq>` on every stored event and a heartbeat every 15 seconds. Send the login in the `Authorization` header (a fetch-based stream), or a single-use `ticket`. At most 5 open streams per account.
+         */
+        get: operations["smith_sessions_events_list"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v2/smith/sessions/{session_id}/events/ticket": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Get a stream ticket
+         * @description A single-use ticket, valid 60 seconds, that opens this session's event stream once (`?ticket=`). For clients that cannot send headers.
+         */
+        post: operations["smith_sessions_events_ticket"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v2/smith/sessions/{session_id}/feedback": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Rate a Smith session
+         * @description How the session has gone since your last rating: `meh`, `fine` or `good`, with an optional one-line note. Pass `message_id` or `file_id` to rate one of Smith's messages or files instead. Stored on the session as a `feedback` event; the session's events then carry it, in order, so each rating covers the stretch after the one before.
+         */
+        post: operations["smith_sessions_feedback"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v2/smith/sessions/{session_id}/interrupt": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Stop the current turn
+         * @description Stops the turn after the current step. Model runs already started finish, are charged once and arrive on their own. Waiting messages stay queued; withdraw one with `DELETE …/messages/{message_id}`.
+         */
+        post: operations["smith_sessions_interrupt"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v2/smith/sessions/{session_id}/messages": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Send a message to Smith
+         * @description Starts a turn (`accepted`), or queues the message when a turn of this account is already running, in this session or another (`queued`, with its `position`): one turn runs per account, waiting messages start by themselves, first come first served, and the waiting messages on a session run together as its next turn. Follow it on the events stream. Entitlement is checked on every message; the balance when the turn starts (a waiting turn that cannot start gets an `error` event, nothing charged).
+         */
+        post: operations["smith_sessions_messages_create"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v2/smith/sessions/{session_id}/messages/{message_id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        /**
+         * Withdraw a waiting message
+         * @description Removes a message that is still waiting to start. The session gets `message_withdrawn` and a fresh `status`; the sessions behind it move up.
+         */
+        delete: operations["smith_sessions_messages_delete"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v2/smith/sessions/{session_id}/steps/{step_id}/continue": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Let a paused step run on
+         * @description An editing step still running after a minute pauses and the session gets `step_check`. Continue resumes it for another minute, after which it pauses and asks again. Paused time never counts toward your editing minutes. A model run held at `run_check` (your ask-before-run setting) starts on Continue.
+         */
+        post: operations["smith_sessions_steps_continue"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v2/smith/sessions/{session_id}/steps/{step_id}/stop": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Stop a paused step
+         * @description Ends a step paused at `step_check`, or a model run held at `run_check` before it starts (nothing is charged). The step's `tool_finished` reads `interrupted` with an `error` saying you stopped it, and the turn goes on: Smith hands back, offers cheaper choices or asks what to change. With no answer for ten minutes the step stops the same way.
+         */
+        post: operations["smith_sessions_steps_stop"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v2/smith/usage": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Get editing minutes
+         * @description Editing minutes used and left in the current billing period (or the trial).
+         */
+        get: operations["smith_usage_get"];
         put?: never;
         post?: never;
         delete?: never;
@@ -3461,6 +4026,37 @@ export type paths = {
         patch?: never;
         trace?: never;
     };
+    "/v2/video/minimax-h3-v2v/generate": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Generate video from reference videos (MiniMax H3 V2V)
+         * @description Generate a video from 1-3 reference videos with MiniMax H3, optionally
+         *     with reference images (up to 5) and reference audio (up to 3 clips).
+         *     Native audio, 768P or 2K, 4-15 s.
+         *
+         *     **Model:** MiniMax/MiniMax-H3-V2V
+         *
+         *     `reference_video_urls` is required: MP4/MOV, each clip 2-15 s, 15 s in
+         *     total, 50 MB each. The total reference length (each clip rounded up to a
+         *     whole second) must not exceed `duration`; a request that breaks the rule
+         *     is refused by the provider and answers 422. Priced per output second by
+         *     resolution; the response's `duration` is the billed length. Async by
+         *     default: poll ``/v2/tasks/{task_id}``.
+         */
+        post: operations["video_minimax_h3_v2v_generate"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/v2/video/minimax-h3/generate": {
         parameters: {
             query?: never;
@@ -3479,8 +4075,8 @@ export type paths = {
          *     **Model:** MiniMax/MiniMax-H3
          *
          *     The inputs pick the form: frames and references cannot be combined (422),
-         *     and text-to-video needs a concrete `ratio`. Reference video input is not
-         *     offered. Priced per output second by resolution; the response's
+         *     and text-to-video needs a concrete `ratio`. Reference videos go to the V2V
+         *     route (`/v2/video/minimax-h3-v2v/generate`). Priced per output second by resolution; the response's
          *     `duration` is the billed length. Async by default — poll
          *     ``/v2/tasks/{task_id}``.
          */
@@ -4857,7 +5453,7 @@ export type components = {
             /**
              * Model
              * @description ASR model. Required — the models differ in price, in response shape and in which options below they honour, so there is no sensible default to pick for you.
-             * @example openai/whisper-1
+             * @example relay/stt-1
              * @enum {string}
              */
             model: "openai/whisper-large-v3" | "openai/whisper-1" | "openai/gpt-4o-mini-transcribe" | "relay/stt-1";
@@ -5202,6 +5798,11 @@ export type components = {
              */
             duration?: number | null;
             /**
+             * Expires At
+             * @description When the hosted link(s) in this response stop resolving (ISO 8601 UTC); 1 hour after the task finished unless `store_output` extended it
+             */
+            expires_at?: string | null;
+            /**
              * Mode
              * @description Execution mode used.
              */
@@ -5309,6 +5910,142 @@ export type components = {
              * @description OpenSSH key types accepted as `ssh_public_key` on this row
              */
             ssh_key_types: string[];
+        };
+        /**
+         * ClarityUpscaleRequest
+         * @description Request schema for the ClarityAI upscalers.
+         *
+         *     Send exactly one of `image_url` / `image_b64`. The other fields depend on
+         *     `model`; a field the picked model does not take is a 422.
+         */
+        ClarityUpscaleRequest: {
+            /**
+             * Async
+             * @description Return task_id immediately, poll /v2/tasks/{task_id} for result.
+             * @default false
+             */
+            async?: boolean | null;
+            /**
+             * Creativity
+             * @description How much new detail the model may invent. flux and creative: -10..10; crystal: 0..10. Default 0.
+             */
+            creativity?: number | null;
+            /**
+             * Dynamic
+             * @description creative only: contrast / dynamic range of the added detail (-10..10, default 0).
+             */
+            dynamic?: number | null;
+            /**
+             * Fractality
+             * @description creative only: strength of fine, repeating texture detail (-10..10, default 0).
+             */
+            fractality?: number | null;
+            /**
+             * Image B64
+             * @description Base64-encoded input image, raw or as a data URI. Exactly one of `image_url` / `image_b64`.
+             */
+            image_b64?: string | null;
+            /**
+             * Image Url
+             * @description URL of the input image. Exactly one of `image_url` / `image_b64`.
+             */
+            image_url?: string | null;
+            /**
+             * Lora Link
+             * @description flux only: URL of a custom FLUX LoRA (.safetensors) to apply a style or identity. Forwarded as sent.
+             */
+            lora_link?: string | null;
+            /**
+             * Mode
+             * @description Routing mode: 'auto' or 'direct' (the upscalers are direct-only)
+             * @default auto
+             */
+            mode?: ("auto" | "direct") | null;
+            /**
+             * Model
+             * @description Upscaler. Available: 'ClarityAI/crystal' (default; faithful, strongest on portraits, faces and products), 'ClarityAI/flux' (face preservation, optional LoRA), 'ClarityAI/creative' (adds new realistic detail).
+             * @default ClarityAI/crystal
+             * @example ClarityAI/crystal
+             */
+            model?: string | null;
+            /**
+             * Output Format
+             * @description crystal only: output image format (default `jpg`).
+             */
+            output_format?: ("jpg" | "png") | null;
+            /**
+             * Prompt
+             * @description flux and creative: optional text prompt guiding the upscale. Forwarded as sent.
+             */
+            prompt?: string | null;
+            /**
+             * Resemblance
+             * @description creative only: how closely the output follows the input (-10..10, default 0).
+             */
+            resemblance?: number | null;
+            /**
+             * Scale Factor
+             * @description Upscale factor. flux and creative: 2-16 (default 2); crystal: 1-200 (default 2), mutually exclusive with `target_megapixels`. Every factor costs the same.
+             */
+            scale_factor?: number | null;
+            /**
+             * Store Output
+             * @description Where this request's output media is hosted, and for how long. `provider` (default) returns a Relay CDN link that live-proxies the provider for 1 hour — the same hour the task record itself lives. `relay1d` / `relay7d` / `relay30d` copy the output into Relay's own storage and keep BOTH the link and the task record for 1, 7 or 30 days, for a flat per-file fee (see `media_storage` in GET /v2/pricing). On routes that return images inline (base64) the images are also hosted, as `urls`, for the same lifetime. `relay*` is not available to the guest tier, nor on a model whose `store_output_supported` is false in GET /v2/models.
+             * @default provider
+             */
+            store_output?: ("provider" | "relay1d" | "relay7d" | "relay30d") | null;
+            /**
+             * Style
+             * @description creative only: style preset (default `default`).
+             */
+            style?: ("default" | "portrait" | "anime") | null;
+            /**
+             * Target Megapixels
+             * @description crystal only: output size in megapixels (0.001-200), mutually exclusive with `scale_factor`; neither means 2x.
+             */
+            target_megapixels?: number | null;
+            /**
+             * Webhook Url
+             * @description HTTPS URL to receive a signed completion webhook when the async task reaches a terminal state (requires an API key, "async": true and direct mode; otherwise 422). See the Webhooks section for the delivery payload and events, and GET /v2/customer/webhook-secret for the signing secret + verification.
+             */
+            webhook_url?: string | null;
+        };
+        /**
+         * ClarityUpscaleResponse
+         * @description Response schema for the ClarityAI upscalers.
+         *
+         *     The upscaled image comes back as a link (`urls`, one per request) hosted on
+         *     `cdn.relaygpu.com`, so `store_output` applies: the link lives 1 hour by
+         *     default, or 1, 7 or 30 days with `relay1d` / `relay7d` / `relay30d`.
+         */
+        ClarityUpscaleResponse: {
+            /**
+             * Expires At
+             * @description When the hosted link(s) in this response stop resolving (ISO 8601 UTC); 1 hour after the task finished unless `store_output` extended it
+             */
+            expires_at?: string | null;
+            /**
+             * Mode
+             * @description Execution mode used
+             */
+            mode?: string | null;
+            /**
+             * Model
+             * @description Upscaler used
+             */
+            model: string;
+            /**
+             * Task Id
+             * @description Task identifier (direct:{uuid})
+             */
+            task_id?: string | null;
+            /**
+             * Urls
+             * @description Upscaled image URL (one per request)
+             */
+            urls: string[];
+        } & {
+            [key: string]: unknown;
         };
         /**
          * ConductorDetail
@@ -5652,7 +6389,7 @@ export type components = {
         CreditTransaction: {
             /**
              * Action
-             * @description One of: credit_topup, credit_deduct, promo_granted, promo_expired, key_budget_set, key_budget_topup, key_budget_cleared
+             * @description One of: credit_topup, credit_deduct, promo_granted, promo_expired, key_budget_set, key_budget_topup, key_budget_cleared, subscription_topup, subscription_upgrade, subscription_extra, subscription_granted, subscription_ended
              */
             action: string;
             /**
@@ -5664,7 +6401,7 @@ export type components = {
             created_at: string;
             /**
              * Details
-             * @description Per-action keys. `promo_granted`: promo_id, code_id, balance, valid_for. `promo_expired`: promo_id, remainder, expires_at. `key_budget_set`/`key_budget_cleared`: key_id. `key_budget_topup`: key_id, new_budget. Empty for `credit_topup`/`credit_deduct`.
+             * @description Per-action keys. `promo_granted`: promo_id, code_id, balance, valid_for. `promo_expired`: promo_id, remainder, expires_at. `key_budget_set`/`key_budget_cleared`: key_id. `key_budget_topup`: key_id, new_budget. `subscription_*`: subscription_id, plan_id, period_index, subscription_extra_usd (`subscription_granted`: days, plus plan_id for a plan gift; `subscription_ended`: subscription_id, plan_id). Empty for `credit_topup`/`credit_deduct`.
              */
             details?: {
                 [key: string]: unknown;
@@ -5748,13 +6485,13 @@ export type components = {
              * @description Per-resolution image rate, e.g. {"1K": 0.14, "4K": 0.24}. Falls back to per_image when the resolution tier of the request is missing/unmatched.
              */
             per_image_resolution?: {
-                [key: string]: unknown;
+                [key: string]: number;
             } | null;
             /** Per Second Audio */
             per_second_audio?: number | null;
             /** Per Second Video */
             per_second_video?: {
-                [key: string]: unknown;
+                [key: string]: number;
             } | null;
         };
         /** CustomerPricingResponse */
@@ -5906,6 +6643,31 @@ export type components = {
             /** User */
             user: string;
         };
+        /** DeleteKeyResponse */
+        DeleteKeyResponse: {
+            /**
+             * Deleted At
+             * @description UTC ISO timestamp.
+             */
+            deleted_at: string;
+            /**
+             * Key
+             * @description Masked key secret: its first 20 characters followed by `...`.
+             */
+            key: string;
+            /**
+             * Key Id
+             * @description Non-secret stable identifier of the key.
+             */
+            key_id?: string | null;
+            /** Note */
+            note: string;
+            /**
+             * Status
+             * @description Always `success`
+             */
+            status: string;
+        };
         /**
          * DoubaoSeedance15ProRequest
          * @description Request schema for Doubao Seedance 1.5 Pro video generation.
@@ -6021,6 +6783,11 @@ export type components = {
              * @description Video duration in seconds.
              */
             duration?: number | null;
+            /**
+             * Expires At
+             * @description When the hosted link(s) in this response stop resolving (ISO 8601 UTC); 1 hour after the task finished unless `store_output` extended it
+             */
+            expires_at?: string | null;
             /**
              * Mode
              * @description Execution mode used.
@@ -6179,6 +6946,11 @@ export type components = {
              * @description Video duration in seconds.
              */
             duration?: number | null;
+            /**
+             * Expires At
+             * @description When the hosted link(s) in this response stop resolving (ISO 8601 UTC); 1 hour after the task finished unless `store_output` extended it
+             */
+            expires_at?: string | null;
             /**
              * Mode
              * @description Execution mode used.
@@ -6437,7 +7209,8 @@ export type components = {
          * DoubaoSeedance25Request
          * @description Request schema for the base (non-V2V) Doubao Seedance 2.5 route.
          *
-         *     Identical to 2.0 except that a reference video is refused. 2.5 splits
+         *     Identical to 2.0 except that a reference video is refused, resolution stops
+         *     at 720p and a first frame takes ``ratio`` adaptive only. 2.5 splits
          *     reference-video work onto its own SKU and rejects the shape upstream
          *     ("reference_video_url is V2V input — use the -V2V model"), so accepting it
          *     here only buys the caller a queued task that fails a moment later, billed
@@ -6523,10 +7296,10 @@ export type components = {
             reference_video_url?: string | null;
             /**
              * Resolution
-             * @description Video resolution.
+             * @description Video resolution: 480p or 720p. Seedance 2.5 has no 1080p.
              * @default 720p
              */
-            resolution?: ("480p" | "720p" | "1080p") | null;
+            resolution?: ("480p" | "720p") | null;
             /**
              * Seed
              * @description Random seed for deterministic output.
@@ -6636,10 +7409,10 @@ export type components = {
             reference_video_url: string;
             /**
              * Resolution
-             * @description Video resolution.
+             * @description Video resolution: 480p or 720p. Seedance 2.5 has no 1080p.
              * @default 720p
              */
-            resolution?: ("480p" | "720p" | "1080p") | null;
+            resolution?: ("480p" | "720p") | null;
             /**
              * Seed
              * @description Random seed for deterministic output.
@@ -6849,6 +7622,48 @@ export type components = {
             };
         } & {
             [key: string]: unknown;
+        };
+        /**
+         * FeedbackBody
+         * @description A rating of the session so far, or of one message or file, with an optional note.
+         */
+        FeedbackBody: {
+            /**
+             * File Id
+             * @description Rate one of the session's files instead.
+             */
+            file_id?: string | null;
+            /**
+             * Message Id
+             * @description Rate one of Smith's messages instead.
+             */
+            message_id?: string | null;
+            /**
+             * Note
+             * @description What was off, in a line.
+             */
+            note?: string | null;
+            /**
+             * Verdict
+             * @enum {string}
+             */
+            verdict: "meh" | "fine" | "good";
+        };
+        /** FeedbackView */
+        FeedbackView: {
+            /** File Id */
+            file_id?: string | null;
+            /** Message Id */
+            message_id?: string | null;
+            /** Note */
+            note?: string | null;
+            /** Seq */
+            seq: number;
+            /**
+             * Verdict
+             * @enum {string}
+             */
+            verdict: "meh" | "fine" | "good";
         };
         /** FileListResponse */
         FileListResponse: {
@@ -7141,6 +7956,11 @@ export type components = {
          */
         FluxResponse: {
             /**
+             * Expires At
+             * @description When the hosted link(s) in this response stop resolving (ISO 8601 UTC); 1 hour after the task finished unless `store_output` extended it
+             */
+            expires_at?: string | null;
+            /**
              * Height
              * @description Image height in pixels
              */
@@ -7262,6 +8082,11 @@ export type components = {
              * @description Image aspect ratio; null when the model chose it (gemini-nano-banana-2.1 with aspect_ratio omitted)
              */
             aspect_ratio: string | null;
+            /**
+             * Expires At
+             * @description When the hosted link(s) in this response stop resolving (ISO 8601 UTC); 1 hour after the task finished unless `store_output` extended it
+             */
+            expires_at?: string | null;
             /**
              * Finish Reason
              * @description The model's own completion verdict, forwarded verbatim from upstream (`STOP` on a normal generation). Null when upstream reported none. The same field appears under `error.detail` when a request produces no image, so the value you see on a success and the value behind a failure are the same field.
@@ -7394,6 +8219,11 @@ export type components = {
          */
         GptImage2Response: {
             /**
+             * Expires At
+             * @description When the hosted link(s) in this response stop resolving (ISO 8601 UTC); 1 hour after the task finished unless `store_output` extended it
+             */
+            expires_at?: string | null;
+            /**
              * Images
              * @description List of generated images as base64 strings
              */
@@ -7512,6 +8342,11 @@ export type components = {
          */
         GptImageI2IResponse: {
             /**
+             * Expires At
+             * @description When the hosted link(s) in this response stop resolving (ISO 8601 UTC); 1 hour after the task finished unless `store_output` extended it
+             */
+            expires_at?: string | null;
+            /**
              * Images
              * @description List of edited images as base64 strings
              */
@@ -7619,6 +8454,11 @@ export type components = {
          * @description Response schema for GPT Image text-to-image generation
          */
         GptImageT2IResponse: {
+            /**
+             * Expires At
+             * @description When the hosted link(s) in this response stop resolving (ISO 8601 UTC); 1 hour after the task finished unless `store_output` extended it
+             */
+            expires_at?: string | null;
             /**
              * Images
              * @description List of generated images as base64 strings
@@ -8022,6 +8862,11 @@ export type components = {
              */
             duration?: number | null;
             /**
+             * Expires At
+             * @description When the hosted link(s) in this response stop resolving (ISO 8601 UTC); 1 hour after the task finished unless `store_output` extended it
+             */
+            expires_at?: string | null;
+            /**
              * Mode
              * @description Execution mode used.
              */
@@ -8067,6 +8912,11 @@ export type components = {
              * @description Video duration in seconds.
              */
             duration?: number | null;
+            /**
+             * Expires At
+             * @description When the hosted link(s) in this response stop resolving (ISO 8601 UTC); 1 hour after the task finished unless `store_output` extended it
+             */
+            expires_at?: string | null;
             /**
              * Mode
              * @description Execution mode used.
@@ -8519,6 +9369,14 @@ export type components = {
         } & {
             [key: string]: unknown;
         };
+        /** Interrupted */
+        Interrupted: {
+            /**
+             * Status
+             * @enum {string}
+             */
+            status: "interrupting" | "idle";
+        };
         /** KeyAnalytics */
         KeyAnalytics: {
             /**
@@ -8800,6 +9658,11 @@ export type components = {
              */
             duration: number;
             /**
+             * Expires At
+             * @description When the hosted link(s) in this response stop resolving (ISO 8601 UTC); 1 hour after the task finished unless `store_output` extended it
+             */
+            expires_at?: string | null;
+            /**
              * Mode
              * @description Actual mode used
              */
@@ -8927,6 +9790,11 @@ export type components = {
              */
             duration: number;
             /**
+             * Expires At
+             * @description When the hosted link(s) in this response stop resolving (ISO 8601 UTC); 1 hour after the task finished unless `store_output` extended it
+             */
+            expires_at?: string | null;
+            /**
              * Mode
              * @description Actual mode used
              */
@@ -9021,6 +9889,11 @@ export type components = {
              * @description Video duration in seconds
              */
             duration: number;
+            /**
+             * Expires At
+             * @description When the hosted link(s) in this response stop resolving (ISO 8601 UTC); 1 hour after the task finished unless `store_output` extended it
+             */
+            expires_at?: string | null;
             /**
              * Mode
              * @description Actual mode used
@@ -9118,7 +9991,8 @@ export type components = {
             quality_mode?: ("std" | "pro") | null;
             /**
              * Shot Type
-             * @description Multi-shot storyboard type: 'customize' (the only value, and the default); used when multi_shot is true.
+             * @deprecated
+             * @description Deprecated and ignored: Kling v3's current API has no storyboard type. Omit it.
              */
             shot_type?: "customize" | null;
             /**
@@ -9154,6 +10028,11 @@ export type components = {
              * @description Video duration in seconds
              */
             duration: number;
+            /**
+             * Expires At
+             * @description When the hosted link(s) in this response stop resolving (ISO 8601 UTC); 1 hour after the task finished unless `store_output` extended it
+             */
+            expires_at?: string | null;
             /**
              * Mode
              * @description Actual mode used
@@ -9268,6 +10147,11 @@ export type components = {
              * @description Billed video length in seconds (as long as the reference clip)
              */
             duration: number;
+            /**
+             * Expires At
+             * @description When the hosted link(s) in this response stop resolving (ISO 8601 UTC); 1 hour after the task finished unless `store_output` extended it
+             */
+            expires_at?: string | null;
             /**
              * Mode
              * @description Actual mode used
@@ -9394,7 +10278,8 @@ export type components = {
             reference_video_url?: string | null;
             /**
              * Shot Type
-             * @description Multi-shot storyboard type: 'customize' (the only value, and the default); used when multi_shot is true.
+             * @deprecated
+             * @description Deprecated and ignored: Kling v3's current API has no storyboard type. Omit it.
              */
             shot_type?: "customize" | null;
             /**
@@ -9432,6 +10317,11 @@ export type components = {
              * @description Billed video length in seconds (an edit's follows its input video)
              */
             duration?: number | null;
+            /**
+             * Expires At
+             * @description When the hosted link(s) in this response stop resolving (ISO 8601 UTC); 1 hour after the task finished unless `store_output` extended it
+             */
+            expires_at?: string | null;
             /**
              * Mode
              * @description Actual mode used
@@ -9540,7 +10430,8 @@ export type components = {
             quality_mode?: ("std" | "pro") | null;
             /**
              * Shot Type
-             * @description Multi-shot storyboard type: 'customize' (the only value, and the default); used when multi_shot is true.
+             * @deprecated
+             * @description Deprecated and ignored: Kling v3's current API has no storyboard type. Omit it.
              */
             shot_type?: "customize" | null;
             /**
@@ -9576,6 +10467,11 @@ export type components = {
              * @description Video duration in seconds
              */
             duration: number;
+            /**
+             * Expires At
+             * @description When the hosted link(s) in this response stop resolving (ISO 8601 UTC); 1 hour after the task finished unless `store_output` extended it
+             */
+            expires_at?: string | null;
             /**
              * Mode
              * @description Actual mode used
@@ -9627,6 +10523,24 @@ export type components = {
              * @description Why it failed, in the words the customer who ran it was given; null otherwise
              */
             reason?: string | null;
+        };
+        /** LevelView */
+        LevelView: {
+            /**
+             * Enabled
+             * @description Offered right now; a disabled level cannot start a session.
+             */
+            enabled: boolean;
+            /**
+             * Label
+             * @description The level's name for display.
+             */
+            label: string;
+            /**
+             * Level
+             * @enum {string}
+             */
+            level: "smart" | "smarter" | "smartest";
         };
         /**
          * Lifetime
@@ -9726,6 +10640,11 @@ export type components = {
              * @description Output video duration in seconds (may be fractional).
              */
             duration?: number | null;
+            /**
+             * Expires At
+             * @description When the hosted link(s) in this response stop resolving (ISO 8601 UTC); 1 hour after the task finished unless `store_output` extended it
+             */
+            expires_at?: string | null;
             /**
              * Mode
              * @description Execution mode used.
@@ -9852,6 +10771,16 @@ export type components = {
              * @default per_file
              */
             unit?: string;
+        };
+        /** MessageCreate */
+        MessageCreate: {
+            /**
+             * Attachments
+             * @description File ids or your own Relay file links (image, video or audio). Kept for one day.
+             */
+            attachments?: string[];
+            /** Text */
+            text: string;
         };
         /** MetricsBucket */
         MetricsBucket: {
@@ -10054,6 +10983,11 @@ export type components = {
              */
             duration?: number | null;
             /**
+             * Expires At
+             * @description When the hosted link(s) in this response stop resolving (ISO 8601 UTC); 1 hour after the task finished unless `store_output` extended it
+             */
+            expires_at?: string | null;
+            /**
              * Mode
              * @description Execution mode used.
              */
@@ -10080,6 +11014,76 @@ export type components = {
             urls: string[];
         } & {
             [key: string]: unknown;
+        };
+        /**
+         * MiniMaxH3V2VRequest
+         * @description Request schema for MiniMax H3 video-to-video (`MiniMax/MiniMax-H3-V2V`):
+         *     reference mode with 1-3 reference videos.
+         */
+        MiniMaxH3V2VRequest: {
+            /**
+             * Async
+             * @description Async mode (DEFAULT true for video — long runtime). Returns task_id immediately; poll /v2/tasks/{task_id}. Set false to block for the result.
+             * @default true
+             */
+            async?: boolean | null;
+            /**
+             * Duration
+             * @description Output duration in seconds (4-15); must be at least the total reference video length (each clip rounded up). Billed per output second.
+             * @default 5
+             */
+            duration?: number;
+            /**
+             * Mode
+             * @description Routing mode: 'auto' or 'direct' (video is direct-only).
+             * @default auto
+             */
+            mode?: ("auto" | "direct") | null;
+            /**
+             * Prompt
+             * @description Text description of the video (required, max 7000 characters). Refer to inputs as 'reference video 1', 'reference image 1', 'reference audio 1'. Spoken lines: (S1) says: <d>[Language] exact words</d>.
+             */
+            prompt: string;
+            /**
+             * Ratio
+             * @description Aspect ratio, or `adaptive` to follow the references.
+             * @default 16:9
+             * @enum {string}
+             */
+            ratio?: "16:9" | "21:9" | "4:3" | "1:1" | "3:4" | "9:16" | "adaptive";
+            /**
+             * Reference Audio Urls
+             * @description Optional reference audio URLs or base64 data URIs (1-3 clips, WAV/MP3, each 2-15 s, 15 s in total, max 15MB each), e.g. a voice to follow.
+             */
+            reference_audio_urls?: string[] | null;
+            /**
+             * Reference Image Urls
+             * @description Optional reference image URLs or base64 data URIs (1-5), e.g. a character, object or scene to keep.
+             */
+            reference_image_urls?: string[] | null;
+            /**
+             * Reference Video Urls
+             * @description Reference video URLs or base64 data URIs (required, 1-3 clips; MP4/MOV, each 2-15 s, 15 s in total, max 50MB each). The total length, each clip rounded up to a whole second, must not exceed `duration`.
+             */
+            reference_video_urls: string[];
+            /**
+             * Resolution
+             * @description Output resolution: 768P or 2K. Priced per output second by resolution.
+             * @default 768P
+             * @enum {string}
+             */
+            resolution?: "768P" | "2K";
+            /**
+             * Store Output
+             * @description Where this request's output media is hosted, and for how long. `provider` (default) returns a Relay CDN link that live-proxies the provider for 1 hour — the same hour the task record itself lives. `relay1d` / `relay7d` / `relay30d` copy the output into Relay's own storage and keep BOTH the link and the task record for 1, 7 or 30 days, for a flat per-file fee (see `media_storage` in GET /v2/pricing). On routes that return images inline (base64) the images are also hosted, as `urls`, for the same lifetime. `relay*` is not available to the guest tier, nor on a model whose `store_output_supported` is false in GET /v2/models.
+             * @default provider
+             */
+            store_output?: ("provider" | "relay1d" | "relay7d" | "relay30d") | null;
+            /**
+             * Webhook Url
+             * @description HTTPS URL to receive a signed completion webhook when the async task reaches a terminal state (requires an API key, "async": true and direct mode; otherwise 422). See the Webhooks section for the delivery payload and events, and GET /v2/customer/webhook-secret for the signing secret + verification.
+             */
+            webhook_url?: string | null;
         };
         /**
          * MinimaxSpeech28HdRequest
@@ -10272,6 +11276,15 @@ export type components = {
             /** @description The route that serves this model; null when no single route can be named for it */
             endpoint: components["schemas"]["ModelEndpoint"] | null;
             /**
+             * Endpoints
+             * @description Chat models: the API formats the model is served in. `chat_completions` is `endpoint` (the primary route); `responses` adds `POST /v2/openai/v1/responses` (the OpenAI Responses API). Null for every other model and when retired
+             * @example [
+             *       "chat_completions",
+             *       "responses"
+             *     ]
+             */
+            endpoints?: ("chat_completions" | "responses")[] | null;
+            /**
              * Modes
              * @description The modes that list this model — `auto` whenever any does; empty when retired
              */
@@ -10328,6 +11341,12 @@ export type components = {
              *     ]
              */
             restricted_tiers: string[];
+            /**
+             * Result Field
+             * @description The property of the 200 body that carries the result; null for routes that answer a task envelope only
+             * @example choices
+             */
+            result_field?: string | null;
             /**
              * Sources
              * @description The sources (route families) that list this model; empty when retired
@@ -10428,6 +11447,12 @@ export type components = {
              * @example openai/gpt-5.4
              */
             name: string;
+            /**
+             * Status
+             * @description Same vocabulary as `GET /v2/models/{model}`. This list carries live models only, so the value is `available`; a retired model is not listed
+             * @enum {string}
+             */
+            status: "available" | "retired";
             /**
              * Store Output Supported
              * @description Whether the model accepts `store_output: relay1d|relay7d|relay30d`. Always present; under `auto`, true only if every mode hosting the model offers it
@@ -10952,6 +11977,196 @@ export type components = {
             [key: string]: unknown;
         };
         /**
+         * OpenAIResponsesRequest
+         * @description OpenAI Responses API request (stateless: Relay never stores or continues a response).
+         */
+        OpenAIResponsesRequest: {
+            /**
+             * Background
+             * @description Not offered: `true` is refused with 422. Use `stream: true` for long answers.
+             */
+            background?: boolean | null;
+            /**
+             * Conversation
+             * @description Not offered: a value is refused with 422. Relay does not store responses; resend the full conversation in `input` each turn.
+             */
+            conversation?: string | {
+                [key: string]: unknown;
+            } | null;
+            /**
+             * Include
+             * @description Extra output: only `reasoning.encrypted_content` is offered (pass the returned reasoning items back in `input` to keep the model's reasoning across turns).
+             */
+            include?: string[] | null;
+            /**
+             * Input
+             * @description A string, or the conversation as a list of input items (messages, `function_call` and `function_call_output` items, and reasoning items passed back from an earlier answer). Send the whole conversation each turn.
+             */
+            input: string | {
+                [key: string]: unknown;
+            }[];
+            /**
+             * Instructions
+             * @description System instructions for this request
+             */
+            instructions?: string | null;
+            /**
+             * Max Output Tokens
+             * @description Maximum tokens to generate, reasoning included. At most the model's output limit; a larger value is refused with 422 naming the limit.
+             */
+            max_output_tokens?: number | null;
+            /**
+             * Metadata
+             * @description Up to 16 key-value pairs, echoed on the response
+             */
+            metadata?: {
+                [key: string]: string;
+            } | null;
+            /**
+             * Mode
+             * @description Routing mode. The Responses API runs in direct mode: `auto` and `direct` serve it, `opengpu` is refused with 422.
+             * @default auto
+             */
+            mode?: ("auto" | "opengpu" | "direct") | null;
+            /**
+             * Model
+             * @description Model name, case-sensitive, e.g. `openai/gpt-6.1-sol`: a model whose `GET /v2/models/{model}` lists `responses` in `endpoints`.
+             */
+            model: string;
+            /**
+             * Parallel Tool Calls
+             * @description Allow several tool calls in one answer
+             */
+            parallel_tool_calls?: boolean | null;
+            /**
+             * Previous Response Id
+             * @description Not offered: a value is refused with 422. Relay does not store responses; resend the full conversation in `input` each turn.
+             */
+            previous_response_id?: string | null;
+            /** @description Reasoning controls */
+            reasoning?: components["schemas"]["ResponsesReasoning"] | null;
+            /**
+             * Store
+             * @description Only `false` (the default): Relay never stores a response. `true` is refused with 422.
+             */
+            store?: boolean | null;
+            /**
+             * Stream
+             * @description Stream the answer as Server-Sent Events in OpenAI's typed-event format (`response.created` ... `response.completed`)
+             * @default false
+             */
+            stream?: boolean | null;
+            /**
+             * Stream Options
+             * @description Not offered on this route: a value is refused with 422. A stream's usage arrives on its `response.completed` event.
+             */
+            stream_options?: {
+                [key: string]: unknown;
+            } | null;
+            /**
+             * Temperature
+             * @description Sampling temperature. A model that does not take it, or takes only some values, refuses others with 422 naming what it takes.
+             */
+            temperature?: number | null;
+            /**
+             * Text
+             * @description Text output options, e.g. `{"format": {"type": "json_schema", ...}}`
+             */
+            text?: {
+                [key: string]: unknown;
+            } | null;
+            /**
+             * Tool Choice
+             * @description `auto`, `none`, `required`, or `{"type": "function", "name": "..."}`
+             */
+            tool_choice?: string | {
+                [key: string]: unknown;
+            } | null;
+            /**
+             * Tools
+             * @description Function tools: `[{"type": "function", "name": "...", "parameters": {...}}]`. Only `function` tools are offered; any other type is refused with 422.
+             */
+            tools?: {
+                [key: string]: unknown;
+            }[] | null;
+            /**
+             * Top P
+             * @description Nucleus sampling. A model that does not take it refuses it with 422.
+             */
+            top_p?: number | null;
+            /**
+             * Truncation
+             * @description Context truncation strategy
+             */
+            truncation?: ("auto" | "disabled") | null;
+        };
+        /**
+         * OpenAIResponsesResponse
+         * @description OpenAI Responses API `Response` object, as the provider returned it, plus Relay's `task_id` and `mode`.
+         *     Typed loosely: output items and fields this model does not name pass through unchanged.
+         */
+        OpenAIResponsesResponse: {
+            /**
+             * Created At
+             * @description Unix timestamp
+             */
+            created_at?: number | null;
+            /**
+             * Id
+             * @description Response id
+             */
+            id?: string | null;
+            /**
+             * Mode
+             * @description Execution mode used
+             */
+            mode?: string | null;
+            /**
+             * Model
+             * @description Model used
+             */
+            model: string;
+            /**
+             * Object
+             * @description Always `response`
+             * @default response
+             */
+            object?: string;
+            /**
+             * Output
+             * @description Output items in order: `message`, `function_call`, `reasoning` (with `encrypted_content` when requested), and any other item type the model returns
+             */
+            output: {
+                [key: string]: unknown;
+            }[];
+            /**
+             * Status
+             * @description `completed`, or `incomplete` when the answer was cut short (see `incomplete_details`)
+             */
+            status?: string | null;
+            /**
+             * Task Id
+             * @description Task identifier (direct:{uuid})
+             */
+            task_id?: string | null;
+            /**
+             * Usage
+             * @description `input_tokens`, `output_tokens`, `total_tokens`, `input_tokens_details.cached_tokens`, `output_tokens_details.reasoning_tokens`
+             */
+            usage?: {
+                [key: string]: unknown;
+            } | null;
+        } & {
+            [key: string]: unknown;
+        };
+        /** @description One OpenAI Responses SSE event (`response.created`, `response.output_text.delta`, `response.completed`, …). Framed as `event: <type>` + `data: {json}`; usage arrives on `response.completed`. */
+        OpenAIResponsesStreamEvent: {
+            sequence_number?: number;
+            type?: string;
+        } & {
+            [key: string]: unknown;
+        };
+        /**
          * PercentileSet
          * @description p50/p90/p95/p99 (ms) + the `sample_count` they rest on. A percentile is
          *     null when the set has no samples OR when `sample_count` is below its
@@ -10974,6 +12189,55 @@ export type components = {
              * @default 0
              */
             sample_count?: number;
+        };
+        /**
+         * PlanChangeRequest
+         * @example {
+         *       "plan_id": "creator"
+         *     }
+         */
+        PlanChangeRequest: {
+            /**
+             * Plan Id
+             * @description The plan to move to.
+             */
+            plan_id: string;
+        };
+        /**
+         * PrefsPatch
+         * @description At least one switch; one left out keeps its value.
+         */
+        PrefsPatch: {
+            /**
+             * Ask Before Image
+             * @description Ask before an image model runs: Smith shows the model, price and file name and waits for Continue before anything runs or is charged.
+             */
+            ask_before_image?: boolean | null;
+            /**
+             * Ask Before Video
+             * @description The same for video models.
+             */
+            ask_before_video?: boolean | null;
+        };
+        /**
+         * PrefsView
+         * @description The account's Smith switches (both off until set).
+         * @example {
+         *       "ask_before_image": false,
+         *       "ask_before_video": true
+         *     }
+         */
+        PrefsView: {
+            /**
+             * Ask Before Image
+             * @description Ask before an image model runs: Smith shows the model, price and file name and waits for Continue before anything runs or is charged.
+             */
+            ask_before_image: boolean;
+            /**
+             * Ask Before Video
+             * @description The same for video models.
+             */
+            ask_before_video: boolean;
         };
         /**
          * PricingItem
@@ -11079,7 +12343,7 @@ export type components = {
              * @description Optional cost per image by resolution tier, e.g. {"1K": 0.14, "4K": 0.24}. Falls back to per_image when the resolution tier of the request is missing or unmatched.
              */
             per_image_resolution?: {
-                [key: string]: unknown;
+                [key: string]: number;
             } | null;
             /**
              * Per Second Audio
@@ -11091,7 +12355,7 @@ export type components = {
              * @description Cost per second of video, keyed by resolution tier or by composite "resolution|quality|sound"
              */
             per_second_video?: {
-                [key: string]: unknown;
+                [key: string]: number;
             } | null;
         };
         /**
@@ -11184,6 +12448,24 @@ export type components = {
             status: string;
         };
         /**
+         * QueuedMessage
+         * @description A message waiting for a turn of this account to end.
+         */
+        QueuedMessage: {
+            /** Message Id */
+            message_id: string;
+            /**
+             * Position
+             * @description Its place in this account's queue, 1 = next.
+             */
+            position: number;
+            /**
+             * Running Session Id
+             * @description The session whose turn it waits on (this one, when its own turn runs).
+             */
+            running_session_id?: string | null;
+        };
+        /**
          * Qwen3TtsFlashRequest
          * @description Qwen3-TTS-Flash text-to-speech request (audio source, direct mode only).
          */
@@ -11249,6 +12531,11 @@ export type components = {
              * @description Characters of input text synthesized
              */
             characters?: number | null;
+            /**
+             * Expires At
+             * @description When `audio_url` stops resolving, as the provider reports it (epoch number or ISO timestamp); rewritten to the hosted link's own expiry when Relay re-hosts the audio
+             */
+            expires_at?: number | string | null;
             /**
              * Mode
              * @description Execution mode used (direct)
@@ -11328,6 +12615,11 @@ export type components = {
          */
         QwenEditResponse: {
             /**
+             * Expires At
+             * @description When the hosted link(s) in this response stop resolving (ISO 8601 UTC); 1 hour after the task finished unless `store_output` extended it
+             */
+            expires_at?: string | null;
+            /**
              * Mode
              * @description Execution mode used
              */
@@ -11354,7 +12646,7 @@ export type components = {
             task_id?: string | null;
             /**
              * Urls
-             * @description List of edited image URLs (expire after 7 days)
+             * @description List of edited image URLs (expire 1 hour after generation unless store_output is used)
              */
             urls: string[];
         } & {
@@ -11420,6 +12712,11 @@ export type components = {
          */
         QwenImageResponse: {
             /**
+             * Expires At
+             * @description When the hosted link(s) in this response stop resolving (ISO 8601 UTC); 1 hour after the task finished unless `store_output` extended it
+             */
+            expires_at?: string | null;
+            /**
              * Mode
              * @description Execution mode used
              */
@@ -11446,7 +12743,7 @@ export type components = {
             task_id?: string | null;
             /**
              * Urls
-             * @description List of generated image URLs (expire after 7 days)
+             * @description List of generated image URLs (expire 1 hour after generation unless store_output is used)
              */
             urls: string[];
         } & {
@@ -11741,6 +13038,54 @@ export type components = {
             [key: string]: unknown;
         };
         /**
+         * ResponsesReasoning
+         * @description `reasoning` on a Responses request: forwarded as sent; each model takes its own effort values.
+         */
+        ResponsesReasoning: {
+            /**
+             * Effort
+             * @description Reasoning effort (e.g. `none`, `low`, `medium`, `high`, `xhigh`); each model takes its own subset
+             */
+            effort?: string | null;
+            /**
+             * Summary
+             * @description Reasoning summary: `auto`, `concise` or `detailed`
+             */
+            summary?: string | null;
+        };
+        /** RevokeKeyResponse */
+        RevokeKeyResponse: {
+            /**
+             * Key
+             * @description Masked key secret: its first 20 characters followed by `...`.
+             */
+            key: string;
+            /**
+             * Key Id
+             * @description Non-secret stable identifier of the key.
+             */
+            key_id?: string | null;
+            /**
+             * New Status
+             * @description `revoked`
+             */
+            new_status: string;
+            /** Note */
+            note: string;
+            /** Previous Status */
+            previous_status: string;
+            /**
+             * Revoked At
+             * @description UTC ISO timestamp.
+             */
+            revoked_at: string;
+            /**
+             * Status
+             * @description Always `success`
+             */
+            status: string;
+        };
+        /**
          * RoutingPair
          * @description The model and reasoning effort RelayConductor served.
          */
@@ -11912,6 +13257,28 @@ export type components = {
              */
             usecase?: "auto" | "code" | "general" | "design";
         };
+        /** SaveBody */
+        SaveBody: {
+            /**
+             * Retention
+             * @enum {string}
+             */
+            retention: "relay7d" | "relay30d";
+        };
+        /** SavedAsset */
+        SavedAsset: {
+            /** Cost Usd */
+            cost_usd: number;
+            /** Expires At */
+            expires_at?: string | null;
+            /**
+             * File Id
+             * @description The saved copy's file id.
+             */
+            file_id: string;
+            /** Url */
+            url: string;
+        };
         /**
          * SeedreamRequest
          * @description Request schema for Seedream image generation and reference-image editing.
@@ -11990,6 +13357,11 @@ export type components = {
          */
         SeedreamResponse: {
             /**
+             * Expires At
+             * @description When the hosted link(s) in this response stop resolving (ISO 8601 UTC); 1 hour after the task finished unless `store_output` extended it
+             */
+            expires_at?: string | null;
+            /**
              * Mode
              * @description Execution mode used
              */
@@ -12016,6 +13388,164 @@ export type components = {
             urls: string[];
         } & {
             [key: string]: unknown;
+        };
+        /** SessionCreate */
+        SessionCreate: {
+            /**
+             * Level
+             * @description The level the session starts at; `PATCH {level}` changes it between turns.
+             * @default smart
+             * @enum {string}
+             */
+            level?: "smart" | "smarter" | "smartest";
+        };
+        /** SessionList */
+        SessionList: {
+            /**
+             * Sessions
+             * @description Newest activity first.
+             */
+            sessions: components["schemas"]["SessionRow"][];
+        };
+        /**
+         * SessionPatch
+         * @description At least one of `name`, `pinned` and `level`.
+         */
+        SessionPatch: {
+            /**
+             * Level
+             * @description Move the session to another level between turns; the next turn runs on that level's model with the same history.
+             */
+            level?: ("smart" | "smarter" | "smartest") | null;
+            /** Name */
+            name?: string | null;
+            /**
+             * Pinned
+             * @description Kept at the top of the session list, on every browser of this account.
+             */
+            pinned?: boolean | null;
+        };
+        /**
+         * SessionRow
+         * @description One row of the session list.
+         * @example {
+         *       "level": "smart",
+         *       "name": "Animate this photo into a 5 second",
+         *       "pinned": false,
+         *       "session_id": "ses_8c1f0e2a9b7d4c3e5f6a7b8c",
+         *       "status": "idle",
+         *       "total_usd": 0.42,
+         *       "updated_at": "2026-11-02T10:05:00Z"
+         *     }
+         */
+        SessionRow: {
+            /**
+             * Level
+             * @enum {string}
+             */
+            level: "smart" | "smarter" | "smartest";
+            /**
+             * Name
+             * @description An excerpt of the first message (its first 60 characters, cut at a word) until renamed; null before the first message.
+             */
+            name?: string | null;
+            /**
+             * Pinned
+             * @description Set with `PATCH {pinned}`; follows the account.
+             * @default false
+             */
+            pinned?: boolean;
+            /** Session Id */
+            session_id: string;
+            /**
+             * Status
+             * @description `running` while a turn runs, `queued` while a message waits for another turn of this account to end, else `idle`.
+             * @enum {string}
+             */
+            status: "idle" | "queued" | "running";
+            /**
+             * Total Usd
+             * @description Everything this session has cost so far: Smith's thinking, model runs and storage.
+             */
+            total_usd: number;
+            /**
+             * Updated At
+             * @description The session's latest activity.
+             */
+            updated_at?: string | null;
+        };
+        /**
+         * SessionView
+         * @description One session's state.
+         * @example {
+         *       "created_at": "2026-11-02T10:00:00Z",
+         *       "last_seq": 18,
+         *       "level": "smart",
+         *       "name": "Animate this photo into a 5 second",
+         *       "pinned": false,
+         *       "prompt_version": "v1",
+         *       "queued": [
+         *         {
+         *           "message_id": "msg_4b3a2c1d0e9f8a7b6c5d",
+         *           "position": 1,
+         *           "running_session_id": "ses_2d4e6f8a0b1c3d5e7f9a1b2c"
+         *         }
+         *       ],
+         *       "session_id": "ses_8c1f0e2a9b7d4c3e5f6a7b8c",
+         *       "status": "queued",
+         *       "total_usd": 0.42,
+         *       "updated_at": "2026-11-02T10:05:00Z"
+         *     }
+         */
+        SessionView: {
+            /** Created At */
+            created_at?: string | null;
+            /**
+             * Last Seq
+             * @description The `seq` of the session's latest event.
+             */
+            last_seq: number;
+            /**
+             * Level
+             * @enum {string}
+             */
+            level: "smart" | "smarter" | "smartest";
+            /**
+             * Name
+             * @description An excerpt of the first message (its first 60 characters, cut at a word) until renamed; null before the first message.
+             */
+            name?: string | null;
+            /**
+             * Pinned
+             * @description Set with `PATCH {pinned}`; follows the account.
+             * @default false
+             */
+            pinned?: boolean;
+            /** Prompt Version */
+            prompt_version: string;
+            /**
+             * Queued
+             * @description This session's waiting messages (up to three), run together as its next turn; empty when none wait.
+             */
+            queued?: components["schemas"]["QueuedMessage"][];
+            /** Session Id */
+            session_id: string;
+            /**
+             * Status
+             * @description `running` while a turn runs, `queued` while a message waits for another turn of this account to end, else `idle`.
+             * @enum {string}
+             */
+            status: "idle" | "queued" | "running";
+            /**
+             * Total Usd
+             * @description Everything this session has cost so far: Smith's thinking, model runs and storage.
+             */
+            total_usd: number;
+            /**
+             * Updated At
+             * @description The session's latest activity.
+             */
+            updated_at?: string | null;
         };
         /**
          * SlotMint
@@ -12139,6 +13669,11 @@ export type components = {
              */
             duration: number;
             /**
+             * Expires At
+             * @description When the hosted link(s) in this response stop resolving (ISO 8601 UTC); 1 hour after the task finished unless `store_output` extended it
+             */
+            expires_at?: string | null;
+            /**
              * Mode
              * @description Actual mode used (direct)
              */
@@ -12228,6 +13763,11 @@ export type components = {
              * @description Video duration in seconds
              */
             duration: number;
+            /**
+             * Expires At
+             * @description When the hosted link(s) in this response stop resolving (ISO 8601 UTC); 1 hour after the task finished unless `store_output` extended it
+             */
+            expires_at?: string | null;
             /**
              * Mode
              * @description Actual mode used
@@ -12319,6 +13859,11 @@ export type components = {
              */
             duration: number;
             /**
+             * Expires At
+             * @description When the hosted link(s) in this response stop resolving (ISO 8601 UTC); 1 hour after the task finished unless `store_output` extended it
+             */
+            expires_at?: string | null;
+            /**
              * Mode
              * @description Actual mode used
              */
@@ -12409,6 +13954,11 @@ export type components = {
              */
             duration: number;
             /**
+             * Expires At
+             * @description When the hosted link(s) in this response stop resolving (ISO 8601 UTC); 1 hour after the task finished unless `store_output` extended it
+             */
+            expires_at?: string | null;
+            /**
              * Mode
              * @description Actual mode used
              */
@@ -12441,6 +13991,24 @@ export type components = {
             videos: string[];
         } & {
             [key: string]: unknown;
+        };
+        /**
+         * StepAnswered
+         * @description The answer to a paused step: `running` after Continue, `interrupted`
+         *     after Stop (the step's `tool_finished` follows on the events stream).
+         * @example {
+         *       "state": "running",
+         *       "step_id": "stp_3f9a0c1b2d4e5f60"
+         *     }
+         */
+        StepAnswered: {
+            /**
+             * State
+             * @enum {string}
+             */
+            state: "running" | "interrupted";
+            /** Step Id */
+            step_id: string;
         };
         /** @description Error body of a `stream: true` request that failed before its first chunk. */
         StreamErrorResponse: {
@@ -12483,6 +14051,215 @@ export type components = {
             max_segment_duration_s?: number | null;
             /** Segment On Silence Longer Than S */
             segment_on_silence_longer_than_s?: number | null;
+        };
+        /**
+         * SubscribeRequest
+         * @example {
+         *       "plan_id": "hobbyist"
+         *     }
+         */
+        SubscribeRequest: {
+            /**
+             * Plan Id
+             * @description `hobbyist`, `creator` or `studio`.
+             * @default hobbyist
+             */
+            plan_id?: string;
+            /**
+             * Return Url
+             * @description Only used when there is no saved card: your page to come back to after saving one (the same rule as the card-setup route).
+             */
+            return_url?: string | null;
+        };
+        /**
+         * SubscribeView
+         * @description The subscribe answer: the record, plus `setup_url` when there is no
+         *     saved card yet.
+         * @example {
+         *       "cancel_at_period_end": false,
+         *       "current_period_end": "2026-12-02T10:00:00Z",
+         *       "current_period_start": "2026-11-02T10:00:00Z",
+         *       "entitled": true,
+         *       "granted": false,
+         *       "plan_id": "hobbyist",
+         *       "sandbox_minutes": 30,
+         *       "status": "active",
+         *       "trial": {
+         *         "active": false,
+         *         "eligible": false,
+         *         "ineligible_reason": "has_plan",
+         *         "minutes_cap": 5,
+         *         "minutes_used": 0,
+         *         "used": false
+         *       }
+         *     }
+         */
+        SubscribeView: {
+            /**
+             * Cancel At Period End
+             * @default false
+             */
+            cancel_at_period_end?: boolean;
+            /** Current Period End */
+            current_period_end?: string | null;
+            /** Current Period Start */
+            current_period_start?: string | null;
+            /**
+             * Entitled
+             * @description Whether the plan's features are available right now.
+             */
+            entitled: boolean;
+            /**
+             * Entitlement Reason
+             * @description Why not, when `entitled` is false. `disabled`: Smith is switched off for this account.
+             */
+            entitlement_reason?: ("no_plan" | "pending_first" | "past_due" | "cancelled" | "trial_ended" | "disabled") | null;
+            /**
+             * Granted
+             * @description The plan was given, not bought: it runs to `current_period_end`, then renews on the saved card, or ends when there is none.
+             * @default false
+             */
+            granted?: boolean;
+            /**
+             * Next Plan Id
+             * @description A lower plan chosen for the next period; null when none.
+             */
+            next_plan_id?: string | null;
+            /**
+             * Next Retry At
+             * @description While `past_due`: when the declined renewal is retried next; else null.
+             */
+            next_retry_at?: string | null;
+            /** Plan Id */
+            plan_id?: string | null;
+            /**
+             * Sandbox Minutes
+             * @description Editing minutes for the current period (or the trial).
+             */
+            sandbox_minutes?: number | null;
+            /**
+             * Setup Url
+             * @description Only when there is no saved card: the hosted page that saves one. When the person comes back, POST this route again (safe to repeat) to run the first charge.
+             */
+            setup_url?: string | null;
+            /**
+             * Status
+             * @description `pending_first`: subscribing, waiting for the card or the first payment. `past_due`: the last renewal was declined and is retried once a day.
+             * @enum {string}
+             */
+            status: "none" | "pending_first" | "trialing" | "active" | "past_due" | "cancelled";
+            trial: components["schemas"]["SubscriptionTrialView"];
+        };
+        /** SubscriptionTrialView */
+        SubscriptionTrialView: {
+            /**
+             * Active
+             * @description A trial is running now.
+             */
+            active: boolean;
+            /**
+             * Eligible
+             * @description The trial button would start a trial now.
+             */
+            eligible: boolean;
+            /**
+             * Ends At
+             * @description When the trial ends (or ended); null when none was started.
+             */
+            ends_at?: string | null;
+            /**
+             * Ineligible Reason
+             * @description Why not; null exactly when `eligible` is true.
+             */
+            ineligible_reason?: ("no_plan_doc" | "account_inactive" | "tier_not_eligible" | "email_unverified" | "balance_below_minimum" | "already_used" | "has_plan") | null;
+            /**
+             * Minutes Cap
+             * @description Editing minutes a trial includes.
+             */
+            minutes_cap: number;
+            /**
+             * Minutes Used
+             * @description Editing minutes the trial has used.
+             */
+            minutes_used: number;
+            /**
+             * Used
+             * @description This account (or its email) has had its trial.
+             */
+            used: boolean;
+        };
+        /**
+         * SubscriptionView
+         * @description Exactly the dashboard contract's fields (smith_dashboard_brief.md).
+         * @example {
+         *       "cancel_at_period_end": false,
+         *       "current_period_end": "2026-12-02T10:00:00Z",
+         *       "current_period_start": "2026-11-02T10:00:00Z",
+         *       "entitled": true,
+         *       "granted": false,
+         *       "plan_id": "hobbyist",
+         *       "sandbox_minutes": 30,
+         *       "status": "active",
+         *       "trial": {
+         *         "active": false,
+         *         "eligible": false,
+         *         "ineligible_reason": "has_plan",
+         *         "minutes_cap": 5,
+         *         "minutes_used": 0,
+         *         "used": false
+         *       }
+         *     }
+         */
+        SubscriptionView: {
+            /**
+             * Cancel At Period End
+             * @default false
+             */
+            cancel_at_period_end?: boolean;
+            /** Current Period End */
+            current_period_end?: string | null;
+            /** Current Period Start */
+            current_period_start?: string | null;
+            /**
+             * Entitled
+             * @description Whether the plan's features are available right now.
+             */
+            entitled: boolean;
+            /**
+             * Entitlement Reason
+             * @description Why not, when `entitled` is false. `disabled`: Smith is switched off for this account.
+             */
+            entitlement_reason?: ("no_plan" | "pending_first" | "past_due" | "cancelled" | "trial_ended" | "disabled") | null;
+            /**
+             * Granted
+             * @description The plan was given, not bought: it runs to `current_period_end`, then renews on the saved card, or ends when there is none.
+             * @default false
+             */
+            granted?: boolean;
+            /**
+             * Next Plan Id
+             * @description A lower plan chosen for the next period; null when none.
+             */
+            next_plan_id?: string | null;
+            /**
+             * Next Retry At
+             * @description While `past_due`: when the declined renewal is retried next; else null.
+             */
+            next_retry_at?: string | null;
+            /** Plan Id */
+            plan_id?: string | null;
+            /**
+             * Sandbox Minutes
+             * @description Editing minutes for the current period (or the trial).
+             */
+            sandbox_minutes?: number | null;
+            /**
+             * Status
+             * @description `pending_first`: subscribing, waiting for the card or the first payment. `past_due`: the last renewal was declined and is retried once a day.
+             * @enum {string}
+             */
+            status: "none" | "pending_first" | "trialing" | "active" | "past_due" | "cancelled";
+            trial: components["schemas"]["SubscriptionTrialView"];
         };
         /**
          * TaskStatusResponse
@@ -12542,7 +14319,7 @@ export type components = {
             model?: string | null;
             /**
              * Result
-             * @description Task result (only present when status='completed')
+             * @description Task result (only present when status='completed'). When the result carries Relay-hosted links (`urls`, `videos`, `audio_url`), it also carries `expires_at` (ISO 8601 UTC): when those links stop resolving, 1 hour after the task finished unless `store_output` extended it.
              */
             result?: {
                 [key: string]: unknown;
@@ -12578,6 +14355,16 @@ export type components = {
              * @description `terminating` while the shutdown runs; the terminal status once it has finished
              */
             status: string;
+        };
+        /** Ticket */
+        Ticket: {
+            /**
+             * Expires In
+             * @default 60
+             */
+            expires_in?: number;
+            /** Ticket */
+            ticket: string;
         };
         /**
          * TierInfo
@@ -12661,6 +14448,53 @@ export type components = {
         } & {
             [key: string]: unknown;
         };
+        /**
+         * TurnAccepted
+         * @description The message was taken: it started (`accepted`) or waits for the turn
+         *     running in another session (or this one) to end (`queued`).
+         * @example {
+         *       "message_id": "msg_4b3a2c1d0e9f8a7b6c5d",
+         *       "session_id": "ses_8c1f0e2a9b7d4c3e5f6a7b8c",
+         *       "status": "accepted",
+         *       "turn_id": "trn_1a2b3c4d5e6f7a8b9c0d"
+         *     }
+         * @example {
+         *       "message_id": "msg_4b3a2c1d0e9f8a7b6c5d",
+         *       "position": 1,
+         *       "running_session_id": "ses_2d4e6f8a0b1c3d5e7f9a1b2c",
+         *       "session_id": "ses_8c1f0e2a9b7d4c3e5f6a7b8c",
+         *       "status": "queued"
+         *     }
+         */
+        TurnAccepted: {
+            /**
+             * Message Id
+             * @description The `message_id` of the `user_message` event.
+             */
+            message_id: string;
+            /**
+             * Position
+             * @description Its place in this account's queue, 1 = next. `queued` only.
+             */
+            position?: number | null;
+            /**
+             * Running Session Id
+             * @description The session whose turn it waits on (this one, when its own turn runs). `queued` only.
+             */
+            running_session_id?: string | null;
+            /** Session Id */
+            session_id: string;
+            /**
+             * Status
+             * @enum {string}
+             */
+            status: "accepted" | "queued";
+            /**
+             * Turn Id
+             * @description The turn it started (`accepted` only).
+             */
+            turn_id?: string | null;
+        };
         /** UnavailableStep */
         UnavailableStep: {
             /**
@@ -12679,6 +14513,38 @@ export type components = {
              * @description The step's `step_id`
              */
             step: string;
+        };
+        /** UnrevokeKeyResponse */
+        UnrevokeKeyResponse: {
+            /**
+             * Key
+             * @description Masked key secret: its first 20 characters followed by `...`.
+             */
+            key: string;
+            /**
+             * Key Id
+             * @description Non-secret stable identifier of the key.
+             */
+            key_id?: string | null;
+            /**
+             * New Status
+             * @description `active`
+             */
+            new_status: string;
+            /** Note */
+            note: string;
+            /** Previous Status */
+            previous_status: string;
+            /**
+             * Status
+             * @description Always `success`
+             */
+            status: string;
+            /**
+             * Unrevoked At
+             * @description UTC ISO timestamp.
+             */
+            unrevoked_at: string;
         };
         /** UpdateKeyRequest */
         UpdateKeyRequest: {
@@ -12699,6 +14565,46 @@ export type components = {
             name?: string | null;
             /** @description Updated restrictions (narrowing only) */
             restrictions?: components["schemas"]["KeyRestrictions"] | null;
+        };
+        /** UpdateKeyResponse */
+        UpdateKeyResponse: {
+            /**
+             * Instances Allowed
+             * @description Whether the key may create Instances after this call.
+             */
+            instances_allowed: boolean;
+            /**
+             * Key
+             * @description Masked key secret: its first 20 characters followed by `...`.
+             */
+            key: string;
+            /**
+             * Key Id
+             * @description Non-secret stable identifier of the key.
+             */
+            key_id?: string | null;
+            /**
+             * New Key Budget
+             * @description The new cap after a `key_budget` change (null when the call cleared it or did not touch it).
+             */
+            new_key_budget?: number | null;
+            /**
+             * New Restrictions
+             * @description The replaced restrictions object; null when restrictions were not sent.
+             */
+            new_restrictions?: {
+                [key: string]: unknown;
+            } | null;
+            /**
+             * Status
+             * @description Always `success`
+             */
+            status: string;
+            /**
+             * Updated Fields
+             * @description The fields this call changed (`name`, `restrictions`, `key_budget`, `instances_allowed`).
+             */
+            updated_fields: string[];
         };
         /**
          * UpdateModelAllowlistRequest
@@ -12908,6 +14814,37 @@ export type components = {
             /** Spend */
             spend: number;
         };
+        /**
+         * UsageView
+         * @description The plan card (the dashboard brief's `GET /usage`).
+         * @example {
+         *       "period_end": "2026-12-02T10:00:00Z",
+         *       "period_start": "2026-11-02T10:00:00Z",
+         *       "sandbox_minutes_cap": 1800,
+         *       "sandbox_minutes_used": 12.5
+         *     }
+         */
+        UsageView: {
+            /**
+             * Period End
+             * @description When the minutes reset.
+             */
+            period_end?: string | null;
+            /**
+             * Period Start
+             * @description The billing period (or the trial) the minutes count in; null with neither.
+             */
+            period_start?: string | null;
+            /**
+             * Sandbox Minutes Cap
+             * @description Editing minutes in this period, extra minutes included.
+             */
+            sandbox_minutes_cap: number;
+            /** Sandbox Minutes Used */
+            sandbox_minutes_used: number;
+            /** @description The same object as `GET /v2/customer/subscription`'s `trial`, while on a trial; null otherwise. */
+            trial?: components["schemas"]["SubscriptionTrialView"] | null;
+        };
         /** UsageWindow */
         UsageWindow: {
             /**
@@ -13010,6 +14947,11 @@ export type components = {
              * @description Video duration in seconds.
              */
             duration?: number | null;
+            /**
+             * Expires At
+             * @description When the hosted link(s) in this response stop resolving (ISO 8601 UTC); 1 hour after the task finished unless `store_output` extended it
+             */
+            expires_at?: string | null;
             /**
              * Mode
              * @description Execution mode used.
@@ -13164,6 +15106,11 @@ export type components = {
              */
             duration: number;
             /**
+             * Expires At
+             * @description When the hosted link(s) in this response stop resolving (ISO 8601 UTC); 1 hour after the task finished unless `store_output` extended it
+             */
+            expires_at?: string | null;
+            /**
              * Mode
              * @description Execution mode used
              */
@@ -13279,6 +15226,11 @@ export type components = {
              * @description Video duration in seconds
              */
             duration: number;
+            /**
+             * Expires At
+             * @description When the hosted link(s) in this response stop resolving (ISO 8601 UTC); 1 hour after the task finished unless `store_output` extended it
+             */
+            expires_at?: string | null;
             /**
              * Mode
              * @description Execution mode used
@@ -13401,6 +15353,11 @@ export type components = {
              * @description Video duration in seconds
              */
             duration: number;
+            /**
+             * Expires At
+             * @description When the hosted link(s) in this response stop resolving (ISO 8601 UTC); 1 hour after the task finished unless `store_output` extended it
+             */
+            expires_at?: string | null;
             /**
              * Mode
              * @description Actual mode used (direct)
@@ -13532,6 +15489,11 @@ export type components = {
          */
         WanImageResponse: {
             /**
+             * Expires At
+             * @description When the hosted link(s) in this response stop resolving (ISO 8601 UTC); 1 hour after the task finished unless `store_output` extended it
+             */
+            expires_at?: string | null;
+            /**
              * Mode
              * @description Execution mode used
              */
@@ -13647,6 +15609,11 @@ export type components = {
              * @description Video duration in seconds
              */
             duration: number;
+            /**
+             * Expires At
+             * @description When the hosted link(s) in this response stop resolving (ISO 8601 UTC); 1 hour after the task finished unless `store_output` extended it
+             */
+            expires_at?: string | null;
             /**
              * Mode
              * @description Actual mode used (direct)
@@ -13970,6 +15937,12 @@ export type components = {
         };
         /** WorkflowRunState */
         WorkflowRunState: {
+            /**
+             * Cancel Requested
+             * @description True once a cancel was requested; the run settles `cancelled` when the orchestrator reaches its next checkpoint, so this can read true while `status` is still `running`
+             * @default false
+             */
+            cancel_requested?: boolean;
             /** Completed At */
             completed_at?: string | null;
             /** Created At */
@@ -14260,7 +16233,7 @@ export interface operations {
             /**
              * @description Out of credits, or a sub-key's `key_budget` is exhausted (or a priced request would cross it).
              *
-             *     `error.code`: `INSUFFICIENT_CREDITS`, `KEY_BUDGET_EXHAUSTED`
+             *     `error.code`: `INSUFFICIENT_CREDITS`, `KEY_BUDGET_EXHAUSTED`, `SUBSCRIPTION_CHARGE_FAILED`
              */
             402: {
                 headers: {
@@ -14274,7 +16247,7 @@ export interface operations {
             /**
              * @description Valid credential, access denied — the message names the blocking layer.
              *
-             *     `error.code`: `SCOPE_DENIED`, `MODEL_RETIRED`, `ACCOUNT_INACTIVE`, `CREDENTIAL_NOT_PERMITTED`, `MODEL_NOT_AVAILABLE`, `KEY_NOT_OWNED`, `KEY_LIMIT_REACHED`, `TIER_FEATURE_UNAVAILABLE`, `BANK_TRANSFER_NOT_AVAILABLE`, `ROUTING_MODEL_RESTRICTED`
+             *     `error.code`: `SCOPE_DENIED`, `MODEL_RETIRED`, `ACCOUNT_INACTIVE`, `CREDENTIAL_NOT_PERMITTED`, `MODEL_NOT_AVAILABLE`, `KEY_NOT_OWNED`, `KEY_LIMIT_REACHED`, `TIER_FEATURE_UNAVAILABLE`, `BANK_TRANSFER_NOT_AVAILABLE`, `ROUTING_MODEL_RESTRICTED`, `SUBSCRIPTION_NOT_ELIGIBLE`, `SMITH_NOT_ENTITLED`
              */
             403: {
                 headers: {
@@ -14458,7 +16431,7 @@ export interface operations {
             /**
              * @description Out of credits, or a sub-key's `key_budget` is exhausted (or a priced request would cross it).
              *
-             *     `error.code`: `INSUFFICIENT_CREDITS`, `KEY_BUDGET_EXHAUSTED`
+             *     `error.code`: `INSUFFICIENT_CREDITS`, `KEY_BUDGET_EXHAUSTED`, `SUBSCRIPTION_CHARGE_FAILED`
              */
             402: {
                 headers: {
@@ -14472,7 +16445,7 @@ export interface operations {
             /**
              * @description Valid credential, access denied — the message names the blocking layer.
              *
-             *     `error.code`: `SCOPE_DENIED`, `MODEL_RETIRED`, `ACCOUNT_INACTIVE`, `CREDENTIAL_NOT_PERMITTED`, `MODEL_NOT_AVAILABLE`, `KEY_NOT_OWNED`, `KEY_LIMIT_REACHED`, `TIER_FEATURE_UNAVAILABLE`, `BANK_TRANSFER_NOT_AVAILABLE`, `ROUTING_MODEL_RESTRICTED`
+             *     `error.code`: `SCOPE_DENIED`, `MODEL_RETIRED`, `ACCOUNT_INACTIVE`, `CREDENTIAL_NOT_PERMITTED`, `MODEL_NOT_AVAILABLE`, `KEY_NOT_OWNED`, `KEY_LIMIT_REACHED`, `TIER_FEATURE_UNAVAILABLE`, `BANK_TRANSFER_NOT_AVAILABLE`, `ROUTING_MODEL_RESTRICTED`, `SUBSCRIPTION_NOT_ELIGIBLE`, `SMITH_NOT_ENTITLED`
              */
             403: {
                 headers: {
@@ -14656,7 +16629,7 @@ export interface operations {
             /**
              * @description Out of credits, or a sub-key's `key_budget` is exhausted (or a priced request would cross it).
              *
-             *     `error.code`: `INSUFFICIENT_CREDITS`, `KEY_BUDGET_EXHAUSTED`
+             *     `error.code`: `INSUFFICIENT_CREDITS`, `KEY_BUDGET_EXHAUSTED`, `SUBSCRIPTION_CHARGE_FAILED`
              */
             402: {
                 headers: {
@@ -14670,7 +16643,7 @@ export interface operations {
             /**
              * @description Valid credential, access denied — the message names the blocking layer.
              *
-             *     `error.code`: `SCOPE_DENIED`, `MODEL_RETIRED`, `ACCOUNT_INACTIVE`, `CREDENTIAL_NOT_PERMITTED`, `MODEL_NOT_AVAILABLE`, `KEY_NOT_OWNED`, `KEY_LIMIT_REACHED`, `TIER_FEATURE_UNAVAILABLE`, `BANK_TRANSFER_NOT_AVAILABLE`, `ROUTING_MODEL_RESTRICTED`
+             *     `error.code`: `SCOPE_DENIED`, `MODEL_RETIRED`, `ACCOUNT_INACTIVE`, `CREDENTIAL_NOT_PERMITTED`, `MODEL_NOT_AVAILABLE`, `KEY_NOT_OWNED`, `KEY_LIMIT_REACHED`, `TIER_FEATURE_UNAVAILABLE`, `BANK_TRANSFER_NOT_AVAILABLE`, `ROUTING_MODEL_RESTRICTED`, `SUBSCRIPTION_NOT_ELIGIBLE`, `SMITH_NOT_ENTITLED`
              */
             403: {
                 headers: {
@@ -14854,7 +16827,7 @@ export interface operations {
             /**
              * @description Out of credits, or a sub-key's `key_budget` is exhausted (or a priced request would cross it).
              *
-             *     `error.code`: `INSUFFICIENT_CREDITS`, `KEY_BUDGET_EXHAUSTED`
+             *     `error.code`: `INSUFFICIENT_CREDITS`, `KEY_BUDGET_EXHAUSTED`, `SUBSCRIPTION_CHARGE_FAILED`
              */
             402: {
                 headers: {
@@ -14868,7 +16841,7 @@ export interface operations {
             /**
              * @description Valid credential, access denied — the message names the blocking layer.
              *
-             *     `error.code`: `SCOPE_DENIED`, `MODEL_RETIRED`, `ACCOUNT_INACTIVE`, `CREDENTIAL_NOT_PERMITTED`, `MODEL_NOT_AVAILABLE`, `KEY_NOT_OWNED`, `KEY_LIMIT_REACHED`, `TIER_FEATURE_UNAVAILABLE`, `BANK_TRANSFER_NOT_AVAILABLE`, `ROUTING_MODEL_RESTRICTED`
+             *     `error.code`: `SCOPE_DENIED`, `MODEL_RETIRED`, `ACCOUNT_INACTIVE`, `CREDENTIAL_NOT_PERMITTED`, `MODEL_NOT_AVAILABLE`, `KEY_NOT_OWNED`, `KEY_LIMIT_REACHED`, `TIER_FEATURE_UNAVAILABLE`, `BANK_TRANSFER_NOT_AVAILABLE`, `ROUTING_MODEL_RESTRICTED`, `SUBSCRIPTION_NOT_ELIGIBLE`, `SMITH_NOT_ENTITLED`
              */
             403: {
                 headers: {
@@ -15052,7 +17025,7 @@ export interface operations {
             /**
              * @description Out of credits, or a sub-key's `key_budget` is exhausted (or a priced request would cross it).
              *
-             *     `error.code`: `INSUFFICIENT_CREDITS`, `KEY_BUDGET_EXHAUSTED`
+             *     `error.code`: `INSUFFICIENT_CREDITS`, `KEY_BUDGET_EXHAUSTED`, `SUBSCRIPTION_CHARGE_FAILED`
              */
             402: {
                 headers: {
@@ -15066,7 +17039,7 @@ export interface operations {
             /**
              * @description Valid credential, access denied — the message names the blocking layer.
              *
-             *     `error.code`: `SCOPE_DENIED`, `MODEL_RETIRED`, `ACCOUNT_INACTIVE`, `CREDENTIAL_NOT_PERMITTED`, `MODEL_NOT_AVAILABLE`, `KEY_NOT_OWNED`, `KEY_LIMIT_REACHED`, `TIER_FEATURE_UNAVAILABLE`, `BANK_TRANSFER_NOT_AVAILABLE`, `ROUTING_MODEL_RESTRICTED`
+             *     `error.code`: `SCOPE_DENIED`, `MODEL_RETIRED`, `ACCOUNT_INACTIVE`, `CREDENTIAL_NOT_PERMITTED`, `MODEL_NOT_AVAILABLE`, `KEY_NOT_OWNED`, `KEY_LIMIT_REACHED`, `TIER_FEATURE_UNAVAILABLE`, `BANK_TRANSFER_NOT_AVAILABLE`, `ROUTING_MODEL_RESTRICTED`, `SUBSCRIPTION_NOT_ELIGIBLE`, `SMITH_NOT_ENTITLED`
              */
             403: {
                 headers: {
@@ -15250,7 +17223,7 @@ export interface operations {
             /**
              * @description Out of credits, or a sub-key's `key_budget` is exhausted (or a priced request would cross it).
              *
-             *     `error.code`: `INSUFFICIENT_CREDITS`, `KEY_BUDGET_EXHAUSTED`
+             *     `error.code`: `INSUFFICIENT_CREDITS`, `KEY_BUDGET_EXHAUSTED`, `SUBSCRIPTION_CHARGE_FAILED`
              */
             402: {
                 headers: {
@@ -15264,7 +17237,7 @@ export interface operations {
             /**
              * @description Valid credential, access denied — the message names the blocking layer.
              *
-             *     `error.code`: `SCOPE_DENIED`, `MODEL_RETIRED`, `ACCOUNT_INACTIVE`, `CREDENTIAL_NOT_PERMITTED`, `MODEL_NOT_AVAILABLE`, `KEY_NOT_OWNED`, `KEY_LIMIT_REACHED`, `TIER_FEATURE_UNAVAILABLE`, `BANK_TRANSFER_NOT_AVAILABLE`, `ROUTING_MODEL_RESTRICTED`
+             *     `error.code`: `SCOPE_DENIED`, `MODEL_RETIRED`, `ACCOUNT_INACTIVE`, `CREDENTIAL_NOT_PERMITTED`, `MODEL_NOT_AVAILABLE`, `KEY_NOT_OWNED`, `KEY_LIMIT_REACHED`, `TIER_FEATURE_UNAVAILABLE`, `BANK_TRANSFER_NOT_AVAILABLE`, `ROUTING_MODEL_RESTRICTED`, `SUBSCRIPTION_NOT_ELIGIBLE`, `SMITH_NOT_ENTITLED`
              */
             403: {
                 headers: {
@@ -15448,7 +17421,7 @@ export interface operations {
             /**
              * @description Out of credits, or a sub-key's `key_budget` is exhausted (or a priced request would cross it).
              *
-             *     `error.code`: `INSUFFICIENT_CREDITS`, `KEY_BUDGET_EXHAUSTED`
+             *     `error.code`: `INSUFFICIENT_CREDITS`, `KEY_BUDGET_EXHAUSTED`, `SUBSCRIPTION_CHARGE_FAILED`
              */
             402: {
                 headers: {
@@ -15462,7 +17435,7 @@ export interface operations {
             /**
              * @description Valid credential, access denied — the message names the blocking layer.
              *
-             *     `error.code`: `SCOPE_DENIED`, `MODEL_RETIRED`, `ACCOUNT_INACTIVE`, `CREDENTIAL_NOT_PERMITTED`, `MODEL_NOT_AVAILABLE`, `KEY_NOT_OWNED`, `KEY_LIMIT_REACHED`, `TIER_FEATURE_UNAVAILABLE`, `BANK_TRANSFER_NOT_AVAILABLE`, `ROUTING_MODEL_RESTRICTED`
+             *     `error.code`: `SCOPE_DENIED`, `MODEL_RETIRED`, `ACCOUNT_INACTIVE`, `CREDENTIAL_NOT_PERMITTED`, `MODEL_NOT_AVAILABLE`, `KEY_NOT_OWNED`, `KEY_LIMIT_REACHED`, `TIER_FEATURE_UNAVAILABLE`, `BANK_TRANSFER_NOT_AVAILABLE`, `ROUTING_MODEL_RESTRICTED`, `SUBSCRIPTION_NOT_ELIGIBLE`, `SMITH_NOT_ENTITLED`
              */
             403: {
                 headers: {
@@ -15646,7 +17619,7 @@ export interface operations {
             /**
              * @description Out of credits, or a sub-key's `key_budget` is exhausted (or a priced request would cross it).
              *
-             *     `error.code`: `INSUFFICIENT_CREDITS`, `KEY_BUDGET_EXHAUSTED`
+             *     `error.code`: `INSUFFICIENT_CREDITS`, `KEY_BUDGET_EXHAUSTED`, `SUBSCRIPTION_CHARGE_FAILED`
              */
             402: {
                 headers: {
@@ -15660,7 +17633,7 @@ export interface operations {
             /**
              * @description Valid credential, access denied — the message names the blocking layer.
              *
-             *     `error.code`: `SCOPE_DENIED`, `MODEL_RETIRED`, `ACCOUNT_INACTIVE`, `CREDENTIAL_NOT_PERMITTED`, `MODEL_NOT_AVAILABLE`, `KEY_NOT_OWNED`, `KEY_LIMIT_REACHED`, `TIER_FEATURE_UNAVAILABLE`, `BANK_TRANSFER_NOT_AVAILABLE`, `ROUTING_MODEL_RESTRICTED`
+             *     `error.code`: `SCOPE_DENIED`, `MODEL_RETIRED`, `ACCOUNT_INACTIVE`, `CREDENTIAL_NOT_PERMITTED`, `MODEL_NOT_AVAILABLE`, `KEY_NOT_OWNED`, `KEY_LIMIT_REACHED`, `TIER_FEATURE_UNAVAILABLE`, `BANK_TRANSFER_NOT_AVAILABLE`, `ROUTING_MODEL_RESTRICTED`, `SUBSCRIPTION_NOT_ELIGIBLE`, `SMITH_NOT_ENTITLED`
              */
             403: {
                 headers: {
@@ -15811,7 +17784,7 @@ export interface operations {
     customer_credits_history_get: {
         parameters: {
             query?: {
-                /** @description Filter by action: credit_topup, credit_deduct, promo_granted, promo_expired, key_budget_set, key_budget_topup, key_budget_cleared */
+                /** @description Filter by action: credit_topup, credit_deduct, promo_granted, promo_expired, key_budget_set, key_budget_topup, key_budget_cleared, subscription_topup, subscription_upgrade, subscription_extra, subscription_granted, subscription_ended */
                 action?: string | null;
                 /** @description Number of transactions to return */
                 limit?: number;
@@ -15821,7 +17794,8 @@ export interface operations {
                 via?: string | null;
             };
             header?: {
-                authorization?: string;
+                authorization?: string | null;
+                "x-api-key"?: string | null;
             };
             path?: never;
             cookie?: never;
@@ -15956,7 +17930,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": unknown;
+                    "application/json": components["schemas"]["DeleteKeyResponse"];
                 };
             };
             /** @description Validation Error */
@@ -15996,7 +17970,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": unknown;
+                    "application/json": components["schemas"]["UpdateKeyResponse"];
                 };
             };
             /** @description Validation Error */
@@ -16067,7 +18041,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": unknown;
+                    "application/json": components["schemas"]["RevokeKeyResponse"];
                 };
             };
             /** @description Validation Error */
@@ -16143,7 +18117,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": unknown;
+                    "application/json": components["schemas"]["UnrevokeKeyResponse"];
                 };
             };
             /** @description Validation Error */
@@ -16413,6 +18387,303 @@ export interface operations {
             /** @description Validation Error */
             422: {
                 headers: {
+                    "X-Request-ID": components["headers"]["X-Request-ID"];
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["RelayErrorResponse"];
+                };
+            };
+        };
+    };
+    customer_subscription_get: {
+        parameters: {
+            query?: never;
+            header?: {
+                authorization?: string | null;
+                "x-api-key"?: string | null;
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    "X-Request-ID": components["headers"]["X-Request-ID"];
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SubscriptionView"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    "X-Request-ID": components["headers"]["X-Request-ID"];
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["RelayErrorResponse"];
+                };
+            };
+        };
+    };
+    customer_subscription_create: {
+        parameters: {
+            query?: never;
+            header?: {
+                authorization?: string;
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: {
+            content: {
+                "application/json": components["schemas"]["SubscribeRequest"] | null;
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    "X-Request-ID": components["headers"]["X-Request-ID"];
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SubscribeView"];
+                };
+            };
+            /** @description The card was declined; nothing changed. */
+            402: {
+                headers: {
+                    "X-Request-ID": components["headers"]["X-Request-ID"];
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["RelayErrorResponse"];
+                };
+            };
+            /** @description This account cannot subscribe yet; the message says why. */
+            403: {
+                headers: {
+                    "X-Request-ID": components["headers"]["X-Request-ID"];
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["RelayErrorResponse"];
+                };
+            };
+            /** @description Already subscribed, or a failed renewal is being retried. */
+            409: {
+                headers: {
+                    "X-Request-ID": components["headers"]["X-Request-ID"];
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["RelayErrorResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    "X-Request-ID": components["headers"]["X-Request-ID"];
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["RelayErrorResponse"];
+                };
+            };
+            /** @description Subscriptions or payments are not available right now. */
+            503: {
+                headers: {
+                    "Retry-After": components["headers"]["Retry-After"];
+                    "X-Request-ID": components["headers"]["X-Request-ID"];
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["RelayErrorResponse"];
+                };
+            };
+        };
+    };
+    customer_subscription_delete: {
+        parameters: {
+            query?: never;
+            header?: {
+                authorization?: string;
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    "X-Request-ID": components["headers"]["X-Request-ID"];
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SubscriptionView"];
+                };
+            };
+            /** @description The first payment is still in progress. */
+            409: {
+                headers: {
+                    "X-Request-ID": components["headers"]["X-Request-ID"];
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["RelayErrorResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    "X-Request-ID": components["headers"]["X-Request-ID"];
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["RelayErrorResponse"];
+                };
+            };
+        };
+    };
+    customer_subscription_plan_change: {
+        parameters: {
+            query?: never;
+            header?: {
+                authorization?: string;
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["PlanChangeRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    "X-Request-ID": components["headers"]["X-Request-ID"];
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SubscriptionView"];
+                };
+            };
+            /** @description The card was declined; the plan is unchanged. */
+            402: {
+                headers: {
+                    "X-Request-ID": components["headers"]["X-Request-ID"];
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["RelayErrorResponse"];
+                };
+            };
+            /** @description There is no active plan to change. */
+            403: {
+                headers: {
+                    "X-Request-ID": components["headers"]["X-Request-ID"];
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["RelayErrorResponse"];
+                };
+            };
+            /** @description A plan payment is still in progress. */
+            409: {
+                headers: {
+                    "X-Request-ID": components["headers"]["X-Request-ID"];
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["RelayErrorResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    "X-Request-ID": components["headers"]["X-Request-ID"];
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["RelayErrorResponse"];
+                };
+            };
+            /** @description Subscriptions or payments are not available right now. */
+            503: {
+                headers: {
+                    "Retry-After": components["headers"]["Retry-After"];
+                    "X-Request-ID": components["headers"]["X-Request-ID"];
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["RelayErrorResponse"];
+                };
+            };
+        };
+    };
+    customer_subscription_trial_start: {
+        parameters: {
+            query?: never;
+            header?: {
+                authorization?: string;
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    "X-Request-ID": components["headers"]["X-Request-ID"];
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SubscriptionView"];
+                };
+            };
+            /** @description This account cannot start the trial yet; the message says why. */
+            403: {
+                headers: {
+                    "X-Request-ID": components["headers"]["X-Request-ID"];
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["RelayErrorResponse"];
+                };
+            };
+            /** @description The trial was already used, or a plan is already on. */
+            409: {
+                headers: {
+                    "X-Request-ID": components["headers"]["X-Request-ID"];
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["RelayErrorResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    "X-Request-ID": components["headers"]["X-Request-ID"];
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["RelayErrorResponse"];
+                };
+            };
+            /** @description Subscriptions are not available right now. */
+            503: {
+                headers: {
+                    "Retry-After": components["headers"]["Retry-After"];
                     "X-Request-ID": components["headers"]["X-Request-ID"];
                     [name: string]: unknown;
                 };
@@ -16840,6 +19111,8 @@ export interface operations {
                 filename?: string | null;
                 /** @description Raw form only. Default `relay1h`. */
                 retention?: ("relay1h" | "relay1d" | "relay7d" | "relay30d") | null;
+                /** @description A Smith session of yours this file is for (an attachment): its storage fee shows in that session's spend. */
+                session_id?: string | null;
             };
             header?: {
                 authorization?: string | null;
@@ -16915,6 +19188,20 @@ export interface operations {
              *     `error.code`: `TIER_FEATURE_UNAVAILABLE`, `ACCOUNT_INACTIVE`
              */
             403: {
+                headers: {
+                    "X-Request-ID": components["headers"]["X-Request-ID"];
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["RelayErrorResponse"];
+                };
+            };
+            /**
+             * @description `session_id` is not one of your Smith sessions.
+             *
+             *     `error.code`: `SMITH_NOT_FOUND`
+             */
+            404: {
                 headers: {
                     "X-Request-ID": components["headers"]["X-Request-ID"];
                     [name: string]: unknown;
@@ -17591,6 +19878,204 @@ export interface operations {
             };
         };
     };
+    image_clarity_upscale: {
+        parameters: {
+            query?: never;
+            header?: {
+                authorization?: string | null;
+                /** @description Makes an async submit safe to retry: the same key with the same body inside 24 h answers the original `202` (header `Idempotency-Replayed: true`) and creates, enqueues and bills nothing. Keys are per customer. Honoured when the request runs async; a sync or streaming call is processed as usual. */
+                "Idempotency-Key"?: components["parameters"]["IdempotencyKey"];
+                "x-api-key"?: string | null;
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ClarityUpscaleRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    "X-Request-ID": components["headers"]["X-Request-ID"];
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ClarityUpscaleResponse"];
+                };
+            };
+            /** @description Task accepted (async mode). Poll the poll_url for status. */
+            202: {
+                headers: {
+                    "Idempotency-Replayed": components["headers"]["Idempotency-Replayed"];
+                    "X-Request-ID": components["headers"]["X-Request-ID"];
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AsyncTaskAccepted"];
+                };
+            };
+            /**
+             * @description Upstream rejected the request parameters. `detail` carries the provider's own message.
+             *
+             *     `error.code`: `UPSTREAM_INVALID_REQUEST`
+             */
+            400: {
+                headers: {
+                    "X-Request-ID": components["headers"]["X-Request-ID"];
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["RelayErrorResponse"];
+                };
+            };
+            /**
+             * @description Credential missing, invalid or revoked.
+             *
+             *     `error.code`: `INVALID_API_KEY`, `KEY_REVOKED`, `MISSING_CREDENTIALS`, `INVALID_TOKEN`
+             */
+            401: {
+                headers: {
+                    "X-Request-ID": components["headers"]["X-Request-ID"];
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["RelayErrorResponse"];
+                };
+            };
+            /**
+             * @description Out of credits, or a sub-key's `key_budget` is exhausted (or a priced request would cross it).
+             *
+             *     `error.code`: `INSUFFICIENT_CREDITS`, `KEY_BUDGET_EXHAUSTED`, `SUBSCRIPTION_CHARGE_FAILED`
+             */
+            402: {
+                headers: {
+                    "X-Request-ID": components["headers"]["X-Request-ID"];
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["RelayErrorResponse"];
+                };
+            };
+            /**
+             * @description Valid credential, access denied — the message names the blocking layer.
+             *
+             *     `error.code`: `SCOPE_DENIED`, `MODEL_RETIRED`, `ACCOUNT_INACTIVE`, `CREDENTIAL_NOT_PERMITTED`, `MODEL_NOT_AVAILABLE`, `KEY_NOT_OWNED`, `KEY_LIMIT_REACHED`, `TIER_FEATURE_UNAVAILABLE`, `BANK_TRANSFER_NOT_AVAILABLE`, `ROUTING_MODEL_RESTRICTED`, `SUBSCRIPTION_NOT_ELIGIBLE`, `SMITH_NOT_ENTITLED`
+             */
+            403: {
+                headers: {
+                    "X-Request-ID": components["headers"]["X-Request-ID"];
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["RelayErrorResponse"];
+                };
+            };
+            /**
+             * @description A request with the same `Idempotency-Key` is still being accepted — retry after `Retry-After` seconds.
+             *
+             *     `error.code`: `IDEMPOTENCY_IN_PROGRESS`
+             */
+            409: {
+                headers: {
+                    "Retry-After": components["headers"]["Retry-After"];
+                    "X-Request-ID": components["headers"]["X-Request-ID"];
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["RelayErrorResponse"];
+                };
+            };
+            /**
+             * @description The prompt or its inputs were refused, upstream rejected them as unprocessable, or the request body failed our own validation (`detail` then lists the fields). `error.detail.upstream_code` carries the provider's own verdict where it sent one.
+             *
+             *     `error.code`: `CONTENT_POLICY_DECLINED`, `UPSTREAM_INVALID_REQUEST`, `VALIDATION_ERROR`, `IDEMPOTENCY_KEY_REUSED`
+             */
+            422: {
+                headers: {
+                    "X-Request-ID": components["headers"]["X-Request-ID"];
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["RelayErrorResponse"];
+                };
+            };
+            /**
+             * @description Rate limit — `Retry-After` header set.
+             *
+             *     `error.code`: `RATE_LIMITED`, `WORKFLOW_RUN_LIMIT_REACHED`, `INSTANCE_LIMIT`, `FILE_QUOTA_EXCEEDED`
+             */
+            429: {
+                headers: {
+                    "Retry-After": components["headers"]["Retry-After"];
+                    "X-Request-ID": components["headers"]["X-Request-ID"];
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["RelayErrorResponse"];
+                };
+            };
+            /**
+             * @description The failure could not be attributed to the provider or the request.
+             *
+             *     `error.code`: `INTERNAL_ERROR`
+             */
+            500: {
+                headers: {
+                    "X-Request-ID": components["headers"]["X-Request-ID"];
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["RelayErrorResponse"];
+                };
+            };
+            /**
+             * @description A provider accepted the request and failed while serving it (`UPSTREAM_ERROR`), no provider could take it (`PROVIDER_UNAVAILABLE`), or its response did not match the model's schema.
+             *
+             *     `error.code`: `UPSTREAM_ERROR`, `PROVIDER_UNAVAILABLE`, `PROVIDER_SCHEMA_MISMATCH`
+             */
+            502: {
+                headers: {
+                    "X-Request-ID": components["headers"]["X-Request-ID"];
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["RelayErrorResponse"];
+                };
+            };
+            /**
+             * @description Model temporarily at capacity. `Retry-After` is set.
+             *
+             *     `error.code`: `CAPACITY_EXHAUSTED`
+             */
+            503: {
+                headers: {
+                    "Retry-After": components["headers"]["Retry-After"];
+                    "X-Request-ID": components["headers"]["X-Request-ID"];
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["RelayErrorResponse"];
+                };
+            };
+            /**
+             * @description The request did not complete within the route's inline budget. Use `async: true` for long generations.
+             *
+             *     `error.code`: `UPSTREAM_TIMEOUT`
+             */
+            504: {
+                headers: {
+                    "X-Request-ID": components["headers"]["X-Request-ID"];
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["RelayErrorResponse"];
+                };
+            };
+        };
+    };
     /** @deprecated No live model serves this operation. */
     image_flux_1_generate: {
         parameters: {
@@ -17662,7 +20147,7 @@ export interface operations {
             /**
              * @description Out of credits, or a sub-key's `key_budget` is exhausted (or a priced request would cross it).
              *
-             *     `error.code`: `INSUFFICIENT_CREDITS`, `KEY_BUDGET_EXHAUSTED`
+             *     `error.code`: `INSUFFICIENT_CREDITS`, `KEY_BUDGET_EXHAUSTED`, `SUBSCRIPTION_CHARGE_FAILED`
              */
             402: {
                 headers: {
@@ -17676,7 +20161,7 @@ export interface operations {
             /**
              * @description Valid credential, access denied — the message names the blocking layer.
              *
-             *     `error.code`: `SCOPE_DENIED`, `MODEL_RETIRED`, `ACCOUNT_INACTIVE`, `CREDENTIAL_NOT_PERMITTED`, `MODEL_NOT_AVAILABLE`, `KEY_NOT_OWNED`, `KEY_LIMIT_REACHED`, `TIER_FEATURE_UNAVAILABLE`, `BANK_TRANSFER_NOT_AVAILABLE`, `ROUTING_MODEL_RESTRICTED`
+             *     `error.code`: `SCOPE_DENIED`, `MODEL_RETIRED`, `ACCOUNT_INACTIVE`, `CREDENTIAL_NOT_PERMITTED`, `MODEL_NOT_AVAILABLE`, `KEY_NOT_OWNED`, `KEY_LIMIT_REACHED`, `TIER_FEATURE_UNAVAILABLE`, `BANK_TRANSFER_NOT_AVAILABLE`, `ROUTING_MODEL_RESTRICTED`, `SUBSCRIPTION_NOT_ELIGIBLE`, `SMITH_NOT_ENTITLED`
              */
             403: {
                 headers: {
@@ -17860,7 +20345,7 @@ export interface operations {
             /**
              * @description Out of credits, or a sub-key's `key_budget` is exhausted (or a priced request would cross it).
              *
-             *     `error.code`: `INSUFFICIENT_CREDITS`, `KEY_BUDGET_EXHAUSTED`
+             *     `error.code`: `INSUFFICIENT_CREDITS`, `KEY_BUDGET_EXHAUSTED`, `SUBSCRIPTION_CHARGE_FAILED`
              */
             402: {
                 headers: {
@@ -17874,7 +20359,7 @@ export interface operations {
             /**
              * @description Valid credential, access denied — the message names the blocking layer.
              *
-             *     `error.code`: `SCOPE_DENIED`, `MODEL_RETIRED`, `ACCOUNT_INACTIVE`, `CREDENTIAL_NOT_PERMITTED`, `MODEL_NOT_AVAILABLE`, `KEY_NOT_OWNED`, `KEY_LIMIT_REACHED`, `TIER_FEATURE_UNAVAILABLE`, `BANK_TRANSFER_NOT_AVAILABLE`, `ROUTING_MODEL_RESTRICTED`
+             *     `error.code`: `SCOPE_DENIED`, `MODEL_RETIRED`, `ACCOUNT_INACTIVE`, `CREDENTIAL_NOT_PERMITTED`, `MODEL_NOT_AVAILABLE`, `KEY_NOT_OWNED`, `KEY_LIMIT_REACHED`, `TIER_FEATURE_UNAVAILABLE`, `BANK_TRANSFER_NOT_AVAILABLE`, `ROUTING_MODEL_RESTRICTED`, `SUBSCRIPTION_NOT_ELIGIBLE`, `SMITH_NOT_ENTITLED`
              */
             403: {
                 headers: {
@@ -18058,7 +20543,7 @@ export interface operations {
             /**
              * @description Out of credits, or a sub-key's `key_budget` is exhausted (or a priced request would cross it).
              *
-             *     `error.code`: `INSUFFICIENT_CREDITS`, `KEY_BUDGET_EXHAUSTED`
+             *     `error.code`: `INSUFFICIENT_CREDITS`, `KEY_BUDGET_EXHAUSTED`, `SUBSCRIPTION_CHARGE_FAILED`
              */
             402: {
                 headers: {
@@ -18072,7 +20557,7 @@ export interface operations {
             /**
              * @description Valid credential, access denied — the message names the blocking layer.
              *
-             *     `error.code`: `SCOPE_DENIED`, `MODEL_RETIRED`, `ACCOUNT_INACTIVE`, `CREDENTIAL_NOT_PERMITTED`, `MODEL_NOT_AVAILABLE`, `KEY_NOT_OWNED`, `KEY_LIMIT_REACHED`, `TIER_FEATURE_UNAVAILABLE`, `BANK_TRANSFER_NOT_AVAILABLE`, `ROUTING_MODEL_RESTRICTED`
+             *     `error.code`: `SCOPE_DENIED`, `MODEL_RETIRED`, `ACCOUNT_INACTIVE`, `CREDENTIAL_NOT_PERMITTED`, `MODEL_NOT_AVAILABLE`, `KEY_NOT_OWNED`, `KEY_LIMIT_REACHED`, `TIER_FEATURE_UNAVAILABLE`, `BANK_TRANSFER_NOT_AVAILABLE`, `ROUTING_MODEL_RESTRICTED`, `SUBSCRIPTION_NOT_ELIGIBLE`, `SMITH_NOT_ENTITLED`
              */
             403: {
                 headers: {
@@ -18256,7 +20741,7 @@ export interface operations {
             /**
              * @description Out of credits, or a sub-key's `key_budget` is exhausted (or a priced request would cross it).
              *
-             *     `error.code`: `INSUFFICIENT_CREDITS`, `KEY_BUDGET_EXHAUSTED`
+             *     `error.code`: `INSUFFICIENT_CREDITS`, `KEY_BUDGET_EXHAUSTED`, `SUBSCRIPTION_CHARGE_FAILED`
              */
             402: {
                 headers: {
@@ -18270,7 +20755,7 @@ export interface operations {
             /**
              * @description Valid credential, access denied — the message names the blocking layer.
              *
-             *     `error.code`: `SCOPE_DENIED`, `MODEL_RETIRED`, `ACCOUNT_INACTIVE`, `CREDENTIAL_NOT_PERMITTED`, `MODEL_NOT_AVAILABLE`, `KEY_NOT_OWNED`, `KEY_LIMIT_REACHED`, `TIER_FEATURE_UNAVAILABLE`, `BANK_TRANSFER_NOT_AVAILABLE`, `ROUTING_MODEL_RESTRICTED`
+             *     `error.code`: `SCOPE_DENIED`, `MODEL_RETIRED`, `ACCOUNT_INACTIVE`, `CREDENTIAL_NOT_PERMITTED`, `MODEL_NOT_AVAILABLE`, `KEY_NOT_OWNED`, `KEY_LIMIT_REACHED`, `TIER_FEATURE_UNAVAILABLE`, `BANK_TRANSFER_NOT_AVAILABLE`, `ROUTING_MODEL_RESTRICTED`, `SUBSCRIPTION_NOT_ELIGIBLE`, `SMITH_NOT_ENTITLED`
              */
             403: {
                 headers: {
@@ -18454,7 +20939,7 @@ export interface operations {
             /**
              * @description Out of credits, or a sub-key's `key_budget` is exhausted (or a priced request would cross it).
              *
-             *     `error.code`: `INSUFFICIENT_CREDITS`, `KEY_BUDGET_EXHAUSTED`
+             *     `error.code`: `INSUFFICIENT_CREDITS`, `KEY_BUDGET_EXHAUSTED`, `SUBSCRIPTION_CHARGE_FAILED`
              */
             402: {
                 headers: {
@@ -18468,7 +20953,7 @@ export interface operations {
             /**
              * @description Valid credential, access denied — the message names the blocking layer.
              *
-             *     `error.code`: `SCOPE_DENIED`, `MODEL_RETIRED`, `ACCOUNT_INACTIVE`, `CREDENTIAL_NOT_PERMITTED`, `MODEL_NOT_AVAILABLE`, `KEY_NOT_OWNED`, `KEY_LIMIT_REACHED`, `TIER_FEATURE_UNAVAILABLE`, `BANK_TRANSFER_NOT_AVAILABLE`, `ROUTING_MODEL_RESTRICTED`
+             *     `error.code`: `SCOPE_DENIED`, `MODEL_RETIRED`, `ACCOUNT_INACTIVE`, `CREDENTIAL_NOT_PERMITTED`, `MODEL_NOT_AVAILABLE`, `KEY_NOT_OWNED`, `KEY_LIMIT_REACHED`, `TIER_FEATURE_UNAVAILABLE`, `BANK_TRANSFER_NOT_AVAILABLE`, `ROUTING_MODEL_RESTRICTED`, `SUBSCRIPTION_NOT_ELIGIBLE`, `SMITH_NOT_ENTITLED`
              */
             403: {
                 headers: {
@@ -18652,7 +21137,7 @@ export interface operations {
             /**
              * @description Out of credits, or a sub-key's `key_budget` is exhausted (or a priced request would cross it).
              *
-             *     `error.code`: `INSUFFICIENT_CREDITS`, `KEY_BUDGET_EXHAUSTED`
+             *     `error.code`: `INSUFFICIENT_CREDITS`, `KEY_BUDGET_EXHAUSTED`, `SUBSCRIPTION_CHARGE_FAILED`
              */
             402: {
                 headers: {
@@ -18666,7 +21151,7 @@ export interface operations {
             /**
              * @description Valid credential, access denied — the message names the blocking layer.
              *
-             *     `error.code`: `SCOPE_DENIED`, `MODEL_RETIRED`, `ACCOUNT_INACTIVE`, `CREDENTIAL_NOT_PERMITTED`, `MODEL_NOT_AVAILABLE`, `KEY_NOT_OWNED`, `KEY_LIMIT_REACHED`, `TIER_FEATURE_UNAVAILABLE`, `BANK_TRANSFER_NOT_AVAILABLE`, `ROUTING_MODEL_RESTRICTED`
+             *     `error.code`: `SCOPE_DENIED`, `MODEL_RETIRED`, `ACCOUNT_INACTIVE`, `CREDENTIAL_NOT_PERMITTED`, `MODEL_NOT_AVAILABLE`, `KEY_NOT_OWNED`, `KEY_LIMIT_REACHED`, `TIER_FEATURE_UNAVAILABLE`, `BANK_TRANSFER_NOT_AVAILABLE`, `ROUTING_MODEL_RESTRICTED`, `SUBSCRIPTION_NOT_ELIGIBLE`, `SMITH_NOT_ENTITLED`
              */
             403: {
                 headers: {
@@ -18851,7 +21336,7 @@ export interface operations {
             /**
              * @description Out of credits, or a sub-key's `key_budget` is exhausted (or a priced request would cross it).
              *
-             *     `error.code`: `INSUFFICIENT_CREDITS`, `KEY_BUDGET_EXHAUSTED`
+             *     `error.code`: `INSUFFICIENT_CREDITS`, `KEY_BUDGET_EXHAUSTED`, `SUBSCRIPTION_CHARGE_FAILED`
              */
             402: {
                 headers: {
@@ -18865,7 +21350,7 @@ export interface operations {
             /**
              * @description Valid credential, access denied — the message names the blocking layer.
              *
-             *     `error.code`: `SCOPE_DENIED`, `MODEL_RETIRED`, `ACCOUNT_INACTIVE`, `CREDENTIAL_NOT_PERMITTED`, `MODEL_NOT_AVAILABLE`, `KEY_NOT_OWNED`, `KEY_LIMIT_REACHED`, `TIER_FEATURE_UNAVAILABLE`, `BANK_TRANSFER_NOT_AVAILABLE`, `ROUTING_MODEL_RESTRICTED`
+             *     `error.code`: `SCOPE_DENIED`, `MODEL_RETIRED`, `ACCOUNT_INACTIVE`, `CREDENTIAL_NOT_PERMITTED`, `MODEL_NOT_AVAILABLE`, `KEY_NOT_OWNED`, `KEY_LIMIT_REACHED`, `TIER_FEATURE_UNAVAILABLE`, `BANK_TRANSFER_NOT_AVAILABLE`, `ROUTING_MODEL_RESTRICTED`, `SUBSCRIPTION_NOT_ELIGIBLE`, `SMITH_NOT_ENTITLED`
              */
             403: {
                 headers: {
@@ -19050,7 +21535,7 @@ export interface operations {
             /**
              * @description Out of credits, or a sub-key's `key_budget` is exhausted (or a priced request would cross it).
              *
-             *     `error.code`: `INSUFFICIENT_CREDITS`, `KEY_BUDGET_EXHAUSTED`
+             *     `error.code`: `INSUFFICIENT_CREDITS`, `KEY_BUDGET_EXHAUSTED`, `SUBSCRIPTION_CHARGE_FAILED`
              */
             402: {
                 headers: {
@@ -19064,7 +21549,7 @@ export interface operations {
             /**
              * @description Valid credential, access denied — the message names the blocking layer.
              *
-             *     `error.code`: `SCOPE_DENIED`, `MODEL_RETIRED`, `ACCOUNT_INACTIVE`, `CREDENTIAL_NOT_PERMITTED`, `MODEL_NOT_AVAILABLE`, `KEY_NOT_OWNED`, `KEY_LIMIT_REACHED`, `TIER_FEATURE_UNAVAILABLE`, `BANK_TRANSFER_NOT_AVAILABLE`, `ROUTING_MODEL_RESTRICTED`
+             *     `error.code`: `SCOPE_DENIED`, `MODEL_RETIRED`, `ACCOUNT_INACTIVE`, `CREDENTIAL_NOT_PERMITTED`, `MODEL_NOT_AVAILABLE`, `KEY_NOT_OWNED`, `KEY_LIMIT_REACHED`, `TIER_FEATURE_UNAVAILABLE`, `BANK_TRANSFER_NOT_AVAILABLE`, `ROUTING_MODEL_RESTRICTED`, `SUBSCRIPTION_NOT_ELIGIBLE`, `SMITH_NOT_ENTITLED`
              */
             403: {
                 headers: {
@@ -19249,7 +21734,7 @@ export interface operations {
             /**
              * @description Out of credits, or a sub-key's `key_budget` is exhausted (or a priced request would cross it).
              *
-             *     `error.code`: `INSUFFICIENT_CREDITS`, `KEY_BUDGET_EXHAUSTED`
+             *     `error.code`: `INSUFFICIENT_CREDITS`, `KEY_BUDGET_EXHAUSTED`, `SUBSCRIPTION_CHARGE_FAILED`
              */
             402: {
                 headers: {
@@ -19263,7 +21748,7 @@ export interface operations {
             /**
              * @description Valid credential, access denied — the message names the blocking layer.
              *
-             *     `error.code`: `SCOPE_DENIED`, `MODEL_RETIRED`, `ACCOUNT_INACTIVE`, `CREDENTIAL_NOT_PERMITTED`, `MODEL_NOT_AVAILABLE`, `KEY_NOT_OWNED`, `KEY_LIMIT_REACHED`, `TIER_FEATURE_UNAVAILABLE`, `BANK_TRANSFER_NOT_AVAILABLE`, `ROUTING_MODEL_RESTRICTED`
+             *     `error.code`: `SCOPE_DENIED`, `MODEL_RETIRED`, `ACCOUNT_INACTIVE`, `CREDENTIAL_NOT_PERMITTED`, `MODEL_NOT_AVAILABLE`, `KEY_NOT_OWNED`, `KEY_LIMIT_REACHED`, `TIER_FEATURE_UNAVAILABLE`, `BANK_TRANSFER_NOT_AVAILABLE`, `ROUTING_MODEL_RESTRICTED`, `SUBSCRIPTION_NOT_ELIGIBLE`, `SMITH_NOT_ENTITLED`
              */
             403: {
                 headers: {
@@ -19447,7 +21932,7 @@ export interface operations {
             /**
              * @description Out of credits, or a sub-key's `key_budget` is exhausted (or a priced request would cross it).
              *
-             *     `error.code`: `INSUFFICIENT_CREDITS`, `KEY_BUDGET_EXHAUSTED`
+             *     `error.code`: `INSUFFICIENT_CREDITS`, `KEY_BUDGET_EXHAUSTED`, `SUBSCRIPTION_CHARGE_FAILED`
              */
             402: {
                 headers: {
@@ -19461,7 +21946,7 @@ export interface operations {
             /**
              * @description Valid credential, access denied — the message names the blocking layer.
              *
-             *     `error.code`: `SCOPE_DENIED`, `MODEL_RETIRED`, `ACCOUNT_INACTIVE`, `CREDENTIAL_NOT_PERMITTED`, `MODEL_NOT_AVAILABLE`, `KEY_NOT_OWNED`, `KEY_LIMIT_REACHED`, `TIER_FEATURE_UNAVAILABLE`, `BANK_TRANSFER_NOT_AVAILABLE`, `ROUTING_MODEL_RESTRICTED`
+             *     `error.code`: `SCOPE_DENIED`, `MODEL_RETIRED`, `ACCOUNT_INACTIVE`, `CREDENTIAL_NOT_PERMITTED`, `MODEL_NOT_AVAILABLE`, `KEY_NOT_OWNED`, `KEY_LIMIT_REACHED`, `TIER_FEATURE_UNAVAILABLE`, `BANK_TRANSFER_NOT_AVAILABLE`, `ROUTING_MODEL_RESTRICTED`, `SUBSCRIPTION_NOT_ELIGIBLE`, `SMITH_NOT_ENTITLED`
              */
             403: {
                 headers: {
@@ -19645,7 +22130,7 @@ export interface operations {
             /**
              * @description Out of credits, or a sub-key's `key_budget` is exhausted (or a priced request would cross it).
              *
-             *     `error.code`: `INSUFFICIENT_CREDITS`, `KEY_BUDGET_EXHAUSTED`
+             *     `error.code`: `INSUFFICIENT_CREDITS`, `KEY_BUDGET_EXHAUSTED`, `SUBSCRIPTION_CHARGE_FAILED`
              */
             402: {
                 headers: {
@@ -19659,7 +22144,7 @@ export interface operations {
             /**
              * @description Valid credential, access denied — the message names the blocking layer.
              *
-             *     `error.code`: `SCOPE_DENIED`, `MODEL_RETIRED`, `ACCOUNT_INACTIVE`, `CREDENTIAL_NOT_PERMITTED`, `MODEL_NOT_AVAILABLE`, `KEY_NOT_OWNED`, `KEY_LIMIT_REACHED`, `TIER_FEATURE_UNAVAILABLE`, `BANK_TRANSFER_NOT_AVAILABLE`, `ROUTING_MODEL_RESTRICTED`
+             *     `error.code`: `SCOPE_DENIED`, `MODEL_RETIRED`, `ACCOUNT_INACTIVE`, `CREDENTIAL_NOT_PERMITTED`, `MODEL_NOT_AVAILABLE`, `KEY_NOT_OWNED`, `KEY_LIMIT_REACHED`, `TIER_FEATURE_UNAVAILABLE`, `BANK_TRANSFER_NOT_AVAILABLE`, `ROUTING_MODEL_RESTRICTED`, `SUBSCRIPTION_NOT_ELIGIBLE`, `SMITH_NOT_ENTITLED`
              */
             403: {
                 headers: {
@@ -20451,7 +22936,7 @@ export interface operations {
             /**
              * @description Out of credits, or a sub-key's `key_budget` is exhausted (or a priced request would cross it).
              *
-             *     `error.code`: `INSUFFICIENT_CREDITS`, `KEY_BUDGET_EXHAUSTED`
+             *     `error.code`: `INSUFFICIENT_CREDITS`, `KEY_BUDGET_EXHAUSTED`, `SUBSCRIPTION_CHARGE_FAILED`
              */
             402: {
                 headers: {
@@ -20465,7 +22950,7 @@ export interface operations {
             /**
              * @description Valid credential, access denied — the message names the blocking layer.
              *
-             *     `error.code`: `SCOPE_DENIED`, `MODEL_RETIRED`, `ACCOUNT_INACTIVE`, `CREDENTIAL_NOT_PERMITTED`, `MODEL_NOT_AVAILABLE`, `KEY_NOT_OWNED`, `KEY_LIMIT_REACHED`, `TIER_FEATURE_UNAVAILABLE`, `BANK_TRANSFER_NOT_AVAILABLE`, `ROUTING_MODEL_RESTRICTED`
+             *     `error.code`: `SCOPE_DENIED`, `MODEL_RETIRED`, `ACCOUNT_INACTIVE`, `CREDENTIAL_NOT_PERMITTED`, `MODEL_NOT_AVAILABLE`, `KEY_NOT_OWNED`, `KEY_LIMIT_REACHED`, `TIER_FEATURE_UNAVAILABLE`, `BANK_TRANSFER_NOT_AVAILABLE`, `ROUTING_MODEL_RESTRICTED`, `SUBSCRIPTION_NOT_ELIGIBLE`, `SMITH_NOT_ENTITLED`
              */
             403: {
                 headers: {
@@ -20650,7 +23135,7 @@ export interface operations {
             /**
              * @description Out of credits, or a sub-key's `key_budget` is exhausted (or a priced request would cross it).
              *
-             *     `error.code`: `INSUFFICIENT_CREDITS`, `KEY_BUDGET_EXHAUSTED`
+             *     `error.code`: `INSUFFICIENT_CREDITS`, `KEY_BUDGET_EXHAUSTED`, `SUBSCRIPTION_CHARGE_FAILED`
              */
             402: {
                 headers: {
@@ -20664,7 +23149,7 @@ export interface operations {
             /**
              * @description Valid credential, access denied — the message names the blocking layer.
              *
-             *     `error.code`: `SCOPE_DENIED`, `MODEL_RETIRED`, `ACCOUNT_INACTIVE`, `CREDENTIAL_NOT_PERMITTED`, `MODEL_NOT_AVAILABLE`, `KEY_NOT_OWNED`, `KEY_LIMIT_REACHED`, `TIER_FEATURE_UNAVAILABLE`, `BANK_TRANSFER_NOT_AVAILABLE`, `ROUTING_MODEL_RESTRICTED`
+             *     `error.code`: `SCOPE_DENIED`, `MODEL_RETIRED`, `ACCOUNT_INACTIVE`, `CREDENTIAL_NOT_PERMITTED`, `MODEL_NOT_AVAILABLE`, `KEY_NOT_OWNED`, `KEY_LIMIT_REACHED`, `TIER_FEATURE_UNAVAILABLE`, `BANK_TRANSFER_NOT_AVAILABLE`, `ROUTING_MODEL_RESTRICTED`, `SUBSCRIPTION_NOT_ELIGIBLE`, `SMITH_NOT_ENTITLED`
              */
             403: {
                 headers: {
@@ -20763,6 +23248,181 @@ export interface operations {
             };
         };
     };
+    openai_responses: {
+        parameters: {
+            query?: never;
+            header?: {
+                authorization?: string | null;
+                "x-api-key"?: string | null;
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["OpenAIResponsesRequest"];
+            };
+        };
+        responses: {
+            /**
+             * @description Successful Response
+             *
+             *     **Streaming (`stream=true`):** When `stream=true`: OpenAI Responses SSE, `event:`/`data:` pairs in OpenAI's typed-event format (response.created, response.output_text.delta ..., response.completed). A failure after the first event arrives as one `data: {"error": {...}}` frame (`StreamErrorResponse`).
+             */
+            200: {
+                headers: {
+                    "X-Request-ID": components["headers"]["X-Request-ID"];
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["OpenAIResponsesResponse"];
+                    "text/event-stream": components["schemas"]["OpenAIResponsesStreamEvent"];
+                };
+            };
+            /**
+             * @description Upstream rejected the request parameters. `detail` carries the provider's own message.
+             *
+             *     `error.code`: `UPSTREAM_INVALID_REQUEST`
+             */
+            400: {
+                headers: {
+                    "X-Request-ID": components["headers"]["X-Request-ID"];
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["RelayErrorResponse"] | components["schemas"]["StreamErrorResponse"];
+                };
+            };
+            /**
+             * @description Credential missing, invalid or revoked.
+             *
+             *     `error.code`: `INVALID_API_KEY`, `KEY_REVOKED`, `MISSING_CREDENTIALS`, `INVALID_TOKEN`
+             */
+            401: {
+                headers: {
+                    "X-Request-ID": components["headers"]["X-Request-ID"];
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["RelayErrorResponse"] | components["schemas"]["StreamErrorResponse"];
+                };
+            };
+            /**
+             * @description Out of credits, or a sub-key's `key_budget` is exhausted (or a priced request would cross it).
+             *
+             *     `error.code`: `INSUFFICIENT_CREDITS`, `KEY_BUDGET_EXHAUSTED`, `SUBSCRIPTION_CHARGE_FAILED`
+             */
+            402: {
+                headers: {
+                    "X-Request-ID": components["headers"]["X-Request-ID"];
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["RelayErrorResponse"] | components["schemas"]["StreamErrorResponse"];
+                };
+            };
+            /**
+             * @description Valid credential, access denied — the message names the blocking layer.
+             *
+             *     `error.code`: `SCOPE_DENIED`, `MODEL_RETIRED`, `ACCOUNT_INACTIVE`, `CREDENTIAL_NOT_PERMITTED`, `MODEL_NOT_AVAILABLE`, `KEY_NOT_OWNED`, `KEY_LIMIT_REACHED`, `TIER_FEATURE_UNAVAILABLE`, `BANK_TRANSFER_NOT_AVAILABLE`, `ROUTING_MODEL_RESTRICTED`, `SUBSCRIPTION_NOT_ELIGIBLE`, `SMITH_NOT_ENTITLED`
+             */
+            403: {
+                headers: {
+                    "X-Request-ID": components["headers"]["X-Request-ID"];
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["RelayErrorResponse"] | components["schemas"]["StreamErrorResponse"];
+                };
+            };
+            /**
+             * @description The prompt or its inputs were refused, upstream rejected them as unprocessable, or the request body failed our own validation (`detail` then lists the fields). `error.detail.upstream_code` carries the provider's own verdict where it sent one.
+             *
+             *     `error.code`: `CONTENT_POLICY_DECLINED`, `UPSTREAM_INVALID_REQUEST`, `VALIDATION_ERROR`
+             */
+            422: {
+                headers: {
+                    "X-Request-ID": components["headers"]["X-Request-ID"];
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["RelayErrorResponse"] | components["schemas"]["StreamErrorResponse"];
+                };
+            };
+            /**
+             * @description Rate limit — `Retry-After` header set.
+             *
+             *     `error.code`: `RATE_LIMITED`, `WORKFLOW_RUN_LIMIT_REACHED`, `INSTANCE_LIMIT`, `FILE_QUOTA_EXCEEDED`
+             */
+            429: {
+                headers: {
+                    "Retry-After": components["headers"]["Retry-After"];
+                    "X-Request-ID": components["headers"]["X-Request-ID"];
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["RelayErrorResponse"] | components["schemas"]["StreamErrorResponse"];
+                };
+            };
+            /**
+             * @description The failure could not be attributed to the provider or the request.
+             *
+             *     `error.code`: `INTERNAL_ERROR`
+             */
+            500: {
+                headers: {
+                    "X-Request-ID": components["headers"]["X-Request-ID"];
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["RelayErrorResponse"] | components["schemas"]["StreamErrorResponse"];
+                };
+            };
+            /**
+             * @description A provider accepted the request and failed while serving it (`UPSTREAM_ERROR`), no provider could take it (`PROVIDER_UNAVAILABLE`), or its response did not match the model's schema.
+             *
+             *     `error.code`: `UPSTREAM_ERROR`, `PROVIDER_UNAVAILABLE`, `PROVIDER_SCHEMA_MISMATCH`
+             */
+            502: {
+                headers: {
+                    "X-Request-ID": components["headers"]["X-Request-ID"];
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["RelayErrorResponse"] | components["schemas"]["StreamErrorResponse"];
+                };
+            };
+            /**
+             * @description Model temporarily at capacity. `Retry-After` is set.
+             *
+             *     `error.code`: `CAPACITY_EXHAUSTED`
+             */
+            503: {
+                headers: {
+                    "Retry-After": components["headers"]["Retry-After"];
+                    "X-Request-ID": components["headers"]["X-Request-ID"];
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["RelayErrorResponse"] | components["schemas"]["StreamErrorResponse"];
+                };
+            };
+            /**
+             * @description The request did not complete within the route's inline budget. Use `async: true` for long generations.
+             *
+             *     `error.code`: `UPSTREAM_TIMEOUT`
+             */
+            504: {
+                headers: {
+                    "X-Request-ID": components["headers"]["X-Request-ID"];
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["RelayErrorResponse"] | components["schemas"]["StreamErrorResponse"];
+                };
+            };
+        };
+    };
     pricing_list: {
         parameters: {
             query?: never;
@@ -20788,6 +23448,2035 @@ export interface operations {
             /** @description Validation Error */
             422: {
                 headers: {
+                    "X-Request-ID": components["headers"]["X-Request-ID"];
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["RelayErrorResponse"];
+                };
+            };
+        };
+    };
+    smith_levels_list: {
+        parameters: {
+            query?: never;
+            header?: {
+                authorization?: string | null;
+                "x-api-key"?: string | null;
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    "X-Request-ID": components["headers"]["X-Request-ID"];
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["LevelView"][];
+                };
+            };
+            /**
+             * @description No dashboard login, or it expired; a ticket that was used or expired.
+             *
+             *     `error.code`: `INVALID_TOKEN`
+             */
+            401: {
+                headers: {
+                    "X-Request-ID": components["headers"]["X-Request-ID"];
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["RelayErrorResponse"];
+                };
+            };
+            /**
+             * @description An API key or a connected app's credential (Smith takes the dashboard login only), or the account is not active.
+             *
+             *     `error.code`: `CREDENTIAL_NOT_PERMITTED`, `ACCOUNT_INACTIVE`
+             */
+            403: {
+                headers: {
+                    "X-Request-ID": components["headers"]["X-Request-ID"];
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["RelayErrorResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    "X-Request-ID": components["headers"]["X-Request-ID"];
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["RelayErrorResponse"];
+                };
+            };
+            /**
+             * @description Too many Smith requests from this account.
+             *
+             *     `error.code`: `RATE_LIMITED`
+             */
+            429: {
+                headers: {
+                    "Retry-After": components["headers"]["Retry-After"];
+                    "X-Request-ID": components["headers"]["X-Request-ID"];
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["RelayErrorResponse"];
+                };
+            };
+            /**
+             * @description Smith is switched off.
+             *
+             *     `error.code`: `SMITH_UNAVAILABLE`
+             */
+            503: {
+                headers: {
+                    "Retry-After": components["headers"]["Retry-After"];
+                    "X-Request-ID": components["headers"]["X-Request-ID"];
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["RelayErrorResponse"];
+                };
+            };
+        };
+    };
+    smith_prefs_list: {
+        parameters: {
+            query?: never;
+            header?: {
+                authorization?: string | null;
+                "x-api-key"?: string | null;
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    "X-Request-ID": components["headers"]["X-Request-ID"];
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PrefsView"];
+                };
+            };
+            /**
+             * @description No dashboard login, or it expired; a ticket that was used or expired.
+             *
+             *     `error.code`: `INVALID_TOKEN`
+             */
+            401: {
+                headers: {
+                    "X-Request-ID": components["headers"]["X-Request-ID"];
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["RelayErrorResponse"];
+                };
+            };
+            /**
+             * @description An API key or a connected app's credential (Smith takes the dashboard login only), or the account is not active.
+             *
+             *     `error.code`: `CREDENTIAL_NOT_PERMITTED`, `ACCOUNT_INACTIVE`
+             */
+            403: {
+                headers: {
+                    "X-Request-ID": components["headers"]["X-Request-ID"];
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["RelayErrorResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    "X-Request-ID": components["headers"]["X-Request-ID"];
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["RelayErrorResponse"];
+                };
+            };
+            /**
+             * @description Too many Smith requests from this account.
+             *
+             *     `error.code`: `RATE_LIMITED`
+             */
+            429: {
+                headers: {
+                    "Retry-After": components["headers"]["Retry-After"];
+                    "X-Request-ID": components["headers"]["X-Request-ID"];
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["RelayErrorResponse"];
+                };
+            };
+            /**
+             * @description Smith is switched off.
+             *
+             *     `error.code`: `SMITH_UNAVAILABLE`
+             */
+            503: {
+                headers: {
+                    "Retry-After": components["headers"]["Retry-After"];
+                    "X-Request-ID": components["headers"]["X-Request-ID"];
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["RelayErrorResponse"];
+                };
+            };
+        };
+    };
+    smith_prefs_update: {
+        parameters: {
+            query?: never;
+            header?: {
+                authorization?: string | null;
+                "x-api-key"?: string | null;
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["PrefsPatch"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    "X-Request-ID": components["headers"]["X-Request-ID"];
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PrefsView"];
+                };
+            };
+            /**
+             * @description No dashboard login, or it expired; a ticket that was used or expired.
+             *
+             *     `error.code`: `INVALID_TOKEN`
+             */
+            401: {
+                headers: {
+                    "X-Request-ID": components["headers"]["X-Request-ID"];
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["RelayErrorResponse"];
+                };
+            };
+            /**
+             * @description An API key or a connected app's credential (Smith takes the dashboard login only), or the account is not active.
+             *
+             *     `error.code`: `CREDENTIAL_NOT_PERMITTED`, `ACCOUNT_INACTIVE`
+             */
+            403: {
+                headers: {
+                    "X-Request-ID": components["headers"]["X-Request-ID"];
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["RelayErrorResponse"];
+                };
+            };
+            /**
+             * @description No switch, an unknown field or a value that is not true or false.
+             *
+             *     `error.code`: `VALIDATION_ERROR`
+             */
+            422: {
+                headers: {
+                    "X-Request-ID": components["headers"]["X-Request-ID"];
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["RelayErrorResponse"];
+                };
+            };
+            /**
+             * @description Too many Smith requests from this account.
+             *
+             *     `error.code`: `RATE_LIMITED`
+             */
+            429: {
+                headers: {
+                    "Retry-After": components["headers"]["Retry-After"];
+                    "X-Request-ID": components["headers"]["X-Request-ID"];
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["RelayErrorResponse"];
+                };
+            };
+            /**
+             * @description Smith is switched off.
+             *
+             *     `error.code`: `SMITH_UNAVAILABLE`
+             */
+            503: {
+                headers: {
+                    "Retry-After": components["headers"]["Retry-After"];
+                    "X-Request-ID": components["headers"]["X-Request-ID"];
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["RelayErrorResponse"];
+                };
+            };
+        };
+    };
+    smith_sessions_list: {
+        parameters: {
+            query?: never;
+            header?: {
+                authorization?: string | null;
+                "x-api-key"?: string | null;
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    "X-Request-ID": components["headers"]["X-Request-ID"];
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SessionList"];
+                };
+            };
+            /**
+             * @description No dashboard login, or it expired; a ticket that was used or expired.
+             *
+             *     `error.code`: `INVALID_TOKEN`
+             */
+            401: {
+                headers: {
+                    "X-Request-ID": components["headers"]["X-Request-ID"];
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["RelayErrorResponse"];
+                };
+            };
+            /**
+             * @description An API key or a connected app's credential (Smith takes the dashboard login only), or the account is not active.
+             *
+             *     `error.code`: `CREDENTIAL_NOT_PERMITTED`, `ACCOUNT_INACTIVE`
+             */
+            403: {
+                headers: {
+                    "X-Request-ID": components["headers"]["X-Request-ID"];
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["RelayErrorResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    "X-Request-ID": components["headers"]["X-Request-ID"];
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["RelayErrorResponse"];
+                };
+            };
+            /**
+             * @description Too many Smith requests from this account.
+             *
+             *     `error.code`: `RATE_LIMITED`
+             */
+            429: {
+                headers: {
+                    "Retry-After": components["headers"]["Retry-After"];
+                    "X-Request-ID": components["headers"]["X-Request-ID"];
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["RelayErrorResponse"];
+                };
+            };
+            /**
+             * @description Smith is switched off.
+             *
+             *     `error.code`: `SMITH_UNAVAILABLE`
+             */
+            503: {
+                headers: {
+                    "Retry-After": components["headers"]["Retry-After"];
+                    "X-Request-ID": components["headers"]["X-Request-ID"];
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["RelayErrorResponse"];
+                };
+            };
+        };
+    };
+    smith_sessions_create: {
+        parameters: {
+            query?: never;
+            header?: {
+                authorization?: string | null;
+                "x-api-key"?: string | null;
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["SessionCreate"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            201: {
+                headers: {
+                    "X-Request-ID": components["headers"]["X-Request-ID"];
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SessionView"];
+                };
+            };
+            /**
+             * @description No dashboard login, or it expired; a ticket that was used or expired.
+             *
+             *     `error.code`: `INVALID_TOKEN`
+             */
+            401: {
+                headers: {
+                    "X-Request-ID": components["headers"]["X-Request-ID"];
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["RelayErrorResponse"];
+                };
+            };
+            /**
+             * @description Not enough credits to start.
+             *
+             *     `error.code`: `INSUFFICIENT_CREDITS`
+             */
+            402: {
+                headers: {
+                    "X-Request-ID": components["headers"]["X-Request-ID"];
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["RelayErrorResponse"];
+                };
+            };
+            /**
+             * @description No Smith plan or trial (the message names why), an API key, or an inactive account.
+             *
+             *     `error.code`: `SMITH_NOT_ENTITLED`, `CREDENTIAL_NOT_PERMITTED`, `ACCOUNT_INACTIVE`
+             */
+            403: {
+                headers: {
+                    "X-Request-ID": components["headers"]["X-Request-ID"];
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["RelayErrorResponse"];
+                };
+            };
+            /**
+             * @description The level is off.
+             *
+             *     `error.code`: `SMITH_LEVEL_UNAVAILABLE`, `VALIDATION_ERROR`
+             */
+            422: {
+                headers: {
+                    "X-Request-ID": components["headers"]["X-Request-ID"];
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["RelayErrorResponse"];
+                };
+            };
+            /**
+             * @description Too many Smith requests from this account.
+             *
+             *     `error.code`: `RATE_LIMITED`
+             */
+            429: {
+                headers: {
+                    "Retry-After": components["headers"]["Retry-After"];
+                    "X-Request-ID": components["headers"]["X-Request-ID"];
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["RelayErrorResponse"];
+                };
+            };
+            /**
+             * @description Smith is switched off.
+             *
+             *     `error.code`: `SMITH_UNAVAILABLE`
+             */
+            503: {
+                headers: {
+                    "Retry-After": components["headers"]["Retry-After"];
+                    "X-Request-ID": components["headers"]["X-Request-ID"];
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["RelayErrorResponse"];
+                };
+            };
+        };
+    };
+    smith_sessions_get: {
+        parameters: {
+            query?: never;
+            header?: {
+                authorization?: string | null;
+                "x-api-key"?: string | null;
+            };
+            path: {
+                session_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    "X-Request-ID": components["headers"]["X-Request-ID"];
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SessionView"];
+                };
+            };
+            /**
+             * @description No dashboard login, or it expired; a ticket that was used or expired.
+             *
+             *     `error.code`: `INVALID_TOKEN`
+             */
+            401: {
+                headers: {
+                    "X-Request-ID": components["headers"]["X-Request-ID"];
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["RelayErrorResponse"];
+                };
+            };
+            /**
+             * @description An API key or a connected app's credential (Smith takes the dashboard login only), or the account is not active.
+             *
+             *     `error.code`: `CREDENTIAL_NOT_PERMITTED`, `ACCOUNT_INACTIVE`
+             */
+            403: {
+                headers: {
+                    "X-Request-ID": components["headers"]["X-Request-ID"];
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["RelayErrorResponse"];
+                };
+            };
+            /**
+             * @description No such session on this account.
+             *
+             *     `error.code`: `SMITH_NOT_FOUND`
+             */
+            404: {
+                headers: {
+                    "X-Request-ID": components["headers"]["X-Request-ID"];
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["RelayErrorResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    "X-Request-ID": components["headers"]["X-Request-ID"];
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["RelayErrorResponse"];
+                };
+            };
+            /**
+             * @description Too many Smith requests from this account.
+             *
+             *     `error.code`: `RATE_LIMITED`
+             */
+            429: {
+                headers: {
+                    "Retry-After": components["headers"]["Retry-After"];
+                    "X-Request-ID": components["headers"]["X-Request-ID"];
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["RelayErrorResponse"];
+                };
+            };
+            /**
+             * @description Smith is switched off.
+             *
+             *     `error.code`: `SMITH_UNAVAILABLE`
+             */
+            503: {
+                headers: {
+                    "Retry-After": components["headers"]["Retry-After"];
+                    "X-Request-ID": components["headers"]["X-Request-ID"];
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["RelayErrorResponse"];
+                };
+            };
+        };
+    };
+    smith_sessions_delete: {
+        parameters: {
+            query?: never;
+            header?: {
+                authorization?: string | null;
+                "x-api-key"?: string | null;
+            };
+            path: {
+                session_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            204: {
+                headers: {
+                    "X-Request-ID": components["headers"]["X-Request-ID"];
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /**
+             * @description No dashboard login, or it expired; a ticket that was used or expired.
+             *
+             *     `error.code`: `INVALID_TOKEN`
+             */
+            401: {
+                headers: {
+                    "X-Request-ID": components["headers"]["X-Request-ID"];
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["RelayErrorResponse"];
+                };
+            };
+            /**
+             * @description An API key or a connected app's credential (Smith takes the dashboard login only), or the account is not active.
+             *
+             *     `error.code`: `CREDENTIAL_NOT_PERMITTED`, `ACCOUNT_INACTIVE`
+             */
+            403: {
+                headers: {
+                    "X-Request-ID": components["headers"]["X-Request-ID"];
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["RelayErrorResponse"];
+                };
+            };
+            /**
+             * @description No such session on this account.
+             *
+             *     `error.code`: `SMITH_NOT_FOUND`
+             */
+            404: {
+                headers: {
+                    "X-Request-ID": components["headers"]["X-Request-ID"];
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["RelayErrorResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    "X-Request-ID": components["headers"]["X-Request-ID"];
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["RelayErrorResponse"];
+                };
+            };
+            /**
+             * @description Too many Smith requests from this account.
+             *
+             *     `error.code`: `RATE_LIMITED`
+             */
+            429: {
+                headers: {
+                    "Retry-After": components["headers"]["Retry-After"];
+                    "X-Request-ID": components["headers"]["X-Request-ID"];
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["RelayErrorResponse"];
+                };
+            };
+            /**
+             * @description Smith is switched off.
+             *
+             *     `error.code`: `SMITH_UNAVAILABLE`
+             */
+            503: {
+                headers: {
+                    "Retry-After": components["headers"]["Retry-After"];
+                    "X-Request-ID": components["headers"]["X-Request-ID"];
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["RelayErrorResponse"];
+                };
+            };
+        };
+    };
+    smith_sessions_update: {
+        parameters: {
+            query?: never;
+            header?: {
+                authorization?: string | null;
+                "x-api-key"?: string | null;
+            };
+            path: {
+                session_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["SessionPatch"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    "X-Request-ID": components["headers"]["X-Request-ID"];
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SessionView"];
+                };
+            };
+            /**
+             * @description No dashboard login, or it expired; a ticket that was used or expired.
+             *
+             *     `error.code`: `INVALID_TOKEN`
+             */
+            401: {
+                headers: {
+                    "X-Request-ID": components["headers"]["X-Request-ID"];
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["RelayErrorResponse"];
+                };
+            };
+            /**
+             * @description An API key or a connected app's credential (Smith takes the dashboard login only), or the account is not active.
+             *
+             *     `error.code`: `CREDENTIAL_NOT_PERMITTED`, `ACCOUNT_INACTIVE`
+             */
+            403: {
+                headers: {
+                    "X-Request-ID": components["headers"]["X-Request-ID"];
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["RelayErrorResponse"];
+                };
+            };
+            /**
+             * @description No such session on this account.
+             *
+             *     `error.code`: `SMITH_NOT_FOUND`
+             */
+            404: {
+                headers: {
+                    "X-Request-ID": components["headers"]["X-Request-ID"];
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["RelayErrorResponse"];
+                };
+            };
+            /**
+             * @description A turn is running; change the level once it ends.
+             *
+             *     `error.code`: `SMITH_SESSION_BUSY`
+             */
+            409: {
+                headers: {
+                    "X-Request-ID": components["headers"]["X-Request-ID"];
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["RelayErrorResponse"];
+                };
+            };
+            /**
+             * @description No field, an empty or too long name, or a level that is off.
+             *
+             *     `error.code`: `VALIDATION_ERROR`, `SMITH_LEVEL_UNAVAILABLE`
+             */
+            422: {
+                headers: {
+                    "X-Request-ID": components["headers"]["X-Request-ID"];
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["RelayErrorResponse"];
+                };
+            };
+            /**
+             * @description Too many Smith requests from this account.
+             *
+             *     `error.code`: `RATE_LIMITED`
+             */
+            429: {
+                headers: {
+                    "Retry-After": components["headers"]["Retry-After"];
+                    "X-Request-ID": components["headers"]["X-Request-ID"];
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["RelayErrorResponse"];
+                };
+            };
+            /**
+             * @description Smith is switched off.
+             *
+             *     `error.code`: `SMITH_UNAVAILABLE`
+             */
+            503: {
+                headers: {
+                    "Retry-After": components["headers"]["Retry-After"];
+                    "X-Request-ID": components["headers"]["X-Request-ID"];
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["RelayErrorResponse"];
+                };
+            };
+        };
+    };
+    smith_sessions_assets_save: {
+        parameters: {
+            query?: never;
+            header?: {
+                authorization?: string | null;
+                "x-api-key"?: string | null;
+            };
+            path: {
+                file_id: string;
+                session_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["SaveBody"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    "X-Request-ID": components["headers"]["X-Request-ID"];
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SavedAsset"];
+                };
+            };
+            /**
+             * @description No dashboard login, or it expired; a ticket that was used or expired.
+             *
+             *     `error.code`: `INVALID_TOKEN`
+             */
+            401: {
+                headers: {
+                    "X-Request-ID": components["headers"]["X-Request-ID"];
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["RelayErrorResponse"];
+                };
+            };
+            /**
+             * @description Not enough credits for the storage fee.
+             *
+             *     `error.code`: `INSUFFICIENT_CREDITS`
+             */
+            402: {
+                headers: {
+                    "X-Request-ID": components["headers"]["X-Request-ID"];
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["RelayErrorResponse"];
+                };
+            };
+            /**
+             * @description An API key or a connected app's credential (Smith takes the dashboard login only), or the account is not active.
+             *
+             *     `error.code`: `CREDENTIAL_NOT_PERMITTED`, `ACCOUNT_INACTIVE`
+             */
+            403: {
+                headers: {
+                    "X-Request-ID": components["headers"]["X-Request-ID"];
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["RelayErrorResponse"];
+                };
+            };
+            /**
+             * @description No such session on this account.
+             *
+             *     `error.code`: `SMITH_NOT_FOUND`
+             */
+            404: {
+                headers: {
+                    "X-Request-ID": components["headers"]["X-Request-ID"];
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["RelayErrorResponse"];
+                };
+            };
+            /**
+             * @description The file has expired, or the retention is not offered.
+             *
+             *     `error.code`: `VALIDATION_ERROR`
+             */
+            422: {
+                headers: {
+                    "X-Request-ID": components["headers"]["X-Request-ID"];
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["RelayErrorResponse"];
+                };
+            };
+            /**
+             * @description Too many Smith requests from this account.
+             *
+             *     `error.code`: `RATE_LIMITED`
+             */
+            429: {
+                headers: {
+                    "Retry-After": components["headers"]["Retry-After"];
+                    "X-Request-ID": components["headers"]["X-Request-ID"];
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["RelayErrorResponse"];
+                };
+            };
+            /**
+             * @description Smith is switched off.
+             *
+             *     `error.code`: `SMITH_UNAVAILABLE`
+             */
+            503: {
+                headers: {
+                    "Retry-After": components["headers"]["Retry-After"];
+                    "X-Request-ID": components["headers"]["X-Request-ID"];
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["RelayErrorResponse"];
+                };
+            };
+        };
+    };
+    smith_sessions_events_list: {
+        parameters: {
+            query?: {
+                /** @description Replay events after this `seq`. */
+                after?: number | null;
+                /** @description A stream ticket, for clients that cannot send headers. */
+                ticket?: string | null;
+            };
+            header?: {
+                authorization?: string | null;
+                "Last-Event-ID"?: string | null;
+                "x-api-key"?: string | null;
+            };
+            path: {
+                session_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description The event stream (`text/event-stream`); each `data:` line is a SmithEvent. */
+            200: {
+                headers: {
+                    "X-Request-ID": components["headers"]["X-Request-ID"];
+                    [name: string]: unknown;
+                };
+                content: {
+                    "text/event-stream": {
+                        /** At */
+                        at?: string | null;
+                        /**
+                         * Seq
+                         * @description Per-session sequence; absent on fragments and heartbeats.
+                         */
+                        seq?: number | null;
+                        /**
+                         * Type
+                         * @enum {string}
+                         */
+                        type: "user_message" | "message" | "tool_started" | "task_progress" | "step_check" | "run_check" | "tool_finished" | "asset_ready" | "asset_saved" | "usage" | "upgrade_offer" | "low_credit_warning" | "error" | "status" | "message_withdrawn" | "heartbeat";
+                    } & {
+                        [key: string]: unknown;
+                    };
+                };
+            };
+            /**
+             * @description No dashboard login, or it expired; a ticket that was used or expired.
+             *
+             *     `error.code`: `INVALID_TOKEN`
+             */
+            401: {
+                headers: {
+                    "X-Request-ID": components["headers"]["X-Request-ID"];
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["RelayErrorResponse"];
+                };
+            };
+            /**
+             * @description An API key or a connected app's credential (Smith takes the dashboard login only), or the account is not active.
+             *
+             *     `error.code`: `CREDENTIAL_NOT_PERMITTED`, `ACCOUNT_INACTIVE`
+             */
+            403: {
+                headers: {
+                    "X-Request-ID": components["headers"]["X-Request-ID"];
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["RelayErrorResponse"];
+                };
+            };
+            /**
+             * @description No such session on this account.
+             *
+             *     `error.code`: `SMITH_NOT_FOUND`
+             */
+            404: {
+                headers: {
+                    "X-Request-ID": components["headers"]["X-Request-ID"];
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["RelayErrorResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    "X-Request-ID": components["headers"]["X-Request-ID"];
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["RelayErrorResponse"];
+                };
+            };
+            /**
+             * @description Too many open streams or Smith requests from this account.
+             *
+             *     `error.code`: `RATE_LIMITED`
+             */
+            429: {
+                headers: {
+                    "Retry-After": components["headers"]["Retry-After"];
+                    "X-Request-ID": components["headers"]["X-Request-ID"];
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["RelayErrorResponse"];
+                };
+            };
+            /**
+             * @description Smith is switched off.
+             *
+             *     `error.code`: `SMITH_UNAVAILABLE`
+             */
+            503: {
+                headers: {
+                    "Retry-After": components["headers"]["Retry-After"];
+                    "X-Request-ID": components["headers"]["X-Request-ID"];
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["RelayErrorResponse"];
+                };
+            };
+        };
+    };
+    smith_sessions_events_ticket: {
+        parameters: {
+            query?: never;
+            header?: {
+                authorization?: string | null;
+                "x-api-key"?: string | null;
+            };
+            path: {
+                session_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            201: {
+                headers: {
+                    "X-Request-ID": components["headers"]["X-Request-ID"];
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Ticket"];
+                };
+            };
+            /**
+             * @description No dashboard login, or it expired; a ticket that was used or expired.
+             *
+             *     `error.code`: `INVALID_TOKEN`
+             */
+            401: {
+                headers: {
+                    "X-Request-ID": components["headers"]["X-Request-ID"];
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["RelayErrorResponse"];
+                };
+            };
+            /**
+             * @description An API key or a connected app's credential (Smith takes the dashboard login only), or the account is not active.
+             *
+             *     `error.code`: `CREDENTIAL_NOT_PERMITTED`, `ACCOUNT_INACTIVE`
+             */
+            403: {
+                headers: {
+                    "X-Request-ID": components["headers"]["X-Request-ID"];
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["RelayErrorResponse"];
+                };
+            };
+            /**
+             * @description No such session on this account.
+             *
+             *     `error.code`: `SMITH_NOT_FOUND`
+             */
+            404: {
+                headers: {
+                    "X-Request-ID": components["headers"]["X-Request-ID"];
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["RelayErrorResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    "X-Request-ID": components["headers"]["X-Request-ID"];
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["RelayErrorResponse"];
+                };
+            };
+            /**
+             * @description Too many Smith requests from this account.
+             *
+             *     `error.code`: `RATE_LIMITED`
+             */
+            429: {
+                headers: {
+                    "Retry-After": components["headers"]["Retry-After"];
+                    "X-Request-ID": components["headers"]["X-Request-ID"];
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["RelayErrorResponse"];
+                };
+            };
+            /**
+             * @description Smith is switched off.
+             *
+             *     `error.code`: `SMITH_UNAVAILABLE`
+             */
+            503: {
+                headers: {
+                    "Retry-After": components["headers"]["Retry-After"];
+                    "X-Request-ID": components["headers"]["X-Request-ID"];
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["RelayErrorResponse"];
+                };
+            };
+        };
+    };
+    smith_sessions_feedback: {
+        parameters: {
+            query?: never;
+            header?: {
+                authorization?: string | null;
+                "x-api-key"?: string | null;
+            };
+            path: {
+                session_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["FeedbackBody"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            201: {
+                headers: {
+                    "X-Request-ID": components["headers"]["X-Request-ID"];
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["FeedbackView"];
+                };
+            };
+            /**
+             * @description No dashboard login, or it expired; a ticket that was used or expired.
+             *
+             *     `error.code`: `INVALID_TOKEN`
+             */
+            401: {
+                headers: {
+                    "X-Request-ID": components["headers"]["X-Request-ID"];
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["RelayErrorResponse"];
+                };
+            };
+            /**
+             * @description An API key or a connected app's credential (Smith takes the dashboard login only), or the account is not active.
+             *
+             *     `error.code`: `CREDENTIAL_NOT_PERMITTED`, `ACCOUNT_INACTIVE`
+             */
+            403: {
+                headers: {
+                    "X-Request-ID": components["headers"]["X-Request-ID"];
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["RelayErrorResponse"];
+                };
+            };
+            /**
+             * @description No such session on this account.
+             *
+             *     `error.code`: `SMITH_NOT_FOUND`
+             */
+            404: {
+                headers: {
+                    "X-Request-ID": components["headers"]["X-Request-ID"];
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["RelayErrorResponse"];
+                };
+            };
+            /**
+             * @description Both `message_id` and `file_id`, an unknown verdict or a note over 500 characters.
+             *
+             *     `error.code`: `VALIDATION_ERROR`
+             */
+            422: {
+                headers: {
+                    "X-Request-ID": components["headers"]["X-Request-ID"];
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["RelayErrorResponse"];
+                };
+            };
+            /**
+             * @description Too many Smith requests from this account.
+             *
+             *     `error.code`: `RATE_LIMITED`
+             */
+            429: {
+                headers: {
+                    "Retry-After": components["headers"]["Retry-After"];
+                    "X-Request-ID": components["headers"]["X-Request-ID"];
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["RelayErrorResponse"];
+                };
+            };
+            /**
+             * @description Smith is switched off.
+             *
+             *     `error.code`: `SMITH_UNAVAILABLE`
+             */
+            503: {
+                headers: {
+                    "Retry-After": components["headers"]["Retry-After"];
+                    "X-Request-ID": components["headers"]["X-Request-ID"];
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["RelayErrorResponse"];
+                };
+            };
+        };
+    };
+    smith_sessions_interrupt: {
+        parameters: {
+            query?: never;
+            header?: {
+                authorization?: string | null;
+                "x-api-key"?: string | null;
+            };
+            path: {
+                session_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    "X-Request-ID": components["headers"]["X-Request-ID"];
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Interrupted"];
+                };
+            };
+            /**
+             * @description No dashboard login, or it expired; a ticket that was used or expired.
+             *
+             *     `error.code`: `INVALID_TOKEN`
+             */
+            401: {
+                headers: {
+                    "X-Request-ID": components["headers"]["X-Request-ID"];
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["RelayErrorResponse"];
+                };
+            };
+            /**
+             * @description An API key or a connected app's credential (Smith takes the dashboard login only), or the account is not active.
+             *
+             *     `error.code`: `CREDENTIAL_NOT_PERMITTED`, `ACCOUNT_INACTIVE`
+             */
+            403: {
+                headers: {
+                    "X-Request-ID": components["headers"]["X-Request-ID"];
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["RelayErrorResponse"];
+                };
+            };
+            /**
+             * @description No such session on this account.
+             *
+             *     `error.code`: `SMITH_NOT_FOUND`
+             */
+            404: {
+                headers: {
+                    "X-Request-ID": components["headers"]["X-Request-ID"];
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["RelayErrorResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    "X-Request-ID": components["headers"]["X-Request-ID"];
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["RelayErrorResponse"];
+                };
+            };
+            /**
+             * @description Too many Smith requests from this account.
+             *
+             *     `error.code`: `RATE_LIMITED`
+             */
+            429: {
+                headers: {
+                    "Retry-After": components["headers"]["Retry-After"];
+                    "X-Request-ID": components["headers"]["X-Request-ID"];
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["RelayErrorResponse"];
+                };
+            };
+            /**
+             * @description Smith is switched off.
+             *
+             *     `error.code`: `SMITH_UNAVAILABLE`
+             */
+            503: {
+                headers: {
+                    "Retry-After": components["headers"]["Retry-After"];
+                    "X-Request-ID": components["headers"]["X-Request-ID"];
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["RelayErrorResponse"];
+                };
+            };
+        };
+    };
+    smith_sessions_messages_create: {
+        parameters: {
+            query?: never;
+            header?: {
+                authorization?: string | null;
+                "x-api-key"?: string | null;
+            };
+            path: {
+                session_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["MessageCreate"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            202: {
+                headers: {
+                    "X-Request-ID": components["headers"]["X-Request-ID"];
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["TurnAccepted"];
+                };
+            };
+            /**
+             * @description No dashboard login, or it expired; a ticket that was used or expired.
+             *
+             *     `error.code`: `INVALID_TOKEN`
+             */
+            401: {
+                headers: {
+                    "X-Request-ID": components["headers"]["X-Request-ID"];
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["RelayErrorResponse"];
+                };
+            };
+            /**
+             * @description Credits below what one step needs, for a message that would start at once; `error.detail.reserve_usd` is the amount.
+             *
+             *     `error.code`: `INSUFFICIENT_CREDITS`
+             */
+            402: {
+                headers: {
+                    "X-Request-ID": components["headers"]["X-Request-ID"];
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["RelayErrorResponse"];
+                };
+            };
+            /**
+             * @description No Smith plan or trial, an API key, or an inactive account.
+             *
+             *     `error.code`: `SMITH_NOT_ENTITLED`, `CREDENTIAL_NOT_PERMITTED`, `ACCOUNT_INACTIVE`
+             */
+            403: {
+                headers: {
+                    "X-Request-ID": components["headers"]["X-Request-ID"];
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["RelayErrorResponse"];
+                };
+            };
+            /**
+             * @description No such session on this account.
+             *
+             *     `error.code`: `SMITH_NOT_FOUND`
+             */
+            404: {
+                headers: {
+                    "X-Request-ID": components["headers"]["X-Request-ID"];
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["RelayErrorResponse"];
+                };
+            };
+            /**
+             * @description This session already has its limit of waiting messages (`error.detail.queued_message_ids`), or this account has; `error.detail.limit` is the limit.
+             *
+             *     `error.code`: `SMITH_SESSION_BUSY`, `SMITH_QUEUE_FULL`
+             */
+            409: {
+                headers: {
+                    "X-Request-ID": components["headers"]["X-Request-ID"];
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["RelayErrorResponse"];
+                };
+            };
+            /**
+             * @description Bad attachments, a level that is off, or the trial's daily allowance is used up.
+             *
+             *     `error.code`: `VALIDATION_ERROR`, `SMITH_LEVEL_UNAVAILABLE`, `SMITH_TURN_LIMIT`
+             */
+            422: {
+                headers: {
+                    "X-Request-ID": components["headers"]["X-Request-ID"];
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["RelayErrorResponse"];
+                };
+            };
+            /**
+             * @description Too many Smith requests from this account.
+             *
+             *     `error.code`: `RATE_LIMITED`
+             */
+            429: {
+                headers: {
+                    "Retry-After": components["headers"]["Retry-After"];
+                    "X-Request-ID": components["headers"]["X-Request-ID"];
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["RelayErrorResponse"];
+                };
+            };
+            /**
+             * @description Smith is switched off.
+             *
+             *     `error.code`: `SMITH_UNAVAILABLE`
+             */
+            503: {
+                headers: {
+                    "Retry-After": components["headers"]["Retry-After"];
+                    "X-Request-ID": components["headers"]["X-Request-ID"];
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["RelayErrorResponse"];
+                };
+            };
+        };
+    };
+    smith_sessions_messages_delete: {
+        parameters: {
+            query?: never;
+            header?: {
+                authorization?: string | null;
+                "x-api-key"?: string | null;
+            };
+            path: {
+                message_id: string;
+                session_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            204: {
+                headers: {
+                    "X-Request-ID": components["headers"]["X-Request-ID"];
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /**
+             * @description No dashboard login, or it expired; a ticket that was used or expired.
+             *
+             *     `error.code`: `INVALID_TOKEN`
+             */
+            401: {
+                headers: {
+                    "X-Request-ID": components["headers"]["X-Request-ID"];
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["RelayErrorResponse"];
+                };
+            };
+            /**
+             * @description An API key or a connected app's credential (Smith takes the dashboard login only), or the account is not active.
+             *
+             *     `error.code`: `CREDENTIAL_NOT_PERMITTED`, `ACCOUNT_INACTIVE`
+             */
+            403: {
+                headers: {
+                    "X-Request-ID": components["headers"]["X-Request-ID"];
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["RelayErrorResponse"];
+                };
+            };
+            /**
+             * @description No such session, or no message by that id on it.
+             *
+             *     `error.code`: `SMITH_NOT_FOUND`
+             */
+            404: {
+                headers: {
+                    "X-Request-ID": components["headers"]["X-Request-ID"];
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["RelayErrorResponse"];
+                };
+            };
+            /**
+             * @description The message already started; `error.detail` names it.
+             *
+             *     `error.code`: `SMITH_MESSAGE_STARTED`
+             */
+            409: {
+                headers: {
+                    "X-Request-ID": components["headers"]["X-Request-ID"];
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["RelayErrorResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    "X-Request-ID": components["headers"]["X-Request-ID"];
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["RelayErrorResponse"];
+                };
+            };
+            /**
+             * @description Too many Smith requests from this account.
+             *
+             *     `error.code`: `RATE_LIMITED`
+             */
+            429: {
+                headers: {
+                    "Retry-After": components["headers"]["Retry-After"];
+                    "X-Request-ID": components["headers"]["X-Request-ID"];
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["RelayErrorResponse"];
+                };
+            };
+            /**
+             * @description Smith is switched off.
+             *
+             *     `error.code`: `SMITH_UNAVAILABLE`
+             */
+            503: {
+                headers: {
+                    "Retry-After": components["headers"]["Retry-After"];
+                    "X-Request-ID": components["headers"]["X-Request-ID"];
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["RelayErrorResponse"];
+                };
+            };
+        };
+    };
+    smith_sessions_steps_continue: {
+        parameters: {
+            query?: never;
+            header?: {
+                authorization?: string | null;
+                "x-api-key"?: string | null;
+            };
+            path: {
+                session_id: string;
+                step_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    "X-Request-ID": components["headers"]["X-Request-ID"];
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["StepAnswered"];
+                };
+            };
+            /**
+             * @description No dashboard login, or it expired; a ticket that was used or expired.
+             *
+             *     `error.code`: `INVALID_TOKEN`
+             */
+            401: {
+                headers: {
+                    "X-Request-ID": components["headers"]["X-Request-ID"];
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["RelayErrorResponse"];
+                };
+            };
+            /**
+             * @description An API key or a connected app's credential (Smith takes the dashboard login only), or the account is not active.
+             *
+             *     `error.code`: `CREDENTIAL_NOT_PERMITTED`, `ACCOUNT_INACTIVE`
+             */
+            403: {
+                headers: {
+                    "X-Request-ID": components["headers"]["X-Request-ID"];
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["RelayErrorResponse"];
+                };
+            };
+            /**
+             * @description No such session on this account, or no step by that id on it.
+             *
+             *     `error.code`: `SMITH_NOT_FOUND`
+             */
+            404: {
+                headers: {
+                    "X-Request-ID": components["headers"]["X-Request-ID"];
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["RelayErrorResponse"];
+                };
+            };
+            /**
+             * @description The step is not waiting at a `step_check` or a `run_check`: it is still running, it finished, or an answer already arrived.
+             *
+             *     `error.code`: `SMITH_STEP_NOT_PAUSED`
+             */
+            409: {
+                headers: {
+                    "X-Request-ID": components["headers"]["X-Request-ID"];
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["RelayErrorResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    "X-Request-ID": components["headers"]["X-Request-ID"];
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["RelayErrorResponse"];
+                };
+            };
+            /**
+             * @description Too many Smith requests from this account.
+             *
+             *     `error.code`: `RATE_LIMITED`
+             */
+            429: {
+                headers: {
+                    "Retry-After": components["headers"]["Retry-After"];
+                    "X-Request-ID": components["headers"]["X-Request-ID"];
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["RelayErrorResponse"];
+                };
+            };
+            /**
+             * @description Smith is switched off.
+             *
+             *     `error.code`: `SMITH_UNAVAILABLE`
+             */
+            503: {
+                headers: {
+                    "Retry-After": components["headers"]["Retry-After"];
+                    "X-Request-ID": components["headers"]["X-Request-ID"];
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["RelayErrorResponse"];
+                };
+            };
+        };
+    };
+    smith_sessions_steps_stop: {
+        parameters: {
+            query?: never;
+            header?: {
+                authorization?: string | null;
+                "x-api-key"?: string | null;
+            };
+            path: {
+                session_id: string;
+                step_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    "X-Request-ID": components["headers"]["X-Request-ID"];
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["StepAnswered"];
+                };
+            };
+            /**
+             * @description No dashboard login, or it expired; a ticket that was used or expired.
+             *
+             *     `error.code`: `INVALID_TOKEN`
+             */
+            401: {
+                headers: {
+                    "X-Request-ID": components["headers"]["X-Request-ID"];
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["RelayErrorResponse"];
+                };
+            };
+            /**
+             * @description An API key or a connected app's credential (Smith takes the dashboard login only), or the account is not active.
+             *
+             *     `error.code`: `CREDENTIAL_NOT_PERMITTED`, `ACCOUNT_INACTIVE`
+             */
+            403: {
+                headers: {
+                    "X-Request-ID": components["headers"]["X-Request-ID"];
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["RelayErrorResponse"];
+                };
+            };
+            /**
+             * @description No such session on this account, or no step by that id on it.
+             *
+             *     `error.code`: `SMITH_NOT_FOUND`
+             */
+            404: {
+                headers: {
+                    "X-Request-ID": components["headers"]["X-Request-ID"];
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["RelayErrorResponse"];
+                };
+            };
+            /**
+             * @description The step is not waiting at a `step_check` or a `run_check`: it is still running, it finished, or an answer already arrived.
+             *
+             *     `error.code`: `SMITH_STEP_NOT_PAUSED`
+             */
+            409: {
+                headers: {
+                    "X-Request-ID": components["headers"]["X-Request-ID"];
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["RelayErrorResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    "X-Request-ID": components["headers"]["X-Request-ID"];
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["RelayErrorResponse"];
+                };
+            };
+            /**
+             * @description Too many Smith requests from this account.
+             *
+             *     `error.code`: `RATE_LIMITED`
+             */
+            429: {
+                headers: {
+                    "Retry-After": components["headers"]["Retry-After"];
+                    "X-Request-ID": components["headers"]["X-Request-ID"];
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["RelayErrorResponse"];
+                };
+            };
+            /**
+             * @description Smith is switched off.
+             *
+             *     `error.code`: `SMITH_UNAVAILABLE`
+             */
+            503: {
+                headers: {
+                    "Retry-After": components["headers"]["Retry-After"];
+                    "X-Request-ID": components["headers"]["X-Request-ID"];
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["RelayErrorResponse"];
+                };
+            };
+        };
+    };
+    smith_usage_get: {
+        parameters: {
+            query?: never;
+            header?: {
+                authorization?: string | null;
+                "x-api-key"?: string | null;
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    "X-Request-ID": components["headers"]["X-Request-ID"];
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["UsageView"];
+                };
+            };
+            /**
+             * @description No dashboard login, or it expired; a ticket that was used or expired.
+             *
+             *     `error.code`: `INVALID_TOKEN`
+             */
+            401: {
+                headers: {
+                    "X-Request-ID": components["headers"]["X-Request-ID"];
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["RelayErrorResponse"];
+                };
+            };
+            /**
+             * @description An API key or a connected app's credential (Smith takes the dashboard login only), or the account is not active.
+             *
+             *     `error.code`: `CREDENTIAL_NOT_PERMITTED`, `ACCOUNT_INACTIVE`
+             */
+            403: {
+                headers: {
+                    "X-Request-ID": components["headers"]["X-Request-ID"];
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["RelayErrorResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    "X-Request-ID": components["headers"]["X-Request-ID"];
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["RelayErrorResponse"];
+                };
+            };
+            /**
+             * @description Too many Smith requests from this account.
+             *
+             *     `error.code`: `RATE_LIMITED`
+             */
+            429: {
+                headers: {
+                    "Retry-After": components["headers"]["Retry-After"];
+                    "X-Request-ID": components["headers"]["X-Request-ID"];
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["RelayErrorResponse"];
+                };
+            };
+            /**
+             * @description Smith is switched off.
+             *
+             *     `error.code`: `SMITH_UNAVAILABLE`
+             */
+            503: {
+                headers: {
+                    "Retry-After": components["headers"]["Retry-After"];
                     "X-Request-ID": components["headers"]["X-Request-ID"];
                     [name: string]: unknown;
                 };
@@ -20959,7 +25648,7 @@ export interface operations {
             /**
              * @description Out of credits, or a sub-key's `key_budget` is exhausted (or a priced request would cross it).
              *
-             *     `error.code`: `INSUFFICIENT_CREDITS`, `KEY_BUDGET_EXHAUSTED`
+             *     `error.code`: `INSUFFICIENT_CREDITS`, `KEY_BUDGET_EXHAUSTED`, `SUBSCRIPTION_CHARGE_FAILED`
              */
             402: {
                 headers: {
@@ -20973,7 +25662,7 @@ export interface operations {
             /**
              * @description Valid credential, access denied — the message names the blocking layer.
              *
-             *     `error.code`: `SCOPE_DENIED`, `MODEL_RETIRED`, `ACCOUNT_INACTIVE`, `CREDENTIAL_NOT_PERMITTED`, `MODEL_NOT_AVAILABLE`, `KEY_NOT_OWNED`, `KEY_LIMIT_REACHED`, `TIER_FEATURE_UNAVAILABLE`, `BANK_TRANSFER_NOT_AVAILABLE`, `ROUTING_MODEL_RESTRICTED`
+             *     `error.code`: `SCOPE_DENIED`, `MODEL_RETIRED`, `ACCOUNT_INACTIVE`, `CREDENTIAL_NOT_PERMITTED`, `MODEL_NOT_AVAILABLE`, `KEY_NOT_OWNED`, `KEY_LIMIT_REACHED`, `TIER_FEATURE_UNAVAILABLE`, `BANK_TRANSFER_NOT_AVAILABLE`, `ROUTING_MODEL_RESTRICTED`, `SUBSCRIPTION_NOT_ELIGIBLE`, `SMITH_NOT_ENTITLED`
              */
             403: {
                 headers: {
@@ -21158,7 +25847,7 @@ export interface operations {
             /**
              * @description Out of credits, or a sub-key's `key_budget` is exhausted (or a priced request would cross it).
              *
-             *     `error.code`: `INSUFFICIENT_CREDITS`, `KEY_BUDGET_EXHAUSTED`
+             *     `error.code`: `INSUFFICIENT_CREDITS`, `KEY_BUDGET_EXHAUSTED`, `SUBSCRIPTION_CHARGE_FAILED`
              */
             402: {
                 headers: {
@@ -21172,7 +25861,7 @@ export interface operations {
             /**
              * @description Valid credential, access denied — the message names the blocking layer.
              *
-             *     `error.code`: `SCOPE_DENIED`, `MODEL_RETIRED`, `ACCOUNT_INACTIVE`, `CREDENTIAL_NOT_PERMITTED`, `MODEL_NOT_AVAILABLE`, `KEY_NOT_OWNED`, `KEY_LIMIT_REACHED`, `TIER_FEATURE_UNAVAILABLE`, `BANK_TRANSFER_NOT_AVAILABLE`, `ROUTING_MODEL_RESTRICTED`
+             *     `error.code`: `SCOPE_DENIED`, `MODEL_RETIRED`, `ACCOUNT_INACTIVE`, `CREDENTIAL_NOT_PERMITTED`, `MODEL_NOT_AVAILABLE`, `KEY_NOT_OWNED`, `KEY_LIMIT_REACHED`, `TIER_FEATURE_UNAVAILABLE`, `BANK_TRANSFER_NOT_AVAILABLE`, `ROUTING_MODEL_RESTRICTED`, `SUBSCRIPTION_NOT_ELIGIBLE`, `SMITH_NOT_ENTITLED`
              */
             403: {
                 headers: {
@@ -21357,7 +26046,7 @@ export interface operations {
             /**
              * @description Out of credits, or a sub-key's `key_budget` is exhausted (or a priced request would cross it).
              *
-             *     `error.code`: `INSUFFICIENT_CREDITS`, `KEY_BUDGET_EXHAUSTED`
+             *     `error.code`: `INSUFFICIENT_CREDITS`, `KEY_BUDGET_EXHAUSTED`, `SUBSCRIPTION_CHARGE_FAILED`
              */
             402: {
                 headers: {
@@ -21371,7 +26060,7 @@ export interface operations {
             /**
              * @description Valid credential, access denied — the message names the blocking layer.
              *
-             *     `error.code`: `SCOPE_DENIED`, `MODEL_RETIRED`, `ACCOUNT_INACTIVE`, `CREDENTIAL_NOT_PERMITTED`, `MODEL_NOT_AVAILABLE`, `KEY_NOT_OWNED`, `KEY_LIMIT_REACHED`, `TIER_FEATURE_UNAVAILABLE`, `BANK_TRANSFER_NOT_AVAILABLE`, `ROUTING_MODEL_RESTRICTED`
+             *     `error.code`: `SCOPE_DENIED`, `MODEL_RETIRED`, `ACCOUNT_INACTIVE`, `CREDENTIAL_NOT_PERMITTED`, `MODEL_NOT_AVAILABLE`, `KEY_NOT_OWNED`, `KEY_LIMIT_REACHED`, `TIER_FEATURE_UNAVAILABLE`, `BANK_TRANSFER_NOT_AVAILABLE`, `ROUTING_MODEL_RESTRICTED`, `SUBSCRIPTION_NOT_ELIGIBLE`, `SMITH_NOT_ENTITLED`
              */
             403: {
                 headers: {
@@ -21556,7 +26245,7 @@ export interface operations {
             /**
              * @description Out of credits, or a sub-key's `key_budget` is exhausted (or a priced request would cross it).
              *
-             *     `error.code`: `INSUFFICIENT_CREDITS`, `KEY_BUDGET_EXHAUSTED`
+             *     `error.code`: `INSUFFICIENT_CREDITS`, `KEY_BUDGET_EXHAUSTED`, `SUBSCRIPTION_CHARGE_FAILED`
              */
             402: {
                 headers: {
@@ -21570,7 +26259,7 @@ export interface operations {
             /**
              * @description Valid credential, access denied — the message names the blocking layer.
              *
-             *     `error.code`: `SCOPE_DENIED`, `MODEL_RETIRED`, `ACCOUNT_INACTIVE`, `CREDENTIAL_NOT_PERMITTED`, `MODEL_NOT_AVAILABLE`, `KEY_NOT_OWNED`, `KEY_LIMIT_REACHED`, `TIER_FEATURE_UNAVAILABLE`, `BANK_TRANSFER_NOT_AVAILABLE`, `ROUTING_MODEL_RESTRICTED`
+             *     `error.code`: `SCOPE_DENIED`, `MODEL_RETIRED`, `ACCOUNT_INACTIVE`, `CREDENTIAL_NOT_PERMITTED`, `MODEL_NOT_AVAILABLE`, `KEY_NOT_OWNED`, `KEY_LIMIT_REACHED`, `TIER_FEATURE_UNAVAILABLE`, `BANK_TRANSFER_NOT_AVAILABLE`, `ROUTING_MODEL_RESTRICTED`, `SUBSCRIPTION_NOT_ELIGIBLE`, `SMITH_NOT_ENTITLED`
              */
             403: {
                 headers: {
@@ -21754,7 +26443,7 @@ export interface operations {
             /**
              * @description Out of credits, or a sub-key's `key_budget` is exhausted (or a priced request would cross it).
              *
-             *     `error.code`: `INSUFFICIENT_CREDITS`, `KEY_BUDGET_EXHAUSTED`
+             *     `error.code`: `INSUFFICIENT_CREDITS`, `KEY_BUDGET_EXHAUSTED`, `SUBSCRIPTION_CHARGE_FAILED`
              */
             402: {
                 headers: {
@@ -21768,7 +26457,7 @@ export interface operations {
             /**
              * @description Valid credential, access denied — the message names the blocking layer.
              *
-             *     `error.code`: `SCOPE_DENIED`, `MODEL_RETIRED`, `ACCOUNT_INACTIVE`, `CREDENTIAL_NOT_PERMITTED`, `MODEL_NOT_AVAILABLE`, `KEY_NOT_OWNED`, `KEY_LIMIT_REACHED`, `TIER_FEATURE_UNAVAILABLE`, `BANK_TRANSFER_NOT_AVAILABLE`, `ROUTING_MODEL_RESTRICTED`
+             *     `error.code`: `SCOPE_DENIED`, `MODEL_RETIRED`, `ACCOUNT_INACTIVE`, `CREDENTIAL_NOT_PERMITTED`, `MODEL_NOT_AVAILABLE`, `KEY_NOT_OWNED`, `KEY_LIMIT_REACHED`, `TIER_FEATURE_UNAVAILABLE`, `BANK_TRANSFER_NOT_AVAILABLE`, `ROUTING_MODEL_RESTRICTED`, `SUBSCRIPTION_NOT_ELIGIBLE`, `SMITH_NOT_ENTITLED`
              */
             403: {
                 headers: {
@@ -21952,7 +26641,7 @@ export interface operations {
             /**
              * @description Out of credits, or a sub-key's `key_budget` is exhausted (or a priced request would cross it).
              *
-             *     `error.code`: `INSUFFICIENT_CREDITS`, `KEY_BUDGET_EXHAUSTED`
+             *     `error.code`: `INSUFFICIENT_CREDITS`, `KEY_BUDGET_EXHAUSTED`, `SUBSCRIPTION_CHARGE_FAILED`
              */
             402: {
                 headers: {
@@ -21966,7 +26655,7 @@ export interface operations {
             /**
              * @description Valid credential, access denied — the message names the blocking layer.
              *
-             *     `error.code`: `SCOPE_DENIED`, `MODEL_RETIRED`, `ACCOUNT_INACTIVE`, `CREDENTIAL_NOT_PERMITTED`, `MODEL_NOT_AVAILABLE`, `KEY_NOT_OWNED`, `KEY_LIMIT_REACHED`, `TIER_FEATURE_UNAVAILABLE`, `BANK_TRANSFER_NOT_AVAILABLE`, `ROUTING_MODEL_RESTRICTED`
+             *     `error.code`: `SCOPE_DENIED`, `MODEL_RETIRED`, `ACCOUNT_INACTIVE`, `CREDENTIAL_NOT_PERMITTED`, `MODEL_NOT_AVAILABLE`, `KEY_NOT_OWNED`, `KEY_LIMIT_REACHED`, `TIER_FEATURE_UNAVAILABLE`, `BANK_TRANSFER_NOT_AVAILABLE`, `ROUTING_MODEL_RESTRICTED`, `SUBSCRIPTION_NOT_ELIGIBLE`, `SMITH_NOT_ENTITLED`
              */
             403: {
                 headers: {
@@ -22150,7 +26839,7 @@ export interface operations {
             /**
              * @description Out of credits, or a sub-key's `key_budget` is exhausted (or a priced request would cross it).
              *
-             *     `error.code`: `INSUFFICIENT_CREDITS`, `KEY_BUDGET_EXHAUSTED`
+             *     `error.code`: `INSUFFICIENT_CREDITS`, `KEY_BUDGET_EXHAUSTED`, `SUBSCRIPTION_CHARGE_FAILED`
              */
             402: {
                 headers: {
@@ -22164,7 +26853,7 @@ export interface operations {
             /**
              * @description Valid credential, access denied — the message names the blocking layer.
              *
-             *     `error.code`: `SCOPE_DENIED`, `MODEL_RETIRED`, `ACCOUNT_INACTIVE`, `CREDENTIAL_NOT_PERMITTED`, `MODEL_NOT_AVAILABLE`, `KEY_NOT_OWNED`, `KEY_LIMIT_REACHED`, `TIER_FEATURE_UNAVAILABLE`, `BANK_TRANSFER_NOT_AVAILABLE`, `ROUTING_MODEL_RESTRICTED`
+             *     `error.code`: `SCOPE_DENIED`, `MODEL_RETIRED`, `ACCOUNT_INACTIVE`, `CREDENTIAL_NOT_PERMITTED`, `MODEL_NOT_AVAILABLE`, `KEY_NOT_OWNED`, `KEY_LIMIT_REACHED`, `TIER_FEATURE_UNAVAILABLE`, `BANK_TRANSFER_NOT_AVAILABLE`, `ROUTING_MODEL_RESTRICTED`, `SUBSCRIPTION_NOT_ELIGIBLE`, `SMITH_NOT_ENTITLED`
              */
             403: {
                 headers: {
@@ -22348,7 +27037,7 @@ export interface operations {
             /**
              * @description Out of credits, or a sub-key's `key_budget` is exhausted (or a priced request would cross it).
              *
-             *     `error.code`: `INSUFFICIENT_CREDITS`, `KEY_BUDGET_EXHAUSTED`
+             *     `error.code`: `INSUFFICIENT_CREDITS`, `KEY_BUDGET_EXHAUSTED`, `SUBSCRIPTION_CHARGE_FAILED`
              */
             402: {
                 headers: {
@@ -22362,7 +27051,7 @@ export interface operations {
             /**
              * @description Valid credential, access denied — the message names the blocking layer.
              *
-             *     `error.code`: `SCOPE_DENIED`, `MODEL_RETIRED`, `ACCOUNT_INACTIVE`, `CREDENTIAL_NOT_PERMITTED`, `MODEL_NOT_AVAILABLE`, `KEY_NOT_OWNED`, `KEY_LIMIT_REACHED`, `TIER_FEATURE_UNAVAILABLE`, `BANK_TRANSFER_NOT_AVAILABLE`, `ROUTING_MODEL_RESTRICTED`
+             *     `error.code`: `SCOPE_DENIED`, `MODEL_RETIRED`, `ACCOUNT_INACTIVE`, `CREDENTIAL_NOT_PERMITTED`, `MODEL_NOT_AVAILABLE`, `KEY_NOT_OWNED`, `KEY_LIMIT_REACHED`, `TIER_FEATURE_UNAVAILABLE`, `BANK_TRANSFER_NOT_AVAILABLE`, `ROUTING_MODEL_RESTRICTED`, `SUBSCRIPTION_NOT_ELIGIBLE`, `SMITH_NOT_ENTITLED`
              */
             403: {
                 headers: {
@@ -22546,7 +27235,7 @@ export interface operations {
             /**
              * @description Out of credits, or a sub-key's `key_budget` is exhausted (or a priced request would cross it).
              *
-             *     `error.code`: `INSUFFICIENT_CREDITS`, `KEY_BUDGET_EXHAUSTED`
+             *     `error.code`: `INSUFFICIENT_CREDITS`, `KEY_BUDGET_EXHAUSTED`, `SUBSCRIPTION_CHARGE_FAILED`
              */
             402: {
                 headers: {
@@ -22560,7 +27249,7 @@ export interface operations {
             /**
              * @description Valid credential, access denied — the message names the blocking layer.
              *
-             *     `error.code`: `SCOPE_DENIED`, `MODEL_RETIRED`, `ACCOUNT_INACTIVE`, `CREDENTIAL_NOT_PERMITTED`, `MODEL_NOT_AVAILABLE`, `KEY_NOT_OWNED`, `KEY_LIMIT_REACHED`, `TIER_FEATURE_UNAVAILABLE`, `BANK_TRANSFER_NOT_AVAILABLE`, `ROUTING_MODEL_RESTRICTED`
+             *     `error.code`: `SCOPE_DENIED`, `MODEL_RETIRED`, `ACCOUNT_INACTIVE`, `CREDENTIAL_NOT_PERMITTED`, `MODEL_NOT_AVAILABLE`, `KEY_NOT_OWNED`, `KEY_LIMIT_REACHED`, `TIER_FEATURE_UNAVAILABLE`, `BANK_TRANSFER_NOT_AVAILABLE`, `ROUTING_MODEL_RESTRICTED`, `SUBSCRIPTION_NOT_ELIGIBLE`, `SMITH_NOT_ENTITLED`
              */
             403: {
                 headers: {
@@ -22744,7 +27433,7 @@ export interface operations {
             /**
              * @description Out of credits, or a sub-key's `key_budget` is exhausted (or a priced request would cross it).
              *
-             *     `error.code`: `INSUFFICIENT_CREDITS`, `KEY_BUDGET_EXHAUSTED`
+             *     `error.code`: `INSUFFICIENT_CREDITS`, `KEY_BUDGET_EXHAUSTED`, `SUBSCRIPTION_CHARGE_FAILED`
              */
             402: {
                 headers: {
@@ -22758,7 +27447,7 @@ export interface operations {
             /**
              * @description Valid credential, access denied — the message names the blocking layer.
              *
-             *     `error.code`: `SCOPE_DENIED`, `MODEL_RETIRED`, `ACCOUNT_INACTIVE`, `CREDENTIAL_NOT_PERMITTED`, `MODEL_NOT_AVAILABLE`, `KEY_NOT_OWNED`, `KEY_LIMIT_REACHED`, `TIER_FEATURE_UNAVAILABLE`, `BANK_TRANSFER_NOT_AVAILABLE`, `ROUTING_MODEL_RESTRICTED`
+             *     `error.code`: `SCOPE_DENIED`, `MODEL_RETIRED`, `ACCOUNT_INACTIVE`, `CREDENTIAL_NOT_PERMITTED`, `MODEL_NOT_AVAILABLE`, `KEY_NOT_OWNED`, `KEY_LIMIT_REACHED`, `TIER_FEATURE_UNAVAILABLE`, `BANK_TRANSFER_NOT_AVAILABLE`, `ROUTING_MODEL_RESTRICTED`, `SUBSCRIPTION_NOT_ELIGIBLE`, `SMITH_NOT_ENTITLED`
              */
             403: {
                 headers: {
@@ -22942,7 +27631,7 @@ export interface operations {
             /**
              * @description Out of credits, or a sub-key's `key_budget` is exhausted (or a priced request would cross it).
              *
-             *     `error.code`: `INSUFFICIENT_CREDITS`, `KEY_BUDGET_EXHAUSTED`
+             *     `error.code`: `INSUFFICIENT_CREDITS`, `KEY_BUDGET_EXHAUSTED`, `SUBSCRIPTION_CHARGE_FAILED`
              */
             402: {
                 headers: {
@@ -22956,7 +27645,7 @@ export interface operations {
             /**
              * @description Valid credential, access denied — the message names the blocking layer.
              *
-             *     `error.code`: `SCOPE_DENIED`, `MODEL_RETIRED`, `ACCOUNT_INACTIVE`, `CREDENTIAL_NOT_PERMITTED`, `MODEL_NOT_AVAILABLE`, `KEY_NOT_OWNED`, `KEY_LIMIT_REACHED`, `TIER_FEATURE_UNAVAILABLE`, `BANK_TRANSFER_NOT_AVAILABLE`, `ROUTING_MODEL_RESTRICTED`
+             *     `error.code`: `SCOPE_DENIED`, `MODEL_RETIRED`, `ACCOUNT_INACTIVE`, `CREDENTIAL_NOT_PERMITTED`, `MODEL_NOT_AVAILABLE`, `KEY_NOT_OWNED`, `KEY_LIMIT_REACHED`, `TIER_FEATURE_UNAVAILABLE`, `BANK_TRANSFER_NOT_AVAILABLE`, `ROUTING_MODEL_RESTRICTED`, `SUBSCRIPTION_NOT_ELIGIBLE`, `SMITH_NOT_ENTITLED`
              */
             403: {
                 headers: {
@@ -23140,7 +27829,7 @@ export interface operations {
             /**
              * @description Out of credits, or a sub-key's `key_budget` is exhausted (or a priced request would cross it).
              *
-             *     `error.code`: `INSUFFICIENT_CREDITS`, `KEY_BUDGET_EXHAUSTED`
+             *     `error.code`: `INSUFFICIENT_CREDITS`, `KEY_BUDGET_EXHAUSTED`, `SUBSCRIPTION_CHARGE_FAILED`
              */
             402: {
                 headers: {
@@ -23154,7 +27843,7 @@ export interface operations {
             /**
              * @description Valid credential, access denied — the message names the blocking layer.
              *
-             *     `error.code`: `SCOPE_DENIED`, `MODEL_RETIRED`, `ACCOUNT_INACTIVE`, `CREDENTIAL_NOT_PERMITTED`, `MODEL_NOT_AVAILABLE`, `KEY_NOT_OWNED`, `KEY_LIMIT_REACHED`, `TIER_FEATURE_UNAVAILABLE`, `BANK_TRANSFER_NOT_AVAILABLE`, `ROUTING_MODEL_RESTRICTED`
+             *     `error.code`: `SCOPE_DENIED`, `MODEL_RETIRED`, `ACCOUNT_INACTIVE`, `CREDENTIAL_NOT_PERMITTED`, `MODEL_NOT_AVAILABLE`, `KEY_NOT_OWNED`, `KEY_LIMIT_REACHED`, `TIER_FEATURE_UNAVAILABLE`, `BANK_TRANSFER_NOT_AVAILABLE`, `ROUTING_MODEL_RESTRICTED`, `SUBSCRIPTION_NOT_ELIGIBLE`, `SMITH_NOT_ENTITLED`
              */
             403: {
                 headers: {
@@ -23338,7 +28027,7 @@ export interface operations {
             /**
              * @description Out of credits, or a sub-key's `key_budget` is exhausted (or a priced request would cross it).
              *
-             *     `error.code`: `INSUFFICIENT_CREDITS`, `KEY_BUDGET_EXHAUSTED`
+             *     `error.code`: `INSUFFICIENT_CREDITS`, `KEY_BUDGET_EXHAUSTED`, `SUBSCRIPTION_CHARGE_FAILED`
              */
             402: {
                 headers: {
@@ -23352,7 +28041,7 @@ export interface operations {
             /**
              * @description Valid credential, access denied — the message names the blocking layer.
              *
-             *     `error.code`: `SCOPE_DENIED`, `MODEL_RETIRED`, `ACCOUNT_INACTIVE`, `CREDENTIAL_NOT_PERMITTED`, `MODEL_NOT_AVAILABLE`, `KEY_NOT_OWNED`, `KEY_LIMIT_REACHED`, `TIER_FEATURE_UNAVAILABLE`, `BANK_TRANSFER_NOT_AVAILABLE`, `ROUTING_MODEL_RESTRICTED`
+             *     `error.code`: `SCOPE_DENIED`, `MODEL_RETIRED`, `ACCOUNT_INACTIVE`, `CREDENTIAL_NOT_PERMITTED`, `MODEL_NOT_AVAILABLE`, `KEY_NOT_OWNED`, `KEY_LIMIT_REACHED`, `TIER_FEATURE_UNAVAILABLE`, `BANK_TRANSFER_NOT_AVAILABLE`, `ROUTING_MODEL_RESTRICTED`, `SUBSCRIPTION_NOT_ELIGIBLE`, `SMITH_NOT_ENTITLED`
              */
             403: {
                 headers: {
@@ -23536,7 +28225,7 @@ export interface operations {
             /**
              * @description Out of credits, or a sub-key's `key_budget` is exhausted (or a priced request would cross it).
              *
-             *     `error.code`: `INSUFFICIENT_CREDITS`, `KEY_BUDGET_EXHAUSTED`
+             *     `error.code`: `INSUFFICIENT_CREDITS`, `KEY_BUDGET_EXHAUSTED`, `SUBSCRIPTION_CHARGE_FAILED`
              */
             402: {
                 headers: {
@@ -23550,7 +28239,7 @@ export interface operations {
             /**
              * @description Valid credential, access denied — the message names the blocking layer.
              *
-             *     `error.code`: `SCOPE_DENIED`, `MODEL_RETIRED`, `ACCOUNT_INACTIVE`, `CREDENTIAL_NOT_PERMITTED`, `MODEL_NOT_AVAILABLE`, `KEY_NOT_OWNED`, `KEY_LIMIT_REACHED`, `TIER_FEATURE_UNAVAILABLE`, `BANK_TRANSFER_NOT_AVAILABLE`, `ROUTING_MODEL_RESTRICTED`
+             *     `error.code`: `SCOPE_DENIED`, `MODEL_RETIRED`, `ACCOUNT_INACTIVE`, `CREDENTIAL_NOT_PERMITTED`, `MODEL_NOT_AVAILABLE`, `KEY_NOT_OWNED`, `KEY_LIMIT_REACHED`, `TIER_FEATURE_UNAVAILABLE`, `BANK_TRANSFER_NOT_AVAILABLE`, `ROUTING_MODEL_RESTRICTED`, `SUBSCRIPTION_NOT_ELIGIBLE`, `SMITH_NOT_ENTITLED`
              */
             403: {
                 headers: {
@@ -23734,7 +28423,7 @@ export interface operations {
             /**
              * @description Out of credits, or a sub-key's `key_budget` is exhausted (or a priced request would cross it).
              *
-             *     `error.code`: `INSUFFICIENT_CREDITS`, `KEY_BUDGET_EXHAUSTED`
+             *     `error.code`: `INSUFFICIENT_CREDITS`, `KEY_BUDGET_EXHAUSTED`, `SUBSCRIPTION_CHARGE_FAILED`
              */
             402: {
                 headers: {
@@ -23748,7 +28437,7 @@ export interface operations {
             /**
              * @description Valid credential, access denied — the message names the blocking layer.
              *
-             *     `error.code`: `SCOPE_DENIED`, `MODEL_RETIRED`, `ACCOUNT_INACTIVE`, `CREDENTIAL_NOT_PERMITTED`, `MODEL_NOT_AVAILABLE`, `KEY_NOT_OWNED`, `KEY_LIMIT_REACHED`, `TIER_FEATURE_UNAVAILABLE`, `BANK_TRANSFER_NOT_AVAILABLE`, `ROUTING_MODEL_RESTRICTED`
+             *     `error.code`: `SCOPE_DENIED`, `MODEL_RETIRED`, `ACCOUNT_INACTIVE`, `CREDENTIAL_NOT_PERMITTED`, `MODEL_NOT_AVAILABLE`, `KEY_NOT_OWNED`, `KEY_LIMIT_REACHED`, `TIER_FEATURE_UNAVAILABLE`, `BANK_TRANSFER_NOT_AVAILABLE`, `ROUTING_MODEL_RESTRICTED`, `SUBSCRIPTION_NOT_ELIGIBLE`, `SMITH_NOT_ENTITLED`
              */
             403: {
                 headers: {
@@ -23932,7 +28621,7 @@ export interface operations {
             /**
              * @description Out of credits, or a sub-key's `key_budget` is exhausted (or a priced request would cross it).
              *
-             *     `error.code`: `INSUFFICIENT_CREDITS`, `KEY_BUDGET_EXHAUSTED`
+             *     `error.code`: `INSUFFICIENT_CREDITS`, `KEY_BUDGET_EXHAUSTED`, `SUBSCRIPTION_CHARGE_FAILED`
              */
             402: {
                 headers: {
@@ -23946,7 +28635,7 @@ export interface operations {
             /**
              * @description Valid credential, access denied — the message names the blocking layer.
              *
-             *     `error.code`: `SCOPE_DENIED`, `MODEL_RETIRED`, `ACCOUNT_INACTIVE`, `CREDENTIAL_NOT_PERMITTED`, `MODEL_NOT_AVAILABLE`, `KEY_NOT_OWNED`, `KEY_LIMIT_REACHED`, `TIER_FEATURE_UNAVAILABLE`, `BANK_TRANSFER_NOT_AVAILABLE`, `ROUTING_MODEL_RESTRICTED`
+             *     `error.code`: `SCOPE_DENIED`, `MODEL_RETIRED`, `ACCOUNT_INACTIVE`, `CREDENTIAL_NOT_PERMITTED`, `MODEL_NOT_AVAILABLE`, `KEY_NOT_OWNED`, `KEY_LIMIT_REACHED`, `TIER_FEATURE_UNAVAILABLE`, `BANK_TRANSFER_NOT_AVAILABLE`, `ROUTING_MODEL_RESTRICTED`, `SUBSCRIPTION_NOT_ELIGIBLE`, `SMITH_NOT_ENTITLED`
              */
             403: {
                 headers: {
@@ -24130,7 +28819,7 @@ export interface operations {
             /**
              * @description Out of credits, or a sub-key's `key_budget` is exhausted (or a priced request would cross it).
              *
-             *     `error.code`: `INSUFFICIENT_CREDITS`, `KEY_BUDGET_EXHAUSTED`
+             *     `error.code`: `INSUFFICIENT_CREDITS`, `KEY_BUDGET_EXHAUSTED`, `SUBSCRIPTION_CHARGE_FAILED`
              */
             402: {
                 headers: {
@@ -24144,7 +28833,7 @@ export interface operations {
             /**
              * @description Valid credential, access denied — the message names the blocking layer.
              *
-             *     `error.code`: `SCOPE_DENIED`, `MODEL_RETIRED`, `ACCOUNT_INACTIVE`, `CREDENTIAL_NOT_PERMITTED`, `MODEL_NOT_AVAILABLE`, `KEY_NOT_OWNED`, `KEY_LIMIT_REACHED`, `TIER_FEATURE_UNAVAILABLE`, `BANK_TRANSFER_NOT_AVAILABLE`, `ROUTING_MODEL_RESTRICTED`
+             *     `error.code`: `SCOPE_DENIED`, `MODEL_RETIRED`, `ACCOUNT_INACTIVE`, `CREDENTIAL_NOT_PERMITTED`, `MODEL_NOT_AVAILABLE`, `KEY_NOT_OWNED`, `KEY_LIMIT_REACHED`, `TIER_FEATURE_UNAVAILABLE`, `BANK_TRANSFER_NOT_AVAILABLE`, `ROUTING_MODEL_RESTRICTED`, `SUBSCRIPTION_NOT_ELIGIBLE`, `SMITH_NOT_ENTITLED`
              */
             403: {
                 headers: {
@@ -24328,7 +29017,7 @@ export interface operations {
             /**
              * @description Out of credits, or a sub-key's `key_budget` is exhausted (or a priced request would cross it).
              *
-             *     `error.code`: `INSUFFICIENT_CREDITS`, `KEY_BUDGET_EXHAUSTED`
+             *     `error.code`: `INSUFFICIENT_CREDITS`, `KEY_BUDGET_EXHAUSTED`, `SUBSCRIPTION_CHARGE_FAILED`
              */
             402: {
                 headers: {
@@ -24342,7 +29031,7 @@ export interface operations {
             /**
              * @description Valid credential, access denied — the message names the blocking layer.
              *
-             *     `error.code`: `SCOPE_DENIED`, `MODEL_RETIRED`, `ACCOUNT_INACTIVE`, `CREDENTIAL_NOT_PERMITTED`, `MODEL_NOT_AVAILABLE`, `KEY_NOT_OWNED`, `KEY_LIMIT_REACHED`, `TIER_FEATURE_UNAVAILABLE`, `BANK_TRANSFER_NOT_AVAILABLE`, `ROUTING_MODEL_RESTRICTED`
+             *     `error.code`: `SCOPE_DENIED`, `MODEL_RETIRED`, `ACCOUNT_INACTIVE`, `CREDENTIAL_NOT_PERMITTED`, `MODEL_NOT_AVAILABLE`, `KEY_NOT_OWNED`, `KEY_LIMIT_REACHED`, `TIER_FEATURE_UNAVAILABLE`, `BANK_TRANSFER_NOT_AVAILABLE`, `ROUTING_MODEL_RESTRICTED`, `SUBSCRIPTION_NOT_ELIGIBLE`, `SMITH_NOT_ENTITLED`
              */
             403: {
                 headers: {
@@ -24526,7 +29215,7 @@ export interface operations {
             /**
              * @description Out of credits, or a sub-key's `key_budget` is exhausted (or a priced request would cross it).
              *
-             *     `error.code`: `INSUFFICIENT_CREDITS`, `KEY_BUDGET_EXHAUSTED`
+             *     `error.code`: `INSUFFICIENT_CREDITS`, `KEY_BUDGET_EXHAUSTED`, `SUBSCRIPTION_CHARGE_FAILED`
              */
             402: {
                 headers: {
@@ -24540,7 +29229,7 @@ export interface operations {
             /**
              * @description Valid credential, access denied — the message names the blocking layer.
              *
-             *     `error.code`: `SCOPE_DENIED`, `MODEL_RETIRED`, `ACCOUNT_INACTIVE`, `CREDENTIAL_NOT_PERMITTED`, `MODEL_NOT_AVAILABLE`, `KEY_NOT_OWNED`, `KEY_LIMIT_REACHED`, `TIER_FEATURE_UNAVAILABLE`, `BANK_TRANSFER_NOT_AVAILABLE`, `ROUTING_MODEL_RESTRICTED`
+             *     `error.code`: `SCOPE_DENIED`, `MODEL_RETIRED`, `ACCOUNT_INACTIVE`, `CREDENTIAL_NOT_PERMITTED`, `MODEL_NOT_AVAILABLE`, `KEY_NOT_OWNED`, `KEY_LIMIT_REACHED`, `TIER_FEATURE_UNAVAILABLE`, `BANK_TRANSFER_NOT_AVAILABLE`, `ROUTING_MODEL_RESTRICTED`, `SUBSCRIPTION_NOT_ELIGIBLE`, `SMITH_NOT_ENTITLED`
              */
             403: {
                 headers: {
@@ -24724,7 +29413,7 @@ export interface operations {
             /**
              * @description Out of credits, or a sub-key's `key_budget` is exhausted (or a priced request would cross it).
              *
-             *     `error.code`: `INSUFFICIENT_CREDITS`, `KEY_BUDGET_EXHAUSTED`
+             *     `error.code`: `INSUFFICIENT_CREDITS`, `KEY_BUDGET_EXHAUSTED`, `SUBSCRIPTION_CHARGE_FAILED`
              */
             402: {
                 headers: {
@@ -24738,7 +29427,7 @@ export interface operations {
             /**
              * @description Valid credential, access denied — the message names the blocking layer.
              *
-             *     `error.code`: `SCOPE_DENIED`, `MODEL_RETIRED`, `ACCOUNT_INACTIVE`, `CREDENTIAL_NOT_PERMITTED`, `MODEL_NOT_AVAILABLE`, `KEY_NOT_OWNED`, `KEY_LIMIT_REACHED`, `TIER_FEATURE_UNAVAILABLE`, `BANK_TRANSFER_NOT_AVAILABLE`, `ROUTING_MODEL_RESTRICTED`
+             *     `error.code`: `SCOPE_DENIED`, `MODEL_RETIRED`, `ACCOUNT_INACTIVE`, `CREDENTIAL_NOT_PERMITTED`, `MODEL_NOT_AVAILABLE`, `KEY_NOT_OWNED`, `KEY_LIMIT_REACHED`, `TIER_FEATURE_UNAVAILABLE`, `BANK_TRANSFER_NOT_AVAILABLE`, `ROUTING_MODEL_RESTRICTED`, `SUBSCRIPTION_NOT_ELIGIBLE`, `SMITH_NOT_ENTITLED`
              */
             403: {
                 headers: {
@@ -24922,7 +29611,7 @@ export interface operations {
             /**
              * @description Out of credits, or a sub-key's `key_budget` is exhausted (or a priced request would cross it).
              *
-             *     `error.code`: `INSUFFICIENT_CREDITS`, `KEY_BUDGET_EXHAUSTED`
+             *     `error.code`: `INSUFFICIENT_CREDITS`, `KEY_BUDGET_EXHAUSTED`, `SUBSCRIPTION_CHARGE_FAILED`
              */
             402: {
                 headers: {
@@ -24936,7 +29625,7 @@ export interface operations {
             /**
              * @description Valid credential, access denied — the message names the blocking layer.
              *
-             *     `error.code`: `SCOPE_DENIED`, `MODEL_RETIRED`, `ACCOUNT_INACTIVE`, `CREDENTIAL_NOT_PERMITTED`, `MODEL_NOT_AVAILABLE`, `KEY_NOT_OWNED`, `KEY_LIMIT_REACHED`, `TIER_FEATURE_UNAVAILABLE`, `BANK_TRANSFER_NOT_AVAILABLE`, `ROUTING_MODEL_RESTRICTED`
+             *     `error.code`: `SCOPE_DENIED`, `MODEL_RETIRED`, `ACCOUNT_INACTIVE`, `CREDENTIAL_NOT_PERMITTED`, `MODEL_NOT_AVAILABLE`, `KEY_NOT_OWNED`, `KEY_LIMIT_REACHED`, `TIER_FEATURE_UNAVAILABLE`, `BANK_TRANSFER_NOT_AVAILABLE`, `ROUTING_MODEL_RESTRICTED`, `SUBSCRIPTION_NOT_ELIGIBLE`, `SMITH_NOT_ENTITLED`
              */
             403: {
                 headers: {
@@ -25120,7 +29809,7 @@ export interface operations {
             /**
              * @description Out of credits, or a sub-key's `key_budget` is exhausted (or a priced request would cross it).
              *
-             *     `error.code`: `INSUFFICIENT_CREDITS`, `KEY_BUDGET_EXHAUSTED`
+             *     `error.code`: `INSUFFICIENT_CREDITS`, `KEY_BUDGET_EXHAUSTED`, `SUBSCRIPTION_CHARGE_FAILED`
              */
             402: {
                 headers: {
@@ -25134,7 +29823,7 @@ export interface operations {
             /**
              * @description Valid credential, access denied — the message names the blocking layer.
              *
-             *     `error.code`: `SCOPE_DENIED`, `MODEL_RETIRED`, `ACCOUNT_INACTIVE`, `CREDENTIAL_NOT_PERMITTED`, `MODEL_NOT_AVAILABLE`, `KEY_NOT_OWNED`, `KEY_LIMIT_REACHED`, `TIER_FEATURE_UNAVAILABLE`, `BANK_TRANSFER_NOT_AVAILABLE`, `ROUTING_MODEL_RESTRICTED`
+             *     `error.code`: `SCOPE_DENIED`, `MODEL_RETIRED`, `ACCOUNT_INACTIVE`, `CREDENTIAL_NOT_PERMITTED`, `MODEL_NOT_AVAILABLE`, `KEY_NOT_OWNED`, `KEY_LIMIT_REACHED`, `TIER_FEATURE_UNAVAILABLE`, `BANK_TRANSFER_NOT_AVAILABLE`, `ROUTING_MODEL_RESTRICTED`, `SUBSCRIPTION_NOT_ELIGIBLE`, `SMITH_NOT_ENTITLED`
              */
             403: {
                 headers: {
@@ -25318,7 +30007,7 @@ export interface operations {
             /**
              * @description Out of credits, or a sub-key's `key_budget` is exhausted (or a priced request would cross it).
              *
-             *     `error.code`: `INSUFFICIENT_CREDITS`, `KEY_BUDGET_EXHAUSTED`
+             *     `error.code`: `INSUFFICIENT_CREDITS`, `KEY_BUDGET_EXHAUSTED`, `SUBSCRIPTION_CHARGE_FAILED`
              */
             402: {
                 headers: {
@@ -25332,7 +30021,7 @@ export interface operations {
             /**
              * @description Valid credential, access denied — the message names the blocking layer.
              *
-             *     `error.code`: `SCOPE_DENIED`, `MODEL_RETIRED`, `ACCOUNT_INACTIVE`, `CREDENTIAL_NOT_PERMITTED`, `MODEL_NOT_AVAILABLE`, `KEY_NOT_OWNED`, `KEY_LIMIT_REACHED`, `TIER_FEATURE_UNAVAILABLE`, `BANK_TRANSFER_NOT_AVAILABLE`, `ROUTING_MODEL_RESTRICTED`
+             *     `error.code`: `SCOPE_DENIED`, `MODEL_RETIRED`, `ACCOUNT_INACTIVE`, `CREDENTIAL_NOT_PERMITTED`, `MODEL_NOT_AVAILABLE`, `KEY_NOT_OWNED`, `KEY_LIMIT_REACHED`, `TIER_FEATURE_UNAVAILABLE`, `BANK_TRANSFER_NOT_AVAILABLE`, `ROUTING_MODEL_RESTRICTED`, `SUBSCRIPTION_NOT_ELIGIBLE`, `SMITH_NOT_ENTITLED`
              */
             403: {
                 headers: {
@@ -25516,7 +30205,7 @@ export interface operations {
             /**
              * @description Out of credits, or a sub-key's `key_budget` is exhausted (or a priced request would cross it).
              *
-             *     `error.code`: `INSUFFICIENT_CREDITS`, `KEY_BUDGET_EXHAUSTED`
+             *     `error.code`: `INSUFFICIENT_CREDITS`, `KEY_BUDGET_EXHAUSTED`, `SUBSCRIPTION_CHARGE_FAILED`
              */
             402: {
                 headers: {
@@ -25530,7 +30219,7 @@ export interface operations {
             /**
              * @description Valid credential, access denied — the message names the blocking layer.
              *
-             *     `error.code`: `SCOPE_DENIED`, `MODEL_RETIRED`, `ACCOUNT_INACTIVE`, `CREDENTIAL_NOT_PERMITTED`, `MODEL_NOT_AVAILABLE`, `KEY_NOT_OWNED`, `KEY_LIMIT_REACHED`, `TIER_FEATURE_UNAVAILABLE`, `BANK_TRANSFER_NOT_AVAILABLE`, `ROUTING_MODEL_RESTRICTED`
+             *     `error.code`: `SCOPE_DENIED`, `MODEL_RETIRED`, `ACCOUNT_INACTIVE`, `CREDENTIAL_NOT_PERMITTED`, `MODEL_NOT_AVAILABLE`, `KEY_NOT_OWNED`, `KEY_LIMIT_REACHED`, `TIER_FEATURE_UNAVAILABLE`, `BANK_TRANSFER_NOT_AVAILABLE`, `ROUTING_MODEL_RESTRICTED`, `SUBSCRIPTION_NOT_ELIGIBLE`, `SMITH_NOT_ENTITLED`
              */
             403: {
                 headers: {
@@ -25715,7 +30404,7 @@ export interface operations {
             /**
              * @description Out of credits, or a sub-key's `key_budget` is exhausted (or a priced request would cross it).
              *
-             *     `error.code`: `INSUFFICIENT_CREDITS`, `KEY_BUDGET_EXHAUSTED`
+             *     `error.code`: `INSUFFICIENT_CREDITS`, `KEY_BUDGET_EXHAUSTED`, `SUBSCRIPTION_CHARGE_FAILED`
              */
             402: {
                 headers: {
@@ -25729,7 +30418,7 @@ export interface operations {
             /**
              * @description Valid credential, access denied — the message names the blocking layer.
              *
-             *     `error.code`: `SCOPE_DENIED`, `MODEL_RETIRED`, `ACCOUNT_INACTIVE`, `CREDENTIAL_NOT_PERMITTED`, `MODEL_NOT_AVAILABLE`, `KEY_NOT_OWNED`, `KEY_LIMIT_REACHED`, `TIER_FEATURE_UNAVAILABLE`, `BANK_TRANSFER_NOT_AVAILABLE`, `ROUTING_MODEL_RESTRICTED`
+             *     `error.code`: `SCOPE_DENIED`, `MODEL_RETIRED`, `ACCOUNT_INACTIVE`, `CREDENTIAL_NOT_PERMITTED`, `MODEL_NOT_AVAILABLE`, `KEY_NOT_OWNED`, `KEY_LIMIT_REACHED`, `TIER_FEATURE_UNAVAILABLE`, `BANK_TRANSFER_NOT_AVAILABLE`, `ROUTING_MODEL_RESTRICTED`, `SUBSCRIPTION_NOT_ELIGIBLE`, `SMITH_NOT_ENTITLED`
              */
             403: {
                 headers: {
@@ -25914,7 +30603,7 @@ export interface operations {
             /**
              * @description Out of credits, or a sub-key's `key_budget` is exhausted (or a priced request would cross it).
              *
-             *     `error.code`: `INSUFFICIENT_CREDITS`, `KEY_BUDGET_EXHAUSTED`
+             *     `error.code`: `INSUFFICIENT_CREDITS`, `KEY_BUDGET_EXHAUSTED`, `SUBSCRIPTION_CHARGE_FAILED`
              */
             402: {
                 headers: {
@@ -25928,7 +30617,7 @@ export interface operations {
             /**
              * @description Valid credential, access denied — the message names the blocking layer.
              *
-             *     `error.code`: `SCOPE_DENIED`, `MODEL_RETIRED`, `ACCOUNT_INACTIVE`, `CREDENTIAL_NOT_PERMITTED`, `MODEL_NOT_AVAILABLE`, `KEY_NOT_OWNED`, `KEY_LIMIT_REACHED`, `TIER_FEATURE_UNAVAILABLE`, `BANK_TRANSFER_NOT_AVAILABLE`, `ROUTING_MODEL_RESTRICTED`
+             *     `error.code`: `SCOPE_DENIED`, `MODEL_RETIRED`, `ACCOUNT_INACTIVE`, `CREDENTIAL_NOT_PERMITTED`, `MODEL_NOT_AVAILABLE`, `KEY_NOT_OWNED`, `KEY_LIMIT_REACHED`, `TIER_FEATURE_UNAVAILABLE`, `BANK_TRANSFER_NOT_AVAILABLE`, `ROUTING_MODEL_RESTRICTED`, `SUBSCRIPTION_NOT_ELIGIBLE`, `SMITH_NOT_ENTITLED`
              */
             403: {
                 headers: {
@@ -26112,7 +30801,7 @@ export interface operations {
             /**
              * @description Out of credits, or a sub-key's `key_budget` is exhausted (or a priced request would cross it).
              *
-             *     `error.code`: `INSUFFICIENT_CREDITS`, `KEY_BUDGET_EXHAUSTED`
+             *     `error.code`: `INSUFFICIENT_CREDITS`, `KEY_BUDGET_EXHAUSTED`, `SUBSCRIPTION_CHARGE_FAILED`
              */
             402: {
                 headers: {
@@ -26126,7 +30815,7 @@ export interface operations {
             /**
              * @description Valid credential, access denied — the message names the blocking layer.
              *
-             *     `error.code`: `SCOPE_DENIED`, `MODEL_RETIRED`, `ACCOUNT_INACTIVE`, `CREDENTIAL_NOT_PERMITTED`, `MODEL_NOT_AVAILABLE`, `KEY_NOT_OWNED`, `KEY_LIMIT_REACHED`, `TIER_FEATURE_UNAVAILABLE`, `BANK_TRANSFER_NOT_AVAILABLE`, `ROUTING_MODEL_RESTRICTED`
+             *     `error.code`: `SCOPE_DENIED`, `MODEL_RETIRED`, `ACCOUNT_INACTIVE`, `CREDENTIAL_NOT_PERMITTED`, `MODEL_NOT_AVAILABLE`, `KEY_NOT_OWNED`, `KEY_LIMIT_REACHED`, `TIER_FEATURE_UNAVAILABLE`, `BANK_TRANSFER_NOT_AVAILABLE`, `ROUTING_MODEL_RESTRICTED`, `SUBSCRIPTION_NOT_ELIGIBLE`, `SMITH_NOT_ENTITLED`
              */
             403: {
                 headers: {
@@ -26310,7 +30999,7 @@ export interface operations {
             /**
              * @description Out of credits, or a sub-key's `key_budget` is exhausted (or a priced request would cross it).
              *
-             *     `error.code`: `INSUFFICIENT_CREDITS`, `KEY_BUDGET_EXHAUSTED`
+             *     `error.code`: `INSUFFICIENT_CREDITS`, `KEY_BUDGET_EXHAUSTED`, `SUBSCRIPTION_CHARGE_FAILED`
              */
             402: {
                 headers: {
@@ -26324,7 +31013,7 @@ export interface operations {
             /**
              * @description Valid credential, access denied — the message names the blocking layer.
              *
-             *     `error.code`: `SCOPE_DENIED`, `MODEL_RETIRED`, `ACCOUNT_INACTIVE`, `CREDENTIAL_NOT_PERMITTED`, `MODEL_NOT_AVAILABLE`, `KEY_NOT_OWNED`, `KEY_LIMIT_REACHED`, `TIER_FEATURE_UNAVAILABLE`, `BANK_TRANSFER_NOT_AVAILABLE`, `ROUTING_MODEL_RESTRICTED`
+             *     `error.code`: `SCOPE_DENIED`, `MODEL_RETIRED`, `ACCOUNT_INACTIVE`, `CREDENTIAL_NOT_PERMITTED`, `MODEL_NOT_AVAILABLE`, `KEY_NOT_OWNED`, `KEY_LIMIT_REACHED`, `TIER_FEATURE_UNAVAILABLE`, `BANK_TRANSFER_NOT_AVAILABLE`, `ROUTING_MODEL_RESTRICTED`, `SUBSCRIPTION_NOT_ELIGIBLE`, `SMITH_NOT_ENTITLED`
              */
             403: {
                 headers: {
@@ -26509,7 +31198,7 @@ export interface operations {
             /**
              * @description Out of credits, or a sub-key's `key_budget` is exhausted (or a priced request would cross it).
              *
-             *     `error.code`: `INSUFFICIENT_CREDITS`, `KEY_BUDGET_EXHAUSTED`
+             *     `error.code`: `INSUFFICIENT_CREDITS`, `KEY_BUDGET_EXHAUSTED`, `SUBSCRIPTION_CHARGE_FAILED`
              */
             402: {
                 headers: {
@@ -26523,7 +31212,205 @@ export interface operations {
             /**
              * @description Valid credential, access denied — the message names the blocking layer.
              *
-             *     `error.code`: `SCOPE_DENIED`, `MODEL_RETIRED`, `ACCOUNT_INACTIVE`, `CREDENTIAL_NOT_PERMITTED`, `MODEL_NOT_AVAILABLE`, `KEY_NOT_OWNED`, `KEY_LIMIT_REACHED`, `TIER_FEATURE_UNAVAILABLE`, `BANK_TRANSFER_NOT_AVAILABLE`, `ROUTING_MODEL_RESTRICTED`
+             *     `error.code`: `SCOPE_DENIED`, `MODEL_RETIRED`, `ACCOUNT_INACTIVE`, `CREDENTIAL_NOT_PERMITTED`, `MODEL_NOT_AVAILABLE`, `KEY_NOT_OWNED`, `KEY_LIMIT_REACHED`, `TIER_FEATURE_UNAVAILABLE`, `BANK_TRANSFER_NOT_AVAILABLE`, `ROUTING_MODEL_RESTRICTED`, `SUBSCRIPTION_NOT_ELIGIBLE`, `SMITH_NOT_ENTITLED`
+             */
+            403: {
+                headers: {
+                    "X-Request-ID": components["headers"]["X-Request-ID"];
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["RelayErrorResponse"];
+                };
+            };
+            /**
+             * @description A request with the same `Idempotency-Key` is still being accepted — retry after `Retry-After` seconds.
+             *
+             *     `error.code`: `IDEMPOTENCY_IN_PROGRESS`
+             */
+            409: {
+                headers: {
+                    "Retry-After": components["headers"]["Retry-After"];
+                    "X-Request-ID": components["headers"]["X-Request-ID"];
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["RelayErrorResponse"];
+                };
+            };
+            /**
+             * @description The prompt or its inputs were refused, upstream rejected them as unprocessable, or the request body failed our own validation (`detail` then lists the fields). `error.detail.upstream_code` carries the provider's own verdict where it sent one.
+             *
+             *     `error.code`: `CONTENT_POLICY_DECLINED`, `UPSTREAM_INVALID_REQUEST`, `VALIDATION_ERROR`, `IDEMPOTENCY_KEY_REUSED`
+             */
+            422: {
+                headers: {
+                    "X-Request-ID": components["headers"]["X-Request-ID"];
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["RelayErrorResponse"];
+                };
+            };
+            /**
+             * @description Rate limit — `Retry-After` header set.
+             *
+             *     `error.code`: `RATE_LIMITED`, `WORKFLOW_RUN_LIMIT_REACHED`, `INSTANCE_LIMIT`, `FILE_QUOTA_EXCEEDED`
+             */
+            429: {
+                headers: {
+                    "Retry-After": components["headers"]["Retry-After"];
+                    "X-Request-ID": components["headers"]["X-Request-ID"];
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["RelayErrorResponse"];
+                };
+            };
+            /**
+             * @description The failure could not be attributed to the provider or the request.
+             *
+             *     `error.code`: `INTERNAL_ERROR`
+             */
+            500: {
+                headers: {
+                    "X-Request-ID": components["headers"]["X-Request-ID"];
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["RelayErrorResponse"];
+                };
+            };
+            /**
+             * @description A provider accepted the request and failed while serving it (`UPSTREAM_ERROR`), no provider could take it (`PROVIDER_UNAVAILABLE`), or its response did not match the model's schema.
+             *
+             *     `error.code`: `UPSTREAM_ERROR`, `PROVIDER_UNAVAILABLE`, `PROVIDER_SCHEMA_MISMATCH`
+             */
+            502: {
+                headers: {
+                    "X-Request-ID": components["headers"]["X-Request-ID"];
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["RelayErrorResponse"];
+                };
+            };
+            /**
+             * @description Model temporarily at capacity. `Retry-After` is set.
+             *
+             *     `error.code`: `CAPACITY_EXHAUSTED`
+             */
+            503: {
+                headers: {
+                    "Retry-After": components["headers"]["Retry-After"];
+                    "X-Request-ID": components["headers"]["X-Request-ID"];
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["RelayErrorResponse"];
+                };
+            };
+            /**
+             * @description The request did not complete within the route's inline budget. Use `async: true` for long generations.
+             *
+             *     `error.code`: `UPSTREAM_TIMEOUT`
+             */
+            504: {
+                headers: {
+                    "X-Request-ID": components["headers"]["X-Request-ID"];
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["RelayErrorResponse"];
+                };
+            };
+        };
+    };
+    video_minimax_h3_v2v_generate: {
+        parameters: {
+            query?: never;
+            header?: {
+                authorization?: string | null;
+                /** @description Makes an async submit safe to retry: the same key with the same body inside 24 h answers the original `202` (header `Idempotency-Replayed: true`) and creates, enqueues and bills nothing. Keys are per customer. Honoured when the request runs async; a sync or streaming call is processed as usual. */
+                "Idempotency-Key"?: components["parameters"]["IdempotencyKey"];
+                "x-api-key"?: string | null;
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["MiniMaxH3V2VRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    "X-Request-ID": components["headers"]["X-Request-ID"];
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["MiniMaxH3Response"];
+                };
+            };
+            /** @description Task accepted (async mode). */
+            202: {
+                headers: {
+                    "Idempotency-Replayed": components["headers"]["Idempotency-Replayed"];
+                    "X-Request-ID": components["headers"]["X-Request-ID"];
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AsyncTaskAccepted"];
+                };
+            };
+            /**
+             * @description Upstream rejected the request parameters. `detail` carries the provider's own message.
+             *
+             *     `error.code`: `UPSTREAM_INVALID_REQUEST`
+             */
+            400: {
+                headers: {
+                    "X-Request-ID": components["headers"]["X-Request-ID"];
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["RelayErrorResponse"];
+                };
+            };
+            /**
+             * @description Credential missing, invalid or revoked.
+             *
+             *     `error.code`: `INVALID_API_KEY`, `KEY_REVOKED`, `MISSING_CREDENTIALS`, `INVALID_TOKEN`
+             */
+            401: {
+                headers: {
+                    "X-Request-ID": components["headers"]["X-Request-ID"];
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["RelayErrorResponse"];
+                };
+            };
+            /**
+             * @description Out of credits, or a sub-key's `key_budget` is exhausted (or a priced request would cross it).
+             *
+             *     `error.code`: `INSUFFICIENT_CREDITS`, `KEY_BUDGET_EXHAUSTED`, `SUBSCRIPTION_CHARGE_FAILED`
+             */
+            402: {
+                headers: {
+                    "X-Request-ID": components["headers"]["X-Request-ID"];
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["RelayErrorResponse"];
+                };
+            };
+            /**
+             * @description Valid credential, access denied — the message names the blocking layer.
+             *
+             *     `error.code`: `SCOPE_DENIED`, `MODEL_RETIRED`, `ACCOUNT_INACTIVE`, `CREDENTIAL_NOT_PERMITTED`, `MODEL_NOT_AVAILABLE`, `KEY_NOT_OWNED`, `KEY_LIMIT_REACHED`, `TIER_FEATURE_UNAVAILABLE`, `BANK_TRANSFER_NOT_AVAILABLE`, `ROUTING_MODEL_RESTRICTED`, `SUBSCRIPTION_NOT_ELIGIBLE`, `SMITH_NOT_ENTITLED`
              */
             403: {
                 headers: {
@@ -26707,7 +31594,7 @@ export interface operations {
             /**
              * @description Out of credits, or a sub-key's `key_budget` is exhausted (or a priced request would cross it).
              *
-             *     `error.code`: `INSUFFICIENT_CREDITS`, `KEY_BUDGET_EXHAUSTED`
+             *     `error.code`: `INSUFFICIENT_CREDITS`, `KEY_BUDGET_EXHAUSTED`, `SUBSCRIPTION_CHARGE_FAILED`
              */
             402: {
                 headers: {
@@ -26721,7 +31608,7 @@ export interface operations {
             /**
              * @description Valid credential, access denied — the message names the blocking layer.
              *
-             *     `error.code`: `SCOPE_DENIED`, `MODEL_RETIRED`, `ACCOUNT_INACTIVE`, `CREDENTIAL_NOT_PERMITTED`, `MODEL_NOT_AVAILABLE`, `KEY_NOT_OWNED`, `KEY_LIMIT_REACHED`, `TIER_FEATURE_UNAVAILABLE`, `BANK_TRANSFER_NOT_AVAILABLE`, `ROUTING_MODEL_RESTRICTED`
+             *     `error.code`: `SCOPE_DENIED`, `MODEL_RETIRED`, `ACCOUNT_INACTIVE`, `CREDENTIAL_NOT_PERMITTED`, `MODEL_NOT_AVAILABLE`, `KEY_NOT_OWNED`, `KEY_LIMIT_REACHED`, `TIER_FEATURE_UNAVAILABLE`, `BANK_TRANSFER_NOT_AVAILABLE`, `ROUTING_MODEL_RESTRICTED`, `SUBSCRIPTION_NOT_ELIGIBLE`, `SMITH_NOT_ENTITLED`
              */
             403: {
                 headers: {
@@ -26906,7 +31793,7 @@ export interface operations {
             /**
              * @description Out of credits, or a sub-key's `key_budget` is exhausted (or a priced request would cross it).
              *
-             *     `error.code`: `INSUFFICIENT_CREDITS`, `KEY_BUDGET_EXHAUSTED`
+             *     `error.code`: `INSUFFICIENT_CREDITS`, `KEY_BUDGET_EXHAUSTED`, `SUBSCRIPTION_CHARGE_FAILED`
              */
             402: {
                 headers: {
@@ -26920,7 +31807,7 @@ export interface operations {
             /**
              * @description Valid credential, access denied — the message names the blocking layer.
              *
-             *     `error.code`: `SCOPE_DENIED`, `MODEL_RETIRED`, `ACCOUNT_INACTIVE`, `CREDENTIAL_NOT_PERMITTED`, `MODEL_NOT_AVAILABLE`, `KEY_NOT_OWNED`, `KEY_LIMIT_REACHED`, `TIER_FEATURE_UNAVAILABLE`, `BANK_TRANSFER_NOT_AVAILABLE`, `ROUTING_MODEL_RESTRICTED`
+             *     `error.code`: `SCOPE_DENIED`, `MODEL_RETIRED`, `ACCOUNT_INACTIVE`, `CREDENTIAL_NOT_PERMITTED`, `MODEL_NOT_AVAILABLE`, `KEY_NOT_OWNED`, `KEY_LIMIT_REACHED`, `TIER_FEATURE_UNAVAILABLE`, `BANK_TRANSFER_NOT_AVAILABLE`, `ROUTING_MODEL_RESTRICTED`, `SUBSCRIPTION_NOT_ELIGIBLE`, `SMITH_NOT_ENTITLED`
              */
             403: {
                 headers: {
@@ -27105,7 +31992,7 @@ export interface operations {
             /**
              * @description Out of credits, or a sub-key's `key_budget` is exhausted (or a priced request would cross it).
              *
-             *     `error.code`: `INSUFFICIENT_CREDITS`, `KEY_BUDGET_EXHAUSTED`
+             *     `error.code`: `INSUFFICIENT_CREDITS`, `KEY_BUDGET_EXHAUSTED`, `SUBSCRIPTION_CHARGE_FAILED`
              */
             402: {
                 headers: {
@@ -27119,7 +32006,7 @@ export interface operations {
             /**
              * @description Valid credential, access denied — the message names the blocking layer.
              *
-             *     `error.code`: `SCOPE_DENIED`, `MODEL_RETIRED`, `ACCOUNT_INACTIVE`, `CREDENTIAL_NOT_PERMITTED`, `MODEL_NOT_AVAILABLE`, `KEY_NOT_OWNED`, `KEY_LIMIT_REACHED`, `TIER_FEATURE_UNAVAILABLE`, `BANK_TRANSFER_NOT_AVAILABLE`, `ROUTING_MODEL_RESTRICTED`
+             *     `error.code`: `SCOPE_DENIED`, `MODEL_RETIRED`, `ACCOUNT_INACTIVE`, `CREDENTIAL_NOT_PERMITTED`, `MODEL_NOT_AVAILABLE`, `KEY_NOT_OWNED`, `KEY_LIMIT_REACHED`, `TIER_FEATURE_UNAVAILABLE`, `BANK_TRANSFER_NOT_AVAILABLE`, `ROUTING_MODEL_RESTRICTED`, `SUBSCRIPTION_NOT_ELIGIBLE`, `SMITH_NOT_ENTITLED`
              */
             403: {
                 headers: {
@@ -27304,7 +32191,7 @@ export interface operations {
             /**
              * @description Out of credits, or a sub-key's `key_budget` is exhausted (or a priced request would cross it).
              *
-             *     `error.code`: `INSUFFICIENT_CREDITS`, `KEY_BUDGET_EXHAUSTED`
+             *     `error.code`: `INSUFFICIENT_CREDITS`, `KEY_BUDGET_EXHAUSTED`, `SUBSCRIPTION_CHARGE_FAILED`
              */
             402: {
                 headers: {
@@ -27318,7 +32205,7 @@ export interface operations {
             /**
              * @description Valid credential, access denied — the message names the blocking layer.
              *
-             *     `error.code`: `SCOPE_DENIED`, `MODEL_RETIRED`, `ACCOUNT_INACTIVE`, `CREDENTIAL_NOT_PERMITTED`, `MODEL_NOT_AVAILABLE`, `KEY_NOT_OWNED`, `KEY_LIMIT_REACHED`, `TIER_FEATURE_UNAVAILABLE`, `BANK_TRANSFER_NOT_AVAILABLE`, `ROUTING_MODEL_RESTRICTED`
+             *     `error.code`: `SCOPE_DENIED`, `MODEL_RETIRED`, `ACCOUNT_INACTIVE`, `CREDENTIAL_NOT_PERMITTED`, `MODEL_NOT_AVAILABLE`, `KEY_NOT_OWNED`, `KEY_LIMIT_REACHED`, `TIER_FEATURE_UNAVAILABLE`, `BANK_TRANSFER_NOT_AVAILABLE`, `ROUTING_MODEL_RESTRICTED`, `SUBSCRIPTION_NOT_ELIGIBLE`, `SMITH_NOT_ENTITLED`
              */
             403: {
                 headers: {
@@ -27503,7 +32390,7 @@ export interface operations {
             /**
              * @description Out of credits, or a sub-key's `key_budget` is exhausted (or a priced request would cross it).
              *
-             *     `error.code`: `INSUFFICIENT_CREDITS`, `KEY_BUDGET_EXHAUSTED`
+             *     `error.code`: `INSUFFICIENT_CREDITS`, `KEY_BUDGET_EXHAUSTED`, `SUBSCRIPTION_CHARGE_FAILED`
              */
             402: {
                 headers: {
@@ -27517,7 +32404,7 @@ export interface operations {
             /**
              * @description Valid credential, access denied — the message names the blocking layer.
              *
-             *     `error.code`: `SCOPE_DENIED`, `MODEL_RETIRED`, `ACCOUNT_INACTIVE`, `CREDENTIAL_NOT_PERMITTED`, `MODEL_NOT_AVAILABLE`, `KEY_NOT_OWNED`, `KEY_LIMIT_REACHED`, `TIER_FEATURE_UNAVAILABLE`, `BANK_TRANSFER_NOT_AVAILABLE`, `ROUTING_MODEL_RESTRICTED`
+             *     `error.code`: `SCOPE_DENIED`, `MODEL_RETIRED`, `ACCOUNT_INACTIVE`, `CREDENTIAL_NOT_PERMITTED`, `MODEL_NOT_AVAILABLE`, `KEY_NOT_OWNED`, `KEY_LIMIT_REACHED`, `TIER_FEATURE_UNAVAILABLE`, `BANK_TRANSFER_NOT_AVAILABLE`, `ROUTING_MODEL_RESTRICTED`, `SUBSCRIPTION_NOT_ELIGIBLE`, `SMITH_NOT_ENTITLED`
              */
             403: {
                 headers: {
@@ -27701,7 +32588,7 @@ export interface operations {
             /**
              * @description Out of credits, or a sub-key's `key_budget` is exhausted (or a priced request would cross it).
              *
-             *     `error.code`: `INSUFFICIENT_CREDITS`, `KEY_BUDGET_EXHAUSTED`
+             *     `error.code`: `INSUFFICIENT_CREDITS`, `KEY_BUDGET_EXHAUSTED`, `SUBSCRIPTION_CHARGE_FAILED`
              */
             402: {
                 headers: {
@@ -27715,7 +32602,7 @@ export interface operations {
             /**
              * @description Valid credential, access denied — the message names the blocking layer.
              *
-             *     `error.code`: `SCOPE_DENIED`, `MODEL_RETIRED`, `ACCOUNT_INACTIVE`, `CREDENTIAL_NOT_PERMITTED`, `MODEL_NOT_AVAILABLE`, `KEY_NOT_OWNED`, `KEY_LIMIT_REACHED`, `TIER_FEATURE_UNAVAILABLE`, `BANK_TRANSFER_NOT_AVAILABLE`, `ROUTING_MODEL_RESTRICTED`
+             *     `error.code`: `SCOPE_DENIED`, `MODEL_RETIRED`, `ACCOUNT_INACTIVE`, `CREDENTIAL_NOT_PERMITTED`, `MODEL_NOT_AVAILABLE`, `KEY_NOT_OWNED`, `KEY_LIMIT_REACHED`, `TIER_FEATURE_UNAVAILABLE`, `BANK_TRANSFER_NOT_AVAILABLE`, `ROUTING_MODEL_RESTRICTED`, `SUBSCRIPTION_NOT_ELIGIBLE`, `SMITH_NOT_ENTITLED`
              */
             403: {
                 headers: {
@@ -27899,7 +32786,7 @@ export interface operations {
             /**
              * @description Out of credits, or a sub-key's `key_budget` is exhausted (or a priced request would cross it).
              *
-             *     `error.code`: `INSUFFICIENT_CREDITS`, `KEY_BUDGET_EXHAUSTED`
+             *     `error.code`: `INSUFFICIENT_CREDITS`, `KEY_BUDGET_EXHAUSTED`, `SUBSCRIPTION_CHARGE_FAILED`
              */
             402: {
                 headers: {
@@ -27913,7 +32800,7 @@ export interface operations {
             /**
              * @description Valid credential, access denied — the message names the blocking layer.
              *
-             *     `error.code`: `SCOPE_DENIED`, `MODEL_RETIRED`, `ACCOUNT_INACTIVE`, `CREDENTIAL_NOT_PERMITTED`, `MODEL_NOT_AVAILABLE`, `KEY_NOT_OWNED`, `KEY_LIMIT_REACHED`, `TIER_FEATURE_UNAVAILABLE`, `BANK_TRANSFER_NOT_AVAILABLE`, `ROUTING_MODEL_RESTRICTED`
+             *     `error.code`: `SCOPE_DENIED`, `MODEL_RETIRED`, `ACCOUNT_INACTIVE`, `CREDENTIAL_NOT_PERMITTED`, `MODEL_NOT_AVAILABLE`, `KEY_NOT_OWNED`, `KEY_LIMIT_REACHED`, `TIER_FEATURE_UNAVAILABLE`, `BANK_TRANSFER_NOT_AVAILABLE`, `ROUTING_MODEL_RESTRICTED`, `SUBSCRIPTION_NOT_ELIGIBLE`, `SMITH_NOT_ENTITLED`
              */
             403: {
                 headers: {
@@ -28097,7 +32984,7 @@ export interface operations {
             /**
              * @description Out of credits, or a sub-key's `key_budget` is exhausted (or a priced request would cross it).
              *
-             *     `error.code`: `INSUFFICIENT_CREDITS`, `KEY_BUDGET_EXHAUSTED`
+             *     `error.code`: `INSUFFICIENT_CREDITS`, `KEY_BUDGET_EXHAUSTED`, `SUBSCRIPTION_CHARGE_FAILED`
              */
             402: {
                 headers: {
@@ -28111,7 +32998,7 @@ export interface operations {
             /**
              * @description Valid credential, access denied — the message names the blocking layer.
              *
-             *     `error.code`: `SCOPE_DENIED`, `MODEL_RETIRED`, `ACCOUNT_INACTIVE`, `CREDENTIAL_NOT_PERMITTED`, `MODEL_NOT_AVAILABLE`, `KEY_NOT_OWNED`, `KEY_LIMIT_REACHED`, `TIER_FEATURE_UNAVAILABLE`, `BANK_TRANSFER_NOT_AVAILABLE`, `ROUTING_MODEL_RESTRICTED`
+             *     `error.code`: `SCOPE_DENIED`, `MODEL_RETIRED`, `ACCOUNT_INACTIVE`, `CREDENTIAL_NOT_PERMITTED`, `MODEL_NOT_AVAILABLE`, `KEY_NOT_OWNED`, `KEY_LIMIT_REACHED`, `TIER_FEATURE_UNAVAILABLE`, `BANK_TRANSFER_NOT_AVAILABLE`, `ROUTING_MODEL_RESTRICTED`, `SUBSCRIPTION_NOT_ELIGIBLE`, `SMITH_NOT_ENTITLED`
              */
             403: {
                 headers: {
@@ -28296,7 +33183,7 @@ export interface operations {
             /**
              * @description Out of credits, or a sub-key's `key_budget` is exhausted (or a priced request would cross it).
              *
-             *     `error.code`: `INSUFFICIENT_CREDITS`, `KEY_BUDGET_EXHAUSTED`
+             *     `error.code`: `INSUFFICIENT_CREDITS`, `KEY_BUDGET_EXHAUSTED`, `SUBSCRIPTION_CHARGE_FAILED`
              */
             402: {
                 headers: {
@@ -28310,7 +33197,7 @@ export interface operations {
             /**
              * @description Valid credential, access denied — the message names the blocking layer.
              *
-             *     `error.code`: `SCOPE_DENIED`, `MODEL_RETIRED`, `ACCOUNT_INACTIVE`, `CREDENTIAL_NOT_PERMITTED`, `MODEL_NOT_AVAILABLE`, `KEY_NOT_OWNED`, `KEY_LIMIT_REACHED`, `TIER_FEATURE_UNAVAILABLE`, `BANK_TRANSFER_NOT_AVAILABLE`, `ROUTING_MODEL_RESTRICTED`
+             *     `error.code`: `SCOPE_DENIED`, `MODEL_RETIRED`, `ACCOUNT_INACTIVE`, `CREDENTIAL_NOT_PERMITTED`, `MODEL_NOT_AVAILABLE`, `KEY_NOT_OWNED`, `KEY_LIMIT_REACHED`, `TIER_FEATURE_UNAVAILABLE`, `BANK_TRANSFER_NOT_AVAILABLE`, `ROUTING_MODEL_RESTRICTED`, `SUBSCRIPTION_NOT_ELIGIBLE`, `SMITH_NOT_ENTITLED`
              */
             403: {
                 headers: {
@@ -28494,7 +33381,7 @@ export interface operations {
             /**
              * @description Out of credits, or a sub-key's `key_budget` is exhausted (or a priced request would cross it).
              *
-             *     `error.code`: `INSUFFICIENT_CREDITS`, `KEY_BUDGET_EXHAUSTED`
+             *     `error.code`: `INSUFFICIENT_CREDITS`, `KEY_BUDGET_EXHAUSTED`, `SUBSCRIPTION_CHARGE_FAILED`
              */
             402: {
                 headers: {
@@ -28508,7 +33395,7 @@ export interface operations {
             /**
              * @description Valid credential, access denied — the message names the blocking layer.
              *
-             *     `error.code`: `SCOPE_DENIED`, `MODEL_RETIRED`, `ACCOUNT_INACTIVE`, `CREDENTIAL_NOT_PERMITTED`, `MODEL_NOT_AVAILABLE`, `KEY_NOT_OWNED`, `KEY_LIMIT_REACHED`, `TIER_FEATURE_UNAVAILABLE`, `BANK_TRANSFER_NOT_AVAILABLE`, `ROUTING_MODEL_RESTRICTED`
+             *     `error.code`: `SCOPE_DENIED`, `MODEL_RETIRED`, `ACCOUNT_INACTIVE`, `CREDENTIAL_NOT_PERMITTED`, `MODEL_NOT_AVAILABLE`, `KEY_NOT_OWNED`, `KEY_LIMIT_REACHED`, `TIER_FEATURE_UNAVAILABLE`, `BANK_TRANSFER_NOT_AVAILABLE`, `ROUTING_MODEL_RESTRICTED`, `SUBSCRIPTION_NOT_ELIGIBLE`, `SMITH_NOT_ENTITLED`
              */
             403: {
                 headers: {
