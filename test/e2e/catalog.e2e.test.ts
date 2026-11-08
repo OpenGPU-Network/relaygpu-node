@@ -26,7 +26,7 @@ const FAMILIES: [name: string, path: string, modelInBody: boolean, asyncDefault:
   ["KlingTeam/v3-T2V", "/v2/video/kling-3/t2v", false, true],
   ["KlingTeam/v3-Motion-Control", "/v2/video/kling-3/motion-control", false, true],
   ["Qwen/qwen3-tts-flash", "/v2/audio/qwen3-tts-flash/generate", false, false],
-  ["openai/whisper-1", "/v2/audio/asr/whisper", true, false],
+  ["relay/stt-1", "/v2/audio/asr/whisper", true, false],
   ["openai/gpt-5.4", "/v2/openai/v1/chat/completions", true, false],
 ];
 
