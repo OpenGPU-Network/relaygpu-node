@@ -7,7 +7,6 @@ export interface ModelOperations {
     "MiniMax/speech-2.8-hd": "audio_minimax_speech_2_8_hd_generate";
     "Qwen/qwen3-tts-flash": "audio_qwen3_tts_flash_generate";
     "openai/gpt-4o-mini-transcribe": "audio_asr_whisper";
-    "openai/whisper-1": "audio_asr_whisper";
     "relay/music-1": "audio_music_1_generate";
     "relay/stt-1": "audio_asr_whisper";
     "relay/tts-1": "audio_tts_1_generate";
@@ -18,6 +17,9 @@ export interface ModelOperations {
   };
   "Image": {
     "ByteDance/doubao-seedream-5-0-pro-260628": "image_seedream_5_0_pro_generate";
+    "ClarityAI/creative": "image_clarity_upscale";
+    "ClarityAI/crystal": "image_clarity_upscale";
+    "ClarityAI/flux": "image_clarity_upscale";
     "Wan-AI/Wan2.7-Image-Pro": "image_wan_2_7_image_pro_generate";
     "black-forest-labs/FLUX-2-pro": "image_flux_generate";
     "google/gemini-2.5-flash-image": "image_gemini_3_generate";
@@ -42,13 +44,17 @@ export interface ModelOperations {
     "google/gemma-4-31B-turbo": "openai_chat_completions";
     "moonshotai/kimi-k2.6": "openai_chat_completions";
     "moonshotai/kimi-k3": "openai_chat_completions";
+    "moonshotai/kimi-k3.1-pro": "openai_chat_completions";
     "nvidia/nemotron-3-nano-30b-a3b": "openai_chat_completions";
     "openai/gpt-4o-mini": "openai_chat_completions";
-    "openai/gpt-5.4": "openai_chat_completions";
+    "openai/gpt-5.4": "openai_responses";
     "openai/gpt-5.4-mini": "openai_chat_completions";
-    "openai/gpt-5.5": "openai_chat_completions";
+    "openai/gpt-5.5": "openai_responses";
     "openai/gpt-5.5-pro": "openai_chat_completions";
-    "openai/gpt-6-astra": "openai_chat_completions";
+    "openai/gpt-6-astra": "openai_responses";
+    "openai/gpt-6-luna": "openai_responses";
+    "openai/gpt-6-sol": "openai_responses";
+    "openai/gpt-6.1-sol": "openai_responses";
     "relay/conductor": "openai_chat_completions";
     "x-ai/grok-4.3": "openai_chat_completions";
     "zai-org/glm-5.1": "openai_chat_completions";
@@ -77,6 +83,7 @@ export interface ModelOperations {
     "KlingTeam/v3-Omni": "video_kling_3_omni";
     "KlingTeam/v3-T2V": "video_kling_3_t2v";
     "MiniMax/MiniMax-H3": "video_minimax_h3_generate";
+    "MiniMax/MiniMax-H3-V2V": "video_minimax_h3_v2v_generate";
     "Wan-AI/Wan2.5-I2V": "video_wan_25_i2v";
     "Wan-AI/Wan2.5-T2V": "video_wan_25_t2v";
     "Wan-AI/Wan2.6-T2V": "video_wan_26_t2v";

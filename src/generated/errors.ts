@@ -128,6 +128,34 @@ export class RoutingOnFixedModelError extends ValidationError {}
 export class ScopeDeniedError extends PermissionDeniedError {}
 /** `SERVICE_UNAVAILABLE` (HTTP 503). */
 export class ServiceUnavailableError extends CapacityError {}
+/** `SMITH_LEVEL_UNAVAILABLE` (HTTP 422). */
+export class SmithLevelUnavailableError extends ValidationError {}
+/** `SMITH_MESSAGE_STARTED` (HTTP 409). */
+export class SmithMessageStartedError extends ConflictError {}
+/** `SMITH_NOT_ENTITLED` (HTTP 403). */
+export class SmithNotEntitledError extends PermissionDeniedError {}
+/** `SMITH_NOT_FOUND` (HTTP 404). */
+export class SmithNotFoundError extends NotFoundError {}
+/** `SMITH_QUEUE_FULL` (HTTP 409). */
+export class SmithQueueFullError extends ConflictError {}
+/** `SMITH_SESSION_BUSY` (HTTP 409). */
+export class SmithSessionBusyError extends ConflictError {}
+/** `SMITH_STEP_NOT_PAUSED` (HTTP 409). */
+export class SmithStepNotPausedError extends ConflictError {}
+/** `SMITH_TURN_LIMIT` (HTTP 422). */
+export class SmithTurnLimitError extends ValidationError {}
+/** `SMITH_UNAVAILABLE` (HTTP 503). */
+export class SmithUnavailableError extends CapacityError {}
+/** `SUBSCRIPTION_CHARGE_FAILED` (HTTP 402). */
+export class SubscriptionChargeFailedError extends InsufficientCreditsError {}
+/** `SUBSCRIPTION_EXISTS` (HTTP 409). */
+export class SubscriptionExistsError extends ConflictError {}
+/** `SUBSCRIPTION_NOT_ELIGIBLE` (HTTP 403). */
+export class SubscriptionNotEligibleError extends PermissionDeniedError {}
+/** `SUBSCRIPTION_TRIAL_USED` (HTTP 409). */
+export class SubscriptionTrialUsedError extends ConflictError {}
+/** `SUBSCRIPTION_UNAVAILABLE` (HTTP 503). */
+export class SubscriptionUnavailableError extends CapacityError {}
 /** `SUPERKEY_CONFLICT` (HTTP 409). */
 export class SuperkeyConflictError extends ConflictError {}
 /** `SYSTEM_KEY_IMMUTABLE` (HTTP 400). */
@@ -219,6 +247,20 @@ export const ERROR_CODE_CLASSES = {
   ROUTING_ON_FIXED_MODEL: RoutingOnFixedModelError,
   SCOPE_DENIED: ScopeDeniedError,
   SERVICE_UNAVAILABLE: ServiceUnavailableError,
+  SMITH_LEVEL_UNAVAILABLE: SmithLevelUnavailableError,
+  SMITH_MESSAGE_STARTED: SmithMessageStartedError,
+  SMITH_NOT_ENTITLED: SmithNotEntitledError,
+  SMITH_NOT_FOUND: SmithNotFoundError,
+  SMITH_QUEUE_FULL: SmithQueueFullError,
+  SMITH_SESSION_BUSY: SmithSessionBusyError,
+  SMITH_STEP_NOT_PAUSED: SmithStepNotPausedError,
+  SMITH_TURN_LIMIT: SmithTurnLimitError,
+  SMITH_UNAVAILABLE: SmithUnavailableError,
+  SUBSCRIPTION_CHARGE_FAILED: SubscriptionChargeFailedError,
+  SUBSCRIPTION_EXISTS: SubscriptionExistsError,
+  SUBSCRIPTION_NOT_ELIGIBLE: SubscriptionNotEligibleError,
+  SUBSCRIPTION_TRIAL_USED: SubscriptionTrialUsedError,
+  SUBSCRIPTION_UNAVAILABLE: SubscriptionUnavailableError,
   SUPERKEY_CONFLICT: SuperkeyConflictError,
   SYSTEM_KEY_IMMUTABLE: SystemKeyImmutableError,
   TASK_NOT_FOUND: TaskNotFoundError,

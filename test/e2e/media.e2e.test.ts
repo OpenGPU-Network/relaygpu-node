@@ -2,7 +2,7 @@
 // refuses a production base URL. Approximate cost at 2026-10-06 list prices:
 //   A8 Kling v3-T2V 5 s std silent: 1 task (0.42; the replay and the 422 create none) — not waited on
 //   A1 image google/gemini-nano-banana-2.1 1K: ~0.04 · TTS qwen3-tts-flash ~20 chars: ~0.0002
-//   A1 ASR whisper-1 on that TTS clip (~2 s, implicit relay1h upload = free): ~0.0002
+//   A1 ASR stt-1 on that TTS clip (~2 s, implicit relay1h upload = free): ~0.0002
 //   A1 video + wait: Kling v3-T2V 3 s std silent: 0.252
 import { describe, expect, it } from "vitest";
 import { Relay, IdempotencyKeyReusedError } from "./sdk.js";
@@ -76,7 +76,7 @@ suite("media e2e (staging, billed)", () => {
     expect(tts.audio_url).toMatch(/^https:\/\//);
     const clip = await (await fetch(tts.audio_url)).blob();
 
-    const asr = await relay.audio.transcribe("openai/whisper-1", { audio_url: clip.type.startsWith("audio/") ? clip : new Blob([clip], { type: "audio/wav" }) });
+    const asr = await relay.audio.transcribe("relay/stt-1", { audio_url: clip.type.startsWith("audio/") ? clip : new Blob([clip], { type: "audio/wav" }) });
     expect(typeof asr.text).toBe("string");
 
     const inference = calls.filter((c) => c.method === "POST" && !c.url.includes("/v2/files"));

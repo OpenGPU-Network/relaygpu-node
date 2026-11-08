@@ -245,6 +245,15 @@ const completion = await openai.chat.completions.create({
 console.log(completion.choices[0].message.content);
 ```
 
+The Responses API is the same swap, on the same base URL, for the `openai` models that list it (`GET /v2/models`):
+
+```ts
+const response = await openai.responses.create({ model: "openai/gpt-5.5", input: "Say hello in five words." });
+console.log(response.output_text);
+```
+
+Responses on Relay is stateless: Relay sets `store: false`, and `previous_response_id` and `conversation` are refused. Resend the `input` each turn.
+
 ## Any model: `run()` and model resolution
 
 ```ts
@@ -453,7 +462,7 @@ retry policy.
 
 ## Text
 
-Chat is a base-URL swap on the official SDK, in any language:
+Chat and Responses are a base-URL swap on the official SDK, in any language (Responses is stateless: `store: false` is set by Relay; `previous_response_id` and `conversation` are refused):
 
 | SDK | Base URL |
 |---|---|
