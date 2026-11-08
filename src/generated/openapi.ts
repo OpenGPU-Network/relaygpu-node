@@ -585,7 +585,16 @@ export type paths = {
             path?: never;
             cookie?: never;
         };
-        get?: never;
+        /**
+         * Get My Key
+         * @description Read one of the authenticated customer's API keys by its non-secret `key_id`.
+         *
+         *     Same row as an entry of `GET /v2/customer/keys` (masked `key`, status, restrictions, budget). A revoked key is still readable with its status; a deleted, unknown or foreign key is 404 `KEY_NOT_FOUND`.
+         *
+         *     ## Authentication
+         *     `Authorization: Bearer <jwt>` (JWT from login endpoint) or superkey (`X-API-Key`)
+         */
+        get: operations["customer_keys_get"];
         put?: never;
         post?: never;
         /**
@@ -17895,6 +17904,42 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["CreateKeyResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    "X-Request-ID": components["headers"]["X-Request-ID"];
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["RelayErrorResponse"];
+                };
+            };
+        };
+    };
+    customer_keys_get: {
+        parameters: {
+            query?: never;
+            header?: {
+                authorization?: string | null;
+                "x-api-key"?: string | null;
+            };
+            path: {
+                key: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    "X-Request-ID": components["headers"]["X-Request-ID"];
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["KeyResponse"];
                 };
             };
             /** @description Validation Error */
