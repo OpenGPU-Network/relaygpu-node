@@ -2616,7 +2616,8 @@ export type paths = {
         get?: never;
         put?: never;
         /**
-         * Create a response (OpenAI Responses API)
+         * Create a response (OpenAI Responses API) — currently unavailable
+         * @deprecated
          * @description Create a model response with the OpenAI Responses API request and response shape
          *     (`client.responses.create` in the official `openai` libraries).
          *
@@ -23293,6 +23294,7 @@ export interface operations {
             };
         };
     };
+    /** @deprecated No live model serves this operation. */
     openai_responses: {
         parameters: {
             query?: never;

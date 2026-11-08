@@ -47,14 +47,11 @@ export interface ModelOperations {
     "moonshotai/kimi-k3.1-pro": "openai_chat_completions";
     "nvidia/nemotron-3-nano-30b-a3b": "openai_chat_completions";
     "openai/gpt-4o-mini": "openai_chat_completions";
-    "openai/gpt-5.4": "openai_responses";
+    "openai/gpt-5.4": "openai_chat_completions";
     "openai/gpt-5.4-mini": "openai_chat_completions";
-    "openai/gpt-5.5": "openai_responses";
+    "openai/gpt-5.5": "openai_chat_completions";
     "openai/gpt-5.5-pro": "openai_chat_completions";
-    "openai/gpt-6-astra": "openai_responses";
-    "openai/gpt-6-luna": "openai_responses";
-    "openai/gpt-6-sol": "openai_responses";
-    "openai/gpt-6.1-sol": "openai_responses";
+    "openai/gpt-6-astra": "openai_chat_completions";
     "relay/conductor": "openai_chat_completions";
     "x-ai/grok-4.3": "openai_chat_completions";
     "zai-org/glm-5.1": "openai_chat_completions";
