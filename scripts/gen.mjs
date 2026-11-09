@@ -26,7 +26,7 @@ for (const item of Object.values(spec.paths)) {
   for (const op of Object.values(item)) {
     if (!op?.operationId || op.deprecated || !Array.isArray(op["x-relay-models"])) continue;
     const tag = op.tags?.[0] ?? "Other";
-    for (const name of op["x-relay-models"]) (byTag[tag] ??= {})[name] = op.operationId;
+    for (const name of op["x-relay-models"]) (byTag[tag] ??= {})[name] ??= op.operationId; // first route in spec order wins: a model on two routes keeps its default endpoint
   }
 }
 const modelLines = [banner, "/** Live model names per tag → the operation that serves them (from `x-relay-models`). */", "export interface ModelOperations {"];

@@ -52,6 +52,9 @@ export interface ModelOperations {
     "openai/gpt-5.5": "openai_chat_completions";
     "openai/gpt-5.5-pro": "openai_chat_completions";
     "openai/gpt-6-astra": "openai_chat_completions";
+    "openai/gpt-6-luna": "openai_chat_completions";
+    "openai/gpt-6-sol": "openai_chat_completions";
+    "openai/gpt-6.1-sol": "openai_chat_completions";
     "relay/conductor": "openai_chat_completions";
     "x-ai/grok-4.3": "openai_chat_completions";
     "zai-org/glm-5.1": "openai_chat_completions";
